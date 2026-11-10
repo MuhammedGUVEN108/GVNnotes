@@ -1,5 +1,33 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.3.0 — Documents/GVNnotes klasör eşitlemesi, 11 Kasım 2026
+
+Kullanıcı 0.2.1 arayüzünü onayladı ("güzel olmuş") ve klasör eşitlemesini istedi. Kaynak klasör kararı: `Documents/GVNnotes` (tablette boş olarak oluşturuldu).
+
+**Akış:** Not listesinde "Documents/GVNnotes klasörünü bağla" kartı. Sistem klasör seçicisi doğrudan bu klasörde açılır; kullanıcı "Bu klasörü kullan → İzin ver" der. Okuma izni kalıcı alınır. Klasör uygulama açılışında, öne gelişte, not kapanınca ve "Şimdi eşitle"/"Notları yenile" ile taranır (anlık arka plan algılaması yoktur).
+
+**Kurallar (`FolderSync`, docs/TASARIM.md ile uyumlu):**
+- Yeni PDF → yeni not; klasör yolu korunur. Gizli (`.` ile başlayan, ör. `.GVNnotes-çöp`) klasörlere girilmez.
+- Boyut/zaman yalnız ipucudur; değişince içerik yeniden hash'lenir. Kopyalama ve hash aynı akıştan üretilir.
+- Aynı belge tekrar görülürse yeni not oluşmaz.
+- Kaybolan kaynakla aynı içerikte tek yeni belge varsa **taşıma** sayılır: aynı not, aynı yazılar, klasör güncellenir. Başlık yalnız kullanıcı değiştirmemişse dosya adını izler.
+- İçerik değişirse eski not ve yazıları korunur ("Kaynak PDF değişti" etiketi), yeni sürüm ayrı not olur.
+- Tamamlanmış taramada bulunamayan kaynak → not silinmez, "Kaynak PDF klasörde bulunamadı · yazılar korunuyor". Yarım taramada (izin/okuma hatası) hiçbir not kayıp sayılmaz.
+- Aynı içerik iki klasörde → iki ayrı not.
+- Bu sürümde tek yön: klasör → uygulama. Uygulama içinden taşıma/adlandırmanın klasöre yansıması ve çöp sonraki sürümde.
+
+**Arayüz:** "Tüm notlar"da üstte klasör kutucukları (not sayısıyla); klasöre girince alt klasör kutucukları ve o klasörün notları; geri/üst klasör, en üst klasörden "Tüm notlar"a döner. Hamburger menüde Tüm notlar, Klasörler ve girintili klasör ağacı (sayılarla), kaynak klasör durumu, "Şimdi eşitle" ve "Klasörü değiştir". Başlık altında eşitleme özeti (ör. "3 yeni PDF not oldu"), eşitleme sırasında ince ilerleme çubuğu.
+
+**Güvenlik:** Her açık notun editör durumu kendi ViewModelStore'unda tutulur ve not kapanınca temizlenir. Böylece kapalı bir notun bellekteki eski durumu, eşitlemenin taşıdığı notu tekrar açınca diske geri yazılamaz; kapanan notun PDF önbelleği de serbest kalır. Eşitleme not açıkken çalışmaz; eşitleme sürerken açılan not, eşitleme bitince açılır.
+
+**Doğrulama:**
+- Yeni `FolderSyncDeviceTest` (düz klasör kaynağıyla, aynı motor): ilk tarama 3 not + boş klasör, çöp klasörü taranmaz; arayüzde klasör kutucukları, alt klasöre giriş, üst klasöre dönüş ve menü ağacı; tekrar taramada kopya yok; taşıma (aynı not, eklenen sayfa korunuyor); yeniden adlandırma (kullanıcının başlığı korunuyor); içerik değişimi (eski not REPLACED, yeni 3 sayfalı not); yarım tarama hiçbir şeyi kayıp saymıyor; silinen kaynak MISSING, not duruyor; geri gelen dosya kopya üretmeden yeniden bağlanıyor. **OK.** Test ilk çalıştırmada iki gerçek hata yakaladı: düz klasör kaynağının gizli klasörün içine girmesi ve en üst klasörden geri dönünce "Tüm notlar" yerine ara bir ekrana gidilmesi. İkisi de düzeltildi.
+- **Gerçek SAF denemesi** (test kütüphanesinde, ayrı `Documents/GVNnotes-test` klasörüyle): seçici `Documents/GVNnotes` klasöründe açıldı, test klasörü seçilip izin verildi; alt klasördeki PDF "Alt klasor" klasöründe not oldu. Uygulama arka plandayken eklenen PDF, öne gelişte "1 yeni PDF not oldu" ile algılandı. Test klasörü ve test verisi ardından silindi.
+- Tüm cihaz testleri (PageStore, Ink regresyonu 2, PDF + sayfa sıralayıcı, klasör eşitleme, kalıcılık 3 aşama, kütüphane seed/verify) geçti. `build.ps1 -Offline` BUILD SUCCESSFUL, lint 0 hata / 14 uyarı.
+- 0.3.0 tablete kuruldu; kullanıcının mevcut 3 notu ve "Bağla" kartı görünüyor. Gerçek klasör bağlama kullanıcıya bırakıldı (izin kullanıcı kararıdır).
+
+APK: `dist/GVNnotes-0.3.0-prototype.apk`, SHA256 `88953133987afe9f097484c1d7e447330cffc3ca5ccfb46321e1d57c60a84d66`.
+
 ## 0.2.1 — Samsung Notes düzeninde arayüz, 11 Kasım 2026
 
 Kullanıcı 0.2.0'ı onayladı ("evet düzgün şuan") ve tabletteki Samsung Notes arayüzünün referans alınmasını istedi. Samsung Notes tablette yalnızca görüntülenerek incelendi; not içerikleri kaydedilmedi. Yerleşim ve davranış referans alındı; Samsung kodu, simgeleri ve görselleri kullanılmadı.

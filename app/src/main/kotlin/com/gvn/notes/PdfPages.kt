@@ -30,7 +30,7 @@ class PdfPages(private val file:File) {
         val bucket=bucket(targetWidth)
         val key="$index@$bucket"
         cache.get(key)?.let { return it }
-        if(requested.add(key)) executor.execute {
+        if(!closed && requested.add(key)) executor.execute {
             val result=runCatching { render(index,bucket) }.getOrNull()
             main.post {
                 requested.remove(key)

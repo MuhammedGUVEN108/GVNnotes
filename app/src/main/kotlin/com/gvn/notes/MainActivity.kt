@@ -49,6 +49,7 @@ class MainActivity:ComponentActivity() {
     override fun onCreate(savedInstanceState:Bundle?) {
         super.onCreate(savedInstanceState); enableEdgeToEdge()
         // Cihaz testleri kullanıcı notunu değiştirmeyen ayrı, yalnız debug'da seçilebilen klasör kullanır.
+        val debuggable=(applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE)!=0
         val testDocument=(applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE)!=0 &&
             intent.getBooleanExtra("gvnnotes.testDocument",false)
         val testLibrary=(applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE)!=0 &&
@@ -57,13 +58,20 @@ class MainActivity:ComponentActivity() {
         val library=NoteLibrary(notebooks)
         val libraryState=ViewModelProvider(this,object:ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
-            override fun <T:ViewModel> create(modelClass:Class<T>):T = LibraryState(library) as T
+            override fun <T:ViewModel> create(modelClass:Class<T>):T = LibraryState(library) { uri ->
+                // Cihaz testleri SAF izni olmadan düz klasörle eşitleme dener; yalnız debug derlemede.
+                if(debuggable && uri.startsWith("file://")) FileSourceTree(File(android.net.Uri.parse(uri).path!!))
+                else SafSourceTree(applicationContext,android.net.Uri.parse(uri))
+            } as T
         })[LibraryState::class.java]
-        fun editor(key:String):EditorState = ViewModelProvider(this,object:ViewModelProvider.Factory {
+        // Her açık notun editörü kendi ViewModelStore'unda yaşar; not kapanınca temizlenir.
+        // Böylece kapalı notun eski bellek durumu (ör. eşitlemenin taşıdığı notta) diske geri yazılamaz.
+        val stores=ViewModelProvider(this)[EditorStores::class.java]
+        fun editor(key:String):EditorState = ViewModelProvider(stores.store(key),object:ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T:ViewModel> create(modelClass:Class<T>):T =
                 EditorState(if(testDocument)File(filesDir,"test-document") else library.directory(key)) as T
-        }).get("editor-$key",EditorState::class.java)
+        })[EditorState::class.java]
         setContent { MaterialTheme(colorScheme=lightColorScheme(
             primary=Color(0xff186c84),secondary=Color(0xff4fc4dd),surface=Color(0xfffafafa),
             surfaceContainerLow=Color(0xfff1f3f4)
@@ -72,10 +80,21 @@ class MainActivity:ComponentActivity() {
             else {
                 val selected=libraryState.selectedKey
                 if(selected==null) LibraryScreen(libraryState)
-                else key(selected) { EditorDestination(editor(selected),libraryState::close) }
+                else key(selected) { EditorDestination(editor(selected)) { libraryState.close(); stores.clear(selected) } }
             }
         } }
     }
+}
+
+/** Açık notların editör durumlarını taşır; yapılandırma değişiminde (ekran dönmesi) korunur. */
+class EditorStores:ViewModel() {
+    private val stores=HashMap<String,androidx.lifecycle.ViewModelStore>()
+    fun store(key:String):androidx.lifecycle.ViewModelStoreOwner {
+        val store=stores.getOrPut(key) { androidx.lifecycle.ViewModelStore() }
+        return object:androidx.lifecycle.ViewModelStoreOwner { override val viewModelStore=store }
+    }
+    fun clear(key:String) { stores.remove(key)?.clear() }
+    override fun onCleared() { stores.values.forEach { it.clear() }; stores.clear() }
 }
 
 @Composable private fun EditorDestination(editor:EditorState,onClose:()->Unit) {

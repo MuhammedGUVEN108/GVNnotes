@@ -18,7 +18,7 @@ Kotlin + Compose + uygulama içi Ink View prototipi oluşturuldu. Boş sayfada k
 
 ## Sonraki adım
 
-0.2.1 arayüz denemesi (kullanıcı Samsung Notes düzenini referans gösterdi; 0.2.0 onaylandı). Ardından 0.3: tabletteki `Documents/GVNnotes` klasöründeki PDFlerin otomatik not olması ve alt klasörler; 0.4: resimler ve dışa aktarma.
+Kullanıcı tablette Documents/GVNnotes klasörünü bağlayıp 0.3.0 eşitlemesini dener. Sonra: uygulama içinden klasör/not taşıma-adlandırmanın klasöre yansıması ve çöp (iki yönlü), resimler, dışa aktarma, sayfa silme/sıralama.
 
 ## Belgeler
 
@@ -31,6 +31,6 @@ Kotlin + Compose + uygulama içi Ink View prototipi oluşturuldu. Boş sayfada k
 
 `./build.ps1` birim testleri, debug APK ve Android lint çalıştırır. Mevcut JDK21/SDK35 ve yerel Gradle8.11.1 kullanılır. İlk çalışmada resmî Maven depolarından bağımlılıklar indirilebilir. Sonraki çalışmada `./build.ps1 -Offline` kullanılabilir. Android Studio bu klasörü Gradle projesi olarak açabilir.
 
-Güncel çıktı: `dist/GVNnotes-0.2.1-prototype.apk`: Samsung Notes düzeninde arayüz, PDF notları, çok sayfa, sayfa sıralayıcı; [ayrıntı](docs/DOGRULAMA.md).
+Güncel çıktı: `dist/GVNnotes-0.3.0-prototype.apk`: Documents/GVNnotes klasör eşitlemesi ve klasör ağacı, Samsung Notes düzeninde arayüz, PDF notları, çok sayfa; [ayrıntı](docs/DOGRULAMA.md).
 
 0.1.1: Tamamlanan çizgilerin Canvas sayfa dönüşümü düzeltildi; yukarı sıçrama ve görünen yazıyla silgi konumunun ayrılması aynı kök nedene bağlıydı. Gerçek tablet üzerinde sentetik stylus olayı + ekran pikseli kullanan regresyon testi eklendi. Test sonucu docs/DOGRULAMA.md içinde.

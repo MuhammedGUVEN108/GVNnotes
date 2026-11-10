@@ -14,9 +14,11 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.withLock
 
 data class NoteCard(val key:String,val title:String,val modified:Long,val strokeCount:Int,
-    val revision:Long,val preview:File?,val unreadable:Boolean=false,val pageCount:Int=1,val isPdf:Boolean=false)
+    val revision:Long,val preview:File?,val unreadable:Boolean=false,val pageCount:Int=1,val isPdf:Boolean=false,
+    val folderPath:String="")
 
 /** Dizin adı not kimliğinden bağımsızdır; eski notebooks/main yerinde okunur. */
 class NoteLibrary(private val root:File) {
@@ -35,7 +37,7 @@ class NoteLibrary(private val root:File) {
                 val modified=listOf("document-a.gvn","document-b.gvn").maxOf { File(dir,it).lastModified() }
                 val preview=runCatching { thumbnail(dir,snapshot) }.getOrNull()
                 NoteCard(dir.name,snapshot.note.title,modified,snapshot.strokes.size,snapshot.revision,preview,
-                    pageCount=snapshot.pages.size,isPdf=snapshot.source!=null)
+                    pageCount=snapshot.pages.size,isPdf=snapshot.source!=null,folderPath=snapshot.folder.relativePath)
             } catch(e:Exception) {
                 NoteCard(dir.name,"Not açılamadı",dir.lastModified(),0,0,null,true)
             }
@@ -53,17 +55,18 @@ class NoteLibrary(private val root:File) {
         catch(e:Exception) { dir.deleteRecursively(); throw e } // Yalnız bu çağrıda oluşturulan boş not.
         return key
     }
+    /** Eşitleme dizini ve geçici dosyalar not klasörlerinin yanında tutulur; not listesine karışmaz. */
+    val syncIndexFile get()=File(root.parentFile,"sync-index.json")
+    private val incoming get()=File(root.parentFile,"incoming")
+
     /**
-     * PDF'yi yeni bir nota dönüştürür: içerik özel klasöre kopyalanır (özgün dosyaya dokunulmaz),
-     * SHA256 parmak izi alınır ve her PDF sayfası için bir not sayfası oluşturulur.
-     * Hata olursa yalnız bu çağrıda oluşturulan klasör silinir.
+     * Kaynağı geçici dosyaya kopyalar ve SHA256 parmak izini aynı akıştan üretir
+     * (kopyalanırken değişen dosyada hash ile içerik ayrışmaz). Özgün dosyaya dokunulmaz.
      */
-    fun importPdf(title:String,input:()->java.io.InputStream):String {
-        val name=title.trim().ifEmpty { "PDF notu" }.take(100)
-        val key=UUID.randomUUID().toString(); val dir=directory(key)
-        check(!dir.exists() && dir.mkdirs()) { "Yeni not klasörü oluşturulamadı." }
+    fun receive(input:()->java.io.InputStream):Pair<File,String> {
+        check(incoming.isDirectory || incoming.mkdirs()) { "Geçici klasör oluşturulamadı." }
+        val temp=File.createTempFile("pdf-",".part",incoming)
         try {
-            val target=PageStore.sourceFile(dir); val temp=File(dir,"source.pdf.part")
             val digest=java.security.MessageDigest.getInstance("SHA-256")
             FileOutputStream(temp).use { out ->
                 input().use { stream ->
@@ -77,11 +80,24 @@ class NoteLibrary(private val root:File) {
                 }
                 out.flush(); out.fd.sync()
             }
-            check(temp.renameTo(target)) { "PDF kopyası tamamlanamadı." }
-            val hash=digest.digest().joinToString("") { "%02x".format(it) }
+            return temp to digest.digest().joinToString("") { "%02x".format(it) }
+        } catch(e:Exception) { temp.delete(); throw e }
+    }
+
+    /**
+     * Alınmış PDF'yi yeni nota dönüştürür: her PDF sayfası bir not sayfası olur.
+     * [folderPath] kaynak klasördeki yerdir ("" = kök). Hata olursa yalnız bu çağrıda oluşturulan not silinir.
+     */
+    fun createPdfNote(temp:File,hash:String,title:String,folderPath:String=""):String {
+        val name=title.trim().ifEmpty { "PDF notu" }.take(100)
+        val key=UUID.randomUUID().toString(); val dir=directory(key)
+        check(!dir.exists() && dir.mkdirs()) { "Yeni not klasörü oluşturulamadı." }
+        try {
+            val target=PageStore.sourceFile(dir)
+            check(temp.renameTo(target) || run { temp.copyTo(target); temp.delete(); true }) { "PDF kopyası tamamlanamadı." }
             val sizes=PdfPages.pageSizes(target)
             require(sizes.isNotEmpty() && sizes.size<=PageStore.MAX_PAGES) { "PDF sayfa sayısı desteklenmiyor." }
-            val folder=Folder(parentId=null,name="Notlar",relativePath="")
+            val folder=folderOf(folderPath)
             val note=Note(folderId=folder.id,title=name)
             // Sayfa genişliği boş sayfayla aynı (1000 birim); kalem kalınlıkları her notta aynı görünür.
             val pages=sizes.mapIndexed { i,(w,h) ->
@@ -92,6 +108,26 @@ class NoteLibrary(private val root:File) {
             return key
         } catch(e:Exception) { dir.deleteRecursively(); throw e } // Yalnız bu çağrıda oluşturulan not.
     }
+
+    /** Elle seçilen PDF'yi kök klasörde not yapar. */
+    fun importPdf(title:String,input:()->java.io.InputStream):String {
+        val (temp,hash)=receive(input)
+        try { return createPdfNote(temp,hash,title) } finally { temp.delete() }
+    }
+
+    /**
+     * Kaynak taşındığında notun klasörünü günceller. Başlık yalnız kullanıcı değiştirmemişse
+     * (hâlâ eski dosya adıysa) yeni dosya adı olur. Yazılar ve sayfalar olduğu gibi kalır.
+     */
+    fun moveNote(key:String,folderPath:String,oldTitle:String,newTitle:String) {
+        val store=PageStore(directory(key))
+        val snapshot=store.open().snapshot ?: return
+        val title=if(snapshot.note.title==oldTitle) newTitle.take(100) else snapshot.note.title
+        if(snapshot.folder.relativePath==folderPath && snapshot.note.title==title) return
+        store.save(snapshot.copy(revision=snapshot.revision+1,folder=folderOf(folderPath).copy(id=snapshot.folder.id),
+            note=snapshot.note.copy(title=title)))
+    }
+    private fun folderOf(path:String)=Folder(parentId=null,name=path.substringAfterLast('/').ifEmpty { "Notlar" },relativePath=path)
     private fun thumbnail(directory:File,snapshot:PageSnapshot):File {
         val image=File(directory,"preview.png"); val marker=File(directory,"preview-revision.txt")
         if(image.isFile && marker.isFile && marker.readText()==snapshot.revision.toString())return image
@@ -130,7 +166,50 @@ fun renderPage(directory:File,page:Page,strokes:List<RenderedStroke>,width:Int):
 private const val PAGE_WIDTH=1000f
 private const val MAX_PDF_BYTES=512L*1024*1024
 
-class LibraryState(val library:NoteLibrary):ViewModel() {
+class LibraryState(val library:NoteLibrary,private val treeFor:(String)->SourceTree):ViewModel() {
+    // --- Kaynak klasör eşitlemesi (0.3) ---
+    private val sourceFile=File(library.syncIndexFile.parentFile,"sync-source.txt")
+    /** Bağlı kaynak klasör (SAF ağaç URI'si); bağlı değilse null. */
+    var source by mutableStateOf(runCatching { sourceFile.readText().trim().ifEmpty { null } }.getOrNull()); private set
+    var syncing by mutableStateOf(false); private set
+    var syncMessage by mutableStateOf<String?>(null); private set
+    /** Kaynak klasörde (boş olanlar dahil) görülen klasör yolları. */
+    var folders by mutableStateOf<List<String>>(emptyList()); private set
+    /** Not anahtarı → kaynak durumu (yalnız klasörden gelen notlar). */
+    var sourceStates by mutableStateOf<Map<String,SourceState>>(emptyMap()); private set
+    private var pendingOpen:String?=null
+    private val syncLock=kotlinx.coroutines.sync.Mutex()
+
+    fun link(uri:String) {
+        runCatching { sourceFile.parentFile?.mkdirs(); sourceFile.writeText(uri) }
+        source=uri; sync()
+    }
+    /** Kaynak klasörü tarar; not açıkken çalışmaz (açık notun kaydıyla yarışmasın). */
+    fun sync() {
+        val uri=source ?: return
+        if(selectedKey!=null || syncing) return
+        syncing=true; syncMessage="Eşitleniyor…"
+        viewModelScope.launch {
+            try {
+                val report=syncLock.withLock { withContext(Dispatchers.IO) {
+                    FolderSync(library,SyncIndex(library.syncIndexFile).load(),treeFor(uri)).run()
+                } }
+                syncMessage=report.summary
+            } catch(e:Exception) {
+                if(e is CancellationException) throw e
+                syncMessage="Klasör okunamadı. İzni yenilemek için klasörü yeniden bağlayın."
+            } finally {
+                syncing=false
+                loadSyncState(); refresh()
+                pendingOpen?.let { pendingOpen=null; open(it) }
+            }
+        }
+    }
+    private fun loadSyncState() {
+        val index=runCatching { SyncIndex(library.syncIndexFile).load() }.getOrNull() ?: return
+        folders=index.folders
+        sourceStates=index.entries.associate { it.key to it.state }
+    }
     var notes by mutableStateOf<List<NoteCard>>(emptyList()); private set
     var loading by mutableStateOf(true); private set
     var error by mutableStateOf<String?>(null); private set
@@ -139,7 +218,7 @@ class LibraryState(val library:NoteLibrary):ViewModel() {
     var selectedKey by mutableStateOf<String?>(null); private set
     private var refreshJob:Job?=null
     private var refreshGeneration=0
-    init { refresh() }
+    init { loadSyncState(); refresh(); sync() }
     fun refresh() {
         val generation=++refreshGeneration
         refreshJob?.cancel()
@@ -150,8 +229,11 @@ class LibraryState(val library:NoteLibrary):ViewModel() {
             finally { if(generation==refreshGeneration)loading=false }
         }
     }
-    fun open(key:String) { library.directory(key); selectedKey=key }
-    fun close() { selectedKey=null; refresh() }
+    fun open(key:String) {
+        library.directory(key)
+        if(syncing) pendingOpen=key else selectedKey=key // Eşitleme bitince açılır.
+    }
+    fun close() { selectedKey=null; refresh(); sync() }
     fun clearCreationError() { creationError=null }
     var importing by mutableStateOf(false); private set
     var importError by mutableStateOf<String?>(null); private set
