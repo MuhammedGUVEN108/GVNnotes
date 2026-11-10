@@ -14,6 +14,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.PictureAsPdf
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.provider.OpenableColumns
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -32,15 +37,34 @@ import kotlinx.coroutines.withContext
 @Composable fun LibraryScreen(state:LibraryState) {
     var showNew by rememberSaveable { mutableStateOf(false) }
     var title by rememberSaveable { mutableStateOf("") }
+    val context=LocalContext.current
+    // Sistem dosya seçicisi; uygulama yalnız kullanıcının seçtiği PDF'yi okur ve kendi alanına kopyalar.
+    val pickPdf=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if(uri!=null) {
+            val name=runCatching {
+                context.contentResolver.query(uri,arrayOf(OpenableColumns.DISPLAY_NAME),null,null,null)?.use { c ->
+                    if(c.moveToFirst()) c.getString(0) else null
+                }
+            }.getOrNull()?.removeSuffix(".pdf")?.removeSuffix(".PDF") ?: "PDF notu"
+            state.importPdf(name) { checkNotNull(context.contentResolver.openInputStream(uri)) { "PDF okunamadı." } }
+        }
+    }
     Scaffold(modifier=Modifier.fillMaxSize().testTag("library"),containerColor=MaterialTheme.colorScheme.surface,
         topBar={TopAppBar(title={Column {
             Text("Notlar",style=MaterialTheme.typography.headlineMedium)
             Text("GVNnotes",style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
         }},actions={IconButton(onClick={state.refresh()},enabled=!state.loading) {Icon(Icons.Outlined.Refresh,"Notları yenile")}})},
-        floatingActionButton={ExtendedFloatingActionButton(
-            onClick={title=""; state.clearCreationError(); showNew=true},
-            icon={Icon(Icons.Outlined.Add,null)},text={Text("Yeni not")},modifier=Modifier.testTag("new-note"),
-            containerColor=MaterialTheme.colorScheme.primary,contentColor=MaterialTheme.colorScheme.onPrimary)}
+        floatingActionButton={Row(horizontalArrangement=Arrangement.spacedBy(16.dp)) {
+            ExtendedFloatingActionButton(
+                onClick={ if(!state.importing) { state.clearImportError(); pickPdf.launch(arrayOf("application/pdf")) } },
+                icon={Icon(Icons.Outlined.PictureAsPdf,null)},text={Text(if(state.importing)"PDF açılıyor…" else "PDF'den not")},
+                modifier=Modifier.testTag("import-pdf"),
+                containerColor=MaterialTheme.colorScheme.surfaceContainerLow,contentColor=MaterialTheme.colorScheme.primary)
+            ExtendedFloatingActionButton(
+                onClick={title=""; state.clearCreationError(); showNew=true},
+                icon={Icon(Icons.Outlined.Add,null)},text={Text("Yeni not")},modifier=Modifier.testTag("new-note"),
+                containerColor=MaterialTheme.colorScheme.primary,contentColor=MaterialTheme.colorScheme.onPrimary)
+        }}
     ) { insets ->
         when {
             state.loading -> Box(Modifier.fillMaxSize().padding(insets),contentAlignment=Alignment.Center) {
@@ -66,6 +90,10 @@ import kotlinx.coroutines.withContext
                 items(state.notes,key={it.key}) { note -> NoteCardView(note,onClick={state.open(note.key)}) }
             }
         }
+    }
+    state.importError?.let { message ->
+        AlertDialog(onDismissRequest={state.clearImportError()},title={Text("PDF içe aktarılamadı")},text={Text(message)},
+            confirmButton={TextButton(onClick={state.clearImportError()}){Text("Tamam")}})
     }
     if(showNew) AlertDialog(onDismissRequest={if(!state.creating)showNew=false},title={Text("Yeni not")},
         text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
@@ -96,7 +124,7 @@ private data class PreviewState(val bitmap:Bitmap?,val loaded:Boolean)
         }
         Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
             Text(note.title,style=MaterialTheme.typography.titleMedium,maxLines=2,overflow=TextOverflow.Ellipsis)
-            Text(if(note.unreadable)"Açıp yeniden deneyin" else "1 sayfa · ${DateUtils.getRelativeTimeSpanString(note.modified,System.currentTimeMillis(),DateUtils.MINUTE_IN_MILLIS)}",
+            Text(if(note.unreadable)"Açıp yeniden deneyin" else "${note.pageCount} sayfa${if(note.isPdf)" · PDF" else ""} · ${DateUtils.getRelativeTimeSpanString(note.modified,System.currentTimeMillis(),DateUtils.MINUTE_IN_MILLIS)}",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

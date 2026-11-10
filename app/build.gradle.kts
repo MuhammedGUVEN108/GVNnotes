@@ -1,4 +1,4 @@
-﻿plugins {
+plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -10,8 +10,8 @@ android {
         applicationId = "com.gvn.notes.prototype"
         minSdk = 28
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.1.4-prototype"
+        versionCode = 6
+        versionName = "0.2.0-prototype"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true }

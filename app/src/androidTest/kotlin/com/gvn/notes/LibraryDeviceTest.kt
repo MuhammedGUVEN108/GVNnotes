@@ -55,7 +55,7 @@ class LibraryDeviceTest {
     }
     private fun back() {
         compose.onNodeWithTag("back-to-notes").performClick()
-        try { waitLibrary() } catch(e:Exception) {
+        try { waitLibrary() } catch(e:Throwable) {
             var diagnostic=""
             inst.runOnMainSync {
                 val view=find(activity.window.decorView)

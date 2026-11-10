@@ -1,5 +1,26 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.2.0 — PDF notları, çok sayfa ve kaydırma, 11 Kasım 2026
+
+Yeni özellikler:
+- **PDF'den not:** Kütüphanedeki düğme sistem dosya seçicisini açar. PDF uygulamanın özel not klasörüne `source.pdf` olarak kopyalanır (özgün dosyaya dokunulmaz), SHA256 parmak izi alınır, her PDF sayfası bir not sayfası olur. Sayfa genişliği boş sayfayla aynı (1000 birim), en-boy oranı korunur. En çok 512 MiB / 2000 sayfa; bozuk/şifreli PDF'de açık hata gösterilir, yarım not bırakılmaz.
+- **Çok sayfa:** Sayfalar alt alta dizilir. Çizgiler kendi sayfalarının yerel koordinatında saklanır. Üst çubukta "Sayfa X / N" ve önceki/sonraki düğmeleri; araç şeridinde "Sona boş sayfa ekle".
+- **PDF görüntüsü:** `PdfPages`, PdfRenderer'ı tek arka plan iş parçacığında kullanır; yakınlaştırmaya göre 512–4096 px genişlikte görüntü üretir ve 160 MiB'lık önbellekte tutar. Hazırlanırken başka çözünürlükteki görüntü geçici gösterilir.
+- **Kaydırma:** Tek parmakla kaydırma ve savurma, iki parmakla yakınlaştırma. 90 dp'den geniş temas avuç sayılıp yok sayılır. Belge ekran dışına kaçmaz.
+- **Kayıt biçimi 2:** Sayfa listesi ve PDF kaynağı kaydedilir. Biçim 1 (eski tek sayfalı notlar) okunmaya devam eder; ilk değişiklikte biçim 2 olarak yazılır. 0.1.x uygulaması biçim 2'yi açmaz ve üzerine yazmaz.
+- **Kütüphane:** Kartlar "N sayfa · PDF" bilgisini ve PDF'nin ilk sayfasını önizleme olarak gösterir.
+
+Kalem yedeği (0.1.4 üzerine): Kütüphane testinde, yeni açılan notta çizimden hemen sonra Geri'ye basıldığında Ink'in çizgiyi hiç tamamlamadığı görüldü (yaklaşık 16 çizgide 2; `busy=true`, çizgi sayısı 0). Teslim gecikmesine karşı eklenen ilk güvenlik ağı bu durumu çözemiyordu. Artık iki deneme (~1,4 sn) sonunda çizgi kalemden kaydedilen gerçek örneklerden `MutableStrokeInputBatch` ile yeniden kuruluyor; bozulan canlı yüzey yenisiyle değiştiriliyor. Ink'in neden tamamlamadığı henüz bilinmiyor.
+
+Doğrulama (gerçek SM-X810):
+- Yeni `PdfNoteDeviceTest`: 3 sayfalı (biri yatay) test PDF'i üretilir ve içe aktarılır. Kontroller: SHA256 eşleşmesi, sayfa sayısı ve oranları, PDF içeriğinin ekranda doğru konumda piksel olarak görünmesi, beyaz alanın beyaz kalması, 2. sayfaya geçiş ve yazı (çizgi 2. sayfaya ait, yerel koordinat 400/300), sona boş sayfa ekleme, kaydın geri okunması, kütüphanede "4 sayfa · PDF" ve önizleme. **OK.** Ekran görüntüleri: `logs/pdf-screenshots/`.
+- Kütüphane testi yeni yedekle 8/8 geçti (yedek 2 kez devreye girdi ve çizgi koordinatları doğru kaydedildi). Yedekten önce 6 denemede 1 hata vardı.
+- Tüm cihaz testleri: PageStore, Ink regresyonu (2), PDF, kalıcılık seed/reopen/deleted, kütüphane seed/verify geçti.
+- `build.ps1 -Offline`: BUILD SUCCESSFUL, JVM testleri, lint 0 hata / 12 uyarı.
+- 0.2.0 tablete kuruldu. Kullanıcının eski biçim 1 notu "İlk sayfam" yazılarıyla açıldı ve görsel olarak incelendi.
+
+APK: `dist/GVNnotes-0.2.0-prototype.apk`, SHA256 `89f43ea59e6ddee83e0cc4d76e4a15df5927aec6b2a1f2ea64c1785c3f7a5df9`. Fiziksel S Pen ile, gerçek ders PDF'leriyle kullanıcı denemesi bekleniyor. Henüz yok: `Documents/GVNnotes` klasör senkronu (0.3), resimler ve dışa aktarma (0.4), sayfa silme/sıralama.
+
 ## 0.1.4 — "Çiziliyor" kilitlenmesi düzeltmesi, 11 Kasım 2026
 
 Kullanıcı bildirimi: editör "Çiziliyor…" durumunda takılı kalıyor; araçlar ve Notlara dön kilitleniyor.

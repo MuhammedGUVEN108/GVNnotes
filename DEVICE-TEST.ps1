@@ -21,6 +21,7 @@ Adb @('install','-r',"$root/app/build/outputs/apk/debug/app-debug.apk") | Out-Nu
 Adb @('install','-r',"$root/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk") | Out-Null
 TestPhase 'persistence-codec-device' 'com.gvn.notes.PageStoreDeviceTest'
 TestPhase 'persistence-ink-regression' 'com.gvn.notes.InkPageRegressionTest'
+TestPhase 'pdf-note' 'com.gvn.notes.PdfNoteDeviceTest'
 TestPhase 'persistence-seed' 'com.gvn.notes.PersistenceRestartTest' 'seed'
 Adb @('shell','am','force-stop','com.gvn.notes.prototype') | Out-Null
 TestPhase 'persistence-reopen' 'com.gvn.notes.PersistenceRestartTest' 'verify'

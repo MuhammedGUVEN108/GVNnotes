@@ -88,6 +88,7 @@ class MainActivity:ComponentActivity() {
 @Composable private fun EditorScreen(editor:EditorState,onBack:(()->Unit)?=null,closing:Boolean=false) {
     val revision=editor.revision
     val canEdit=editor.ready && !editor.busy && !closing
+    var pageView by remember { mutableStateOf<InkPageView?>(null) }
     Column(Modifier.fillMaxSize().testTag("editor").background(MaterialTheme.colorScheme.surface).safeDrawingPadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal=20.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically) {
             if(onBack!=null) IconButton(onClick=onBack,enabled=!closing,modifier=Modifier.testTag("back-to-notes")) {
@@ -96,6 +97,17 @@ class MainActivity:ComponentActivity() {
             Column(Modifier.weight(1f)) {
                 Text("GVNnotes",style=MaterialTheme.typography.titleLarge)
                 Text(editor.note.title,style=MaterialTheme.typography.bodyMedium,maxLines=1,overflow=TextOverflow.Ellipsis)
+            }
+            if(editor.pages.size>1) {
+                IconButton(onClick={ pageView?.scrollToPage(editor.currentPage-1) },enabled=canEdit&&editor.currentPage>0) {
+                    Icon(Icons.Outlined.KeyboardArrowUp,"Önceki sayfa")
+                }
+                Text("Sayfa ${editor.currentPage+1} / ${editor.pages.size}",style=MaterialTheme.typography.labelLarge,
+                    modifier=Modifier.testTag("page-indicator"))
+                IconButton(onClick={ pageView?.scrollToPage(editor.currentPage+1) },enabled=canEdit&&editor.currentPage<editor.pages.lastIndex) {
+                    Icon(Icons.Outlined.KeyboardArrowDown,"Sonraki sayfa")
+                }
+                Spacer(Modifier.width(16.dp))
             }
             Text("${(editor.viewport.scale*100).toInt()}%",style=MaterialTheme.typography.labelLarge)
         }
@@ -112,6 +124,9 @@ class MainActivity:ComponentActivity() {
                 HorizontalDivider(Modifier.padding(12.dp),color=Color(0xff394b5c))
                 RailButton(Icons.AutoMirrored.Outlined.Undo,"Geri al",false,canEdit&&editor.history.canUndo) { editor.undo() }
                 RailButton(Icons.AutoMirrored.Outlined.Redo,"İleri al",false,canEdit&&editor.history.canRedo) { editor.redo() }
+                RailButton(Icons.Outlined.NoteAdd,"Sona boş sayfa ekle",false,canEdit) {
+                    editor.addBlankPage(); pageView?.let { v -> v.post { v.refresh(); v.scrollToPage(editor.pages.lastIndex) } }
+                }
                 HorizontalDivider(Modifier.padding(12.dp),color=Color(0xff394b5c))
                 listOf(0xff18222e,0xff186c84,0xffd33f49,0xffe5a900).forEach { c ->
                     val value=c.toInt()
@@ -127,7 +142,7 @@ class MainActivity:ComponentActivity() {
                     Spacer(Modifier.height(8.dp))
                 }
             }
-            AndroidView(factory={ InkPageView(it,editor) },modifier=Modifier.weight(1f).fillMaxHeight(),
+            AndroidView(factory={ InkPageView(it,editor).also { v -> pageView=v } },modifier=Modifier.weight(1f).fillMaxHeight(),
                 update={ if(revision>=0) it.refresh() })
         }
         HorizontalDivider()
@@ -140,7 +155,7 @@ class MainActivity:ComponentActivity() {
                 Icon(Icons.Outlined.Mouse,contentDescription="Fare ile çizim denemesi")
             }
         }
-        Text("İki parmakla kaydır / yakınlaştır · ${if(closing) "Notlara dönülüyor…" else if(editor.busy) "Çiziliyor…" else editor.saveStatus}",
+        Text("Parmakla kaydır, iki parmakla yakınlaştır · ${if(closing) "Notlara dönülüyor…" else if(editor.busy) "Çiziliyor…" else editor.saveStatus}",
             modifier=Modifier.padding(start=16.dp,end=16.dp,bottom=8.dp),style=MaterialTheme.typography.bodySmall)
         editor.problem?.let { message ->
             Row(Modifier.fillMaxWidth().padding(horizontal=16.dp),verticalAlignment=Alignment.CenterVertically) {

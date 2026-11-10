@@ -11,10 +11,15 @@ import kotlinx.coroutines.channels.Channel
 
 data class RenderedStroke(val data: PageStroke, val ink: Stroke)
 
-class EditorState(directory:File) : ViewModel() {
+class EditorState(private val directory:File) : ViewModel() {
     var folder = Folder(parentId=null,name="Notlar",relativePath=""); private set
     var note = Note(folderId=folder.id,title="İlk sayfam"); private set
-    var page = Page(noteId=note.id,order=0); private set
+    var pages by mutableStateOf(listOf(Page(noteId=note.id,order=0))); private set
+    /** İlk sayfa; tek sayfalı eski notlar ve testler için. */
+    val page:Page get()=pages.first()
+    var source:NoteSource?=null; private set
+    /** PDF arka planı olan notlarda sayfa görüntülerini üretir; boş notlarda null. */
+    var pdf:PdfPages?=null; private set
     val history = History<RenderedStroke>()
     var revision by mutableIntStateOf(0); private set
     var tool by mutableStateOf(Tool.PEN)
@@ -24,6 +29,8 @@ class EditorState(directory:File) : ViewModel() {
     var busy by mutableStateOf(false)
     var navigationPending by mutableStateOf(false)
     var viewport by mutableStateOf(Viewport())
+    /** Görünür alanın ortasındaki sayfa (0 tabanlı); yalnız gösterim içindir. */
+    var currentPage by mutableIntStateOf(0)
     var fitted = false
     var ready by mutableStateOf(false); private set
     var saveStatus by mutableStateOf("Açılıyor…"); private set
@@ -54,7 +61,8 @@ class EditorState(directory:File) : ViewModel() {
         try {
             val loaded=withContext(Dispatchers.IO) { store.open() }
             loaded.snapshot?.let { snapshot ->
-                folder=snapshot.folder; note=snapshot.note; page=snapshot.page
+                folder=snapshot.folder; note=snapshot.note; pages=snapshot.pages; source=snapshot.source
+                if(snapshot.source!=null && pdf==null) pdf=PdfPages(PageStore.sourceFile(directory))
                 history.restore(snapshot.strokes); editVersion=snapshot.revision; savedVersion=snapshot.revision
             }
             ready=true; revision++
@@ -67,11 +75,19 @@ class EditorState(directory:File) : ViewModel() {
     }
     private fun changed() {
         revision++; editVersion++; saveStatus="Kaydediliyor…"
-        writes.trySend(PageSnapshot(editVersion,folder,note,page,history.items.toList()))
+        writes.trySend(snapshot())
     }
-    fun retry() { if(ready) { saveStatus="Kaydediliyor…"; writes.trySend(PageSnapshot(editVersion,folder,note,page,history.items.toList())) } else open() }
+    fun retry() { if(ready) { saveStatus="Kaydediliyor…"; writes.trySend(snapshot()) } else open() }
+    private fun snapshot()=PageSnapshot(editVersion,folder,note,pages,history.items.toList(),source)
+    /** Notun sonuna boş sayfa ekler. Çizgi geçmişinden bağımsızdır; geri alma sayfayı silmez. */
+    fun addBlankPage() {
+        if(!ready || busy || pages.size>=PageStore.MAX_PAGES) return
+        val last=pages.last()
+        pages=pages+Page(noteId=note.id,order=last.order+1,width=last.width,height=last.height)
+        changed()
+    }
     fun replace(strokes: List<RenderedStroke>) { if(ready && strokes!=history.items) { history.replace(strokes); changed() } }
     fun undo() { if (ready && !busy && history.canUndo) { history.undo(); changed() } }
     fun redo() { if (ready && !busy && history.canRedo) { history.redo(); changed() } }
-    override fun onCleared() { writes.close(); super.onCleared() }
+    override fun onCleared() { writes.close(); pdf?.close(); super.onCleared() }
 }

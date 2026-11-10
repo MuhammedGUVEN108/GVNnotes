@@ -6,30 +6,46 @@ import android.os.Build
 import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RectF
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
+import android.view.VelocityTracker
 import android.view.View
 import android.widget.FrameLayout
+import android.widget.OverScroller
 import androidx.ink.authoring.InProgressStrokeId
 import androidx.ink.authoring.InProgressStrokesView
 import androidx.ink.authoring.InProgressStrokesFinishedListener
 import androidx.ink.strokes.Stroke
 import androidx.ink.brush.Brush
 import androidx.ink.brush.StockBrushes
+import androidx.ink.brush.InputToolType
+import androidx.ink.strokes.MutableStrokeInputBatch
 import androidx.ink.rendering.android.canvas.CanvasStrokeRenderer
 import androidx.input.motionprediction.MotionEventPredictor
 import com.gvn.notes.core.*
+import kotlin.math.max
 import kotlin.math.min
 
-/** Sayfa içi yüzey. WindowManager, overlay servisi veya dosya erişimi yoktur. */
+/**
+ * Sayfa içi yüzey. WindowManager, overlay servisi veya dosya erişimi yoktur.
+ *
+ * Belge koordinatı: sayfalar alt alta, aralarında [GAP] boşlukla dizilir. Görünüm (editor.viewport)
+ * belge koordinatını ekrana taşır. Çizgiler kendi sayfalarının yerel koordinatında saklanır; böylece
+ * sayfa eklemek veya sıralamak yazıların yerini değiştirmez.
+ */
 @SuppressLint("ViewConstructor") // Compose factory supplies the editor; this view is not inflated from XML.
 class InkPageView(context: Context, private val editor: EditorState) : FrameLayout(context) {
-    private val live = InProgressStrokesView(context)
+    private var live: InProgressStrokesView = newLiveView()
     private val renderer = CanvasStrokeRenderer.create()
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val bitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG)
     private val viewMatrix = Matrix()
-    private val pageBounds = android.graphics.RectF()
+    private val pageMatrix = Matrix()
+    private val rect = RectF()
     private val predictor = MotionEventPredictor.newInstance(this)
+    private val density = resources.displayMetrics.density
     private var pointerId = -1
     private var strokeId: InProgressStrokeId? = null
     private var current: Pending? = null
@@ -37,55 +53,116 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     private var erasePreview: List<RenderedStroke>? = null
     private var lastErase: Pair<Float,Float>? = null
     private var fingerFocus: Pair<Float,Float>? = null
+    private var fingerCount = 0
+    private var palmGesture = false
+    private var velocity: VelocityTracker? = null
+    private val scroller = OverScroller(context)
+
+    // Sayfa yerleşimi; editor.pages değişince yeniden hesaplanır.
+    private var laidOut: List<Page>? = null
+    private var lefts = FloatArray(0)
+    private var tops = FloatArray(0)
+    private var docWidth = 1f
+    private var docHeight = 1f
+    private var groupedFor: List<RenderedStroke>? = null
+    private var grouped: Map<String,List<RenderedStroke>> = emptyMap()
+
     private val finished = object : View(context) {
         override fun onDraw(canvas: Canvas) {
-            val matrix = pageToScreen()
+            layoutPages()
             canvas.drawColor(0xffe5ebef.toInt())
-            val save=canvas.save()
-            canvas.concat(matrix)
-            paint.color=android.graphics.Color.WHITE; paint.style=Paint.Style.FILL
-            canvas.drawRect(0f,0f,editor.page.width,editor.page.height,paint)
-            canvas.restoreToCount(save)
-            val clip=canvas.save()
-            val bounds=pageBounds.apply { set(0f,0f,editor.page.width,editor.page.height) }
-            matrix.mapRect(bounds); canvas.clipRect(bounds)
-            // Ink'in transform parametresi geometri/kalite bilgisidir; Canvas'ı dönüştürmez.
-            // Sayfa koordinatındaki çizgileri gerçekten ekrana taşımak için aynı matrisi uygula.
-            canvas.concat(matrix)
-            (erasePreview ?: editor.history.items).forEach { renderer.draw(canvas,it.ink,matrix) }
-            canvas.restoreToCount(clip)
+            val strokes = byPage(erasePreview ?: editor.history.items)
+            val pages = editor.pages
+            for (i in pages.indices) {
+                val page = pages[i]
+                val m = pageMatrix(i)
+                rect.set(0f,0f,page.width,page.height); m.mapRect(rect)
+                if (rect.bottom < 0 || rect.top > height || rect.right < 0 || rect.left > width) continue
+                val save = canvas.save()
+                canvas.clipRect(rect)
+                paint.color = android.graphics.Color.WHITE; paint.style = Paint.Style.FILL
+                canvas.drawRect(rect,paint)
+                val index = page.sourcePageIndex
+                val pdf = editor.pdf
+                if (page.background == BackgroundType.PDF && index != null && pdf != null) {
+                    pdf.bitmap(index, rect.width().toInt()) { invalidate() }?.let { canvas.drawBitmap(it,null,rect,bitmapPaint) }
+                }
+                // Ink'in transform parametresi geometri/kalite bilgisidir; Canvas'ı dönüştürmez.
+                // Sayfa koordinatındaki çizgileri gerçekten ekrana taşımak için aynı matrisi uygula.
+                canvas.concat(m)
+                strokes[page.id]?.forEach { renderer.draw(canvas,it.ink,m) }
+                canvas.restoreToCount(save)
+            }
         }
     }
-    private data class Pending(val tool: Tool,val color: Int,val size: Float,
-        val startTime: Long,val samples: MutableList<Sample> = mutableListOf())
+    private data class Pending(val tool: Tool,val color: Int,val size: Float,val pageId: String,
+        val left: Float,val top: Float,val startTime: Long,val brush: Brush?=null,
+        val samples: MutableList<Sample> = mutableListOf())
     private val scaleGesture = ScaleGestureDetector(context, object: ScaleGestureDetector.SimpleOnScaleGestureListener() {
         override fun onScale(detector: ScaleGestureDetector): Boolean {
-            if (editor.busy) return false
-            editor.viewport=editor.viewport.zoomAt(detector.scaleFactor,detector.focusX,detector.focusY)
+            if (editor.busy || palmGesture) return false
+            editor.viewport=clamp(editor.viewport.zoomAt(detector.scaleFactor,detector.focusX,detector.focusY))
             refresh(); return true
         }
     })
     init {
-        contentDescription="Not sayfası; S Pen ile yazın, iki parmakla yakınlaştırın"
+        contentDescription="Not sayfası; S Pen ile yazın, parmakla kaydırın, iki parmakla yakınlaştırın"
         addView(finished,LayoutParams(-1,-1))
         addView(live,LayoutParams(-1,-1))
-        live.addFinishedStrokesListener(object: InProgressStrokesFinishedListener {
-          override fun onStrokesFinished(strokes: Map<InProgressStrokeId, Stroke>) = adopt(strokes)
+    }
+    private fun newLiveView(): InProgressStrokesView = InProgressStrokesView(context).apply {
+        addFinishedStrokesListener(object: InProgressStrokesFinishedListener {
+            override fun onStrokesFinished(strokes: Map<InProgressStrokeId, Stroke>) {
+                if (this@apply === live) adopt(strokes)
+            }
         })
     }
+
+    private fun layoutPages() {
+        val pages = editor.pages
+        if (pages === laidOut) return
+        docWidth = pages.maxOf { it.width }
+        lefts = FloatArray(pages.size) { (docWidth - pages[it].width) / 2 }
+        tops = FloatArray(pages.size)
+        var y = 0f
+        pages.forEachIndexed { i, p -> tops[i] = y; y += p.height + GAP }
+        docHeight = y - GAP
+        laidOut = pages
+    }
+    private fun byPage(list: List<RenderedStroke>): Map<String,List<RenderedStroke>> {
+        if (list !== groupedFor) { grouped = list.groupBy { it.data.pageId }; groupedFor = list }
+        return grouped
+    }
+    /** Belge → ekran dönüşümü. */
+    private fun pageToScreen() = viewMatrix.apply {
+        val v=editor.viewport
+        setScale(v.scale,v.scale)
+        postTranslate(v.x,v.y)
+    }
+    /** i. sayfanın yerel koordinatından ekrana dönüşüm. */
+    private fun pageMatrix(i: Int) = pageMatrix.apply { set(pageToScreen()); preTranslate(lefts[i],tops[i]) }
+    private fun pageAt(docX: Float, docY: Float): Int {
+        layoutPages()
+        val pages = editor.pages
+        for (i in pages.indices) {
+            if (docX in lefts[i]..lefts[i]+pages[i].width && docY in tops[i]..tops[i]+pages[i].height) return i
+        }
+        return -1
+    }
+
     /** Ink'in teslim ettiği bitmiş çizgileri sayfa verisine alır; aynı UI döngüsünde canlı yüzeyden kaldırır. */
-    private fun adopt(strokes: Map<InProgressStrokeId, Stroke>) {
+    private fun adopt(strokes: Map<InProgressStrokeId, Stroke>, fromLive: Boolean = true) {
         var next=editor.history.items
         strokes.forEach { (id, ink) ->
             pending.remove(id)?.let { p ->
-                next += RenderedStroke(PageStroke(pageId=editor.page.id,tool=p.tool,
+                next += RenderedStroke(PageStroke(pageId=p.pageId,tool=p.tool,
                     color=p.color,width=p.size,samples=p.samples.toList()),ink)
                 editor.replace(next) // Ink birden çok çizgiyi beraber teslim etse de her çizgi ayrı geri alınır.
             }
         }
         // Aynı UI döngüsünde sahipliği devral; fosforlu kalem iki kez çizilmesin.
         finished.invalidate()
-        if(strokes.isNotEmpty()) live.removeFinishedStrokes(strokes.keys)
+        if(fromLive && strokes.isNotEmpty()) live.removeFinishedStrokes(strokes.keys)
         editor.busy=pointerId != -1 || pending.isNotEmpty()
     }
     /**
@@ -93,49 +170,118 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
      * gelmeyebilir. Kalem kalktıktan sonra teslim gecikirse bitmiş çizgileri genel API ile kendimiz alırız;
      * böylece ekran "Çiziliyor" durumunda kilitli kalmaz ve yazı kaybolmaz.
      */
+    private var watchdogRounds = 0
     private val handoffWatchdog=Runnable {
-        if(pointerId==-1 && pending.isNotEmpty()) {
-            android.util.Log.w("GVNnotes","Ink teslimi gecikti; ${pending.size} bitmiş çizgi elle alınıyor.")
-            claimFinished()
-        }
-        if(pointerId==-1 && pending.isNotEmpty()) scheduleWatchdog()
+        if(pointerId!=-1 || pending.isEmpty()) { watchdogRounds=0; return@Runnable }
+        android.util.Log.w("GVNnotes","Ink teslimi gecikti; ${pending.size} bitmiş çizgi elle alınıyor.")
+        claimFinished()
+        if(pending.isEmpty()) { watchdogRounds=0; return@Runnable }
+        // Ink çizgiyi hiç tamamlamadıysa kaydedilen gerçek kalem örneklerinden yeniden kur.
+        if(++watchdogRounds>=2) { rebuildStuck(); watchdogRounds=0 } else scheduleWatchdog()
     }
     private fun scheduleWatchdog() { removeCallbacks(handoffWatchdog); postDelayed(handoffWatchdog,HANDOFF_TIMEOUT_MS) }
+    /**
+     * Son çare: Ink'in tamamlamadığı çizgiler kalemden kaydedilen örneklerden oluşturulur ve sayfaya alınır.
+     * Bozulmuş canlı yüzey değiştirilir; böylece ekranda yerinden oynamayan "hayalet" ıslak mürekkep kalmaz.
+     */
+    private fun rebuildStuck() {
+        val stuck=pending.toMap()
+        android.util.Log.w("GVNnotes","Ink ${stuck.size} çizgiyi tamamlamadı; örneklerden yeniden kuruluyor.")
+        val rebuilt=stuck.mapNotNull { (id,p) -> runCatching { id to Stroke(checkNotNull(p.brush),inputsOf(p)) }.getOrNull() }.toMap()
+        val old=live
+        live=newLiveView()
+        removeView(old); addView(live,LayoutParams(-1,-1))
+        adopt(rebuilt,fromLive=false)
+        pending.clear() // Kurulamayan (örneksiz) çizgi kalmışsa kilit yaratmasın.
+        editor.busy=pointerId!=-1
+        refresh()
+    }
+    private fun inputsOf(p: Pending): MutableStrokeInputBatch {
+        val batch=MutableStrokeInputBatch()
+        var last: Sample?=null
+        for (s in p.samples) {
+            val prev=last
+            if (prev!=null && (s.elapsedMillis<prev.elapsedMillis || (s.x==prev.x && s.y==prev.y))) continue
+            val orientation=if (s.orientationRadians<0) s.orientationRadians+(2*Math.PI).toFloat() else s.orientationRadians
+            runCatching {
+                batch.add(InputToolType.STYLUS,s.x,s.y,s.elapsedMillis,pressure=s.pressure.coerceIn(0f,1f),
+                    tiltRadians=s.tiltRadians.coerceIn(0f,(Math.PI/2).toFloat()),
+                    orientationRadians=orientation.coerceIn(0f,(2*Math.PI).toFloat()-1e-4f))
+            }.onSuccess { last=s }
+        }
+        return batch
+    }
     private fun claimFinished() = adopt(live.getFinishedStrokes().filterKeys { it in pending })
+
     fun refresh() {
+        layoutPages()
         // Canlı yüzey her zaman tüm alanı kaplar: zoom/kaydırmada boyutu değişirse Ink teslimi duraklı kalabiliyor.
-        // Masa alanında ıslak mürekkep görünmesin diye kâğıt dışı maskeyle gizlenir.
+        // Masa alanında ve sayfa aralarında ıslak mürekkep görünmesin diye kâğıt dışı maskeyle gizlenir.
         if(width>0 && height>0) {
-            val bounds=pageBounds.apply { set(0f,0f,editor.page.width,editor.page.height) }
-            pageToScreen().mapRect(bounds)
-            live.maskPath=android.graphics.Path().apply {
-                fillType=android.graphics.Path.FillType.EVEN_ODD
-                addRect(0f,0f,width.toFloat(),height.toFloat(),android.graphics.Path.Direction.CW)
-                addRect(bounds,android.graphics.Path.Direction.CW)
+            live.maskPath=Path().apply {
+                fillType=Path.FillType.EVEN_ODD
+                addRect(0f,0f,width.toFloat(),height.toFloat(),Path.Direction.CW)
+                editor.pages.forEachIndexed { i, p ->
+                    rect.set(0f,0f,p.width,p.height); pageMatrix(i).mapRect(rect)
+                    if (rect.intersects(0f,0f,width.toFloat(),height.toFloat())) addRect(RectF(rect),Path.Direction.CW)
+                }
             }
+            // Görünür alanın ortasındaki sayfa üst çubukta gösterilir.
+            val center=editor.viewport.toPage(width/2f,height/2f).second
+            val index=tops.indices.lastOrNull { tops[it] <= center } ?: 0
+            if (editor.currentPage != index) editor.currentPage = index
         }
         finished.invalidate()
     }
-    private fun pageToScreen() = viewMatrix.apply {
-        val v=editor.viewport
-        setScale(v.scale,v.scale)
-        postTranslate(v.x,v.y)
+    /** Sayfanın üstünü görünümün üstüne getirir (sayfa düğmeleri için). */
+    fun scrollToPage(index: Int) {
+        layoutPages()
+        if (editor.busy || index !in tops.indices) return
+        scroller.forceFinished(true)
+        val v = editor.viewport
+        editor.viewport = clamp(v.copy(y = 16 * density - tops[index] * v.scale))
+        refresh()
+    }
+    /** Belge en az kenar payı kadar görünür kalsın; küçükse tamamen ekranda kalsın. */
+    private fun clamp(v: Viewport): Viewport {
+        if (width <= 0 || height <= 0) return v
+        layoutPages()
+        val m = 24 * density
+        fun axis(pos: Float, size: Float, view: Float): Float {
+            val a = view - size - m; return pos.coerceIn(min(a, m), max(a, m))
+        }
+        return v.copy(x = axis(v.x, docWidth * v.scale, width.toFloat()), y = axis(v.y, docHeight * v.scale, height.toFloat()))
     }
     override fun onSizeChanged(w:Int,h:Int,oldw:Int,oldh:Int) {
         super.onSizeChanged(w,h,oldw,oldh)
         if (!editor.fitted && w>0 && h>0) {
-            val margin=20*resources.displayMetrics.density
-            val s=min((w-margin*2)/editor.page.width,(h-margin*2)/editor.page.height).coerceAtLeast(.1f)
-            editor.viewport=Viewport(s,(w-editor.page.width*s)/2,(h-editor.page.height*s)/2)
+            layoutPages()
+            val margin=20*density
+            val first=editor.pages.first()
+            editor.viewport = if (editor.pages.size == 1 && first.background == BackgroundType.BLANK) {
+                // Tek boş sayfa: sayfanın tamamı ekrana sığar (önceki sürümlerle aynı görünüm).
+                val s=min((w-margin*2)/first.width,(h-margin*2)/first.height).coerceAtLeast(.1f)
+                Viewport(s,(w-first.width*s)/2,(h-first.height*s)/2)
+            } else {
+                // Çok sayfa/PDF: sayfa genişliği ekrana sığar, okumaya üstten başlanır.
+                val s=((w-margin*2)/docWidth).coerceIn(.1f,8f)
+                Viewport(s,(w-docWidth*s)/2,margin)
+            }
             editor.fitted=true
         }
         refresh()
+    }
+    override fun computeScroll() {
+        if (scroller.computeScrollOffset()) {
+            editor.viewport = clamp(editor.viewport.copy(x = scroller.currX.toFloat(), y = scroller.currY.toFloat()))
+            refresh(); postInvalidateOnAnimation()
+        }
     }
     override fun onInterceptTouchEvent(event:MotionEvent) = true
     private fun isPen(e:MotionEvent,index:Int):Boolean = when(e.getToolType(index)) {
         MotionEvent.TOOL_TYPE_STYLUS,MotionEvent.TOOL_TYPE_ERASER -> true
         MotionEvent.TOOL_TYPE_MOUSE -> editor.mouseInput
-        else -> false // Avuç ve tek parmak hiçbir zaman mürekkep üretmez.
+        else -> false // Avuç ve parmak hiçbir zaman mürekkep üretmez.
     }
     @SuppressLint("ClickableViewAccessibility") // This surface handles handwriting/pan gestures, not click actions; tools are accessible Compose buttons.
     override fun onTouchEvent(event:MotionEvent):Boolean {
@@ -143,6 +289,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         predictor.record(event)
         val action=event.actionMasked
         val ai=event.actionIndex
+        if (action==MotionEvent.ACTION_DOWN) scroller.forceFinished(true)
         val canceledPointer=Build.VERSION.SDK_INT>=33 && event.flags and MotionEvent.FLAG_CANCELED != 0 &&
             (pointerId<0 || event.getPointerId(ai)==pointerId)
         if (action==MotionEvent.ACTION_CANCEL || canceledPointer) {
@@ -152,10 +299,12 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         // Pending çizgiler varken kaleme izin ver; araç değişimi ve zoom yine kilitli kalır.
         if (pointerId == -1 &&
             (action==MotionEvent.ACTION_DOWN || action==MotionEvent.ACTION_POINTER_DOWN) && isPen(event,ai)) {
-            val point=editor.viewport.toPage(event.getX(ai),event.getY(ai))
-            if (point.first !in 0f..editor.page.width || point.second !in 0f..editor.page.height) return true
+            val doc=editor.viewport.toPage(event.getX(ai),event.getY(ai))
+            val pageIndex=pageAt(doc.first,doc.second)
+            if (pageIndex < 0) return true
+            val page=editor.pages[pageIndex]
             requestUnbufferedDispatch(event)
-            pointerId=event.getPointerId(ai); editor.busy=true; fingerFocus=null
+            pointerId=event.getPointerId(ai); editor.busy=true; fingerFocus=null; stopFingerGesture()
             // Yan düğme eşlemesi henüz ürün kararı değil; bu prototipte sadece araç seçicisi.
             val tool=if(event.getToolType(ai)==MotionEvent.TOOL_TYPE_ERASER) Tool.ERASER else editor.tool
             if(tool==Tool.ERASER && pending.isNotEmpty()) claimFinished() // Silmeden önce bitmiş mürekkebi sayfaya al.
@@ -164,11 +313,12 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
             }
             val width=if(tool==Tool.HIGHLIGHTER) editor.size*5 else editor.size
             val color=if(tool==Tool.HIGHLIGHTER) (editor.color and 0x00ffffff) or 0x66000000 else editor.color
-            current=Pending(tool,color,width,event.eventTime)
+            current=Pending(tool,color,width,page.id,lefts[pageIndex],tops[pageIndex],event.eventTime)
             if(tool==Tool.ERASER) erasePreview=editor.history.items else {
-                val inverse=Matrix(); pageToScreen().invert(inverse)
+                val inverse=Matrix(); pageMatrix(pageIndex).invert(inverse)
                 val family=if(tool==Tool.HIGHLIGHTER) StockBrushes.highlighter() else StockBrushes.pressurePen()
                 val brush=Brush.createWithColorIntArgb(family,color,width,.1f)
+                current=current!!.copy(brush=brush)
                 strokeId=live.startStroke(event,pointerId,brush,inverse)
                 pending[strokeId!!]=current!!
             }
@@ -197,51 +347,92 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         }
         if(editor.busy) return true
         if ((0 until event.pointerCount).any { event.getToolType(it)!=MotionEvent.TOOL_TYPE_FINGER }) return true
+        fingerGesture(event)
+        return true
+    }
+    /** Tek parmak kaydırır (bırakınca savrulur), iki parmak kaydırır ve yakınlaştırır. Avuç teması yok sayılır. */
+    private fun fingerGesture(event: MotionEvent) {
+        val action=event.actionMasked
+        if (action==MotionEvent.ACTION_DOWN) { palmGesture=false; velocity?.recycle(); velocity=VelocityTracker.obtain() }
+        if ((0 until event.pointerCount).any { event.getTouchMajor(it) > PALM_DP * density }) palmGesture=true
+        if (palmGesture) { fingerFocus=null; if(action==MotionEvent.ACTION_UP) stopFingerGesture(); return }
+        velocity?.addMovement(event)
         scaleGesture.onTouchEvent(event)
-        if(event.pointerCount>=2 && action==MotionEvent.ACTION_MOVE) {
-            var x=0f; var y=0f
-            for(i in 0 until event.pointerCount) { x+=event.getX(i); y+=event.getY(i) }
-            val focus=x/event.pointerCount to y/event.pointerCount
+        val lifted=if(action==MotionEvent.ACTION_POINTER_UP) 1 else 0
+        val count=event.pointerCount-lifted
+        var x=0f; var y=0f
+        for(i in 0 until event.pointerCount) if(!(lifted==1 && i==event.actionIndex)) { x+=event.getX(i); y+=event.getY(i) }
+        val focus=x/count to y/count
+        // Parmak sayısı değişince odak sıçramasın.
+        if (count!=fingerCount || action==MotionEvent.ACTION_DOWN || action==MotionEvent.ACTION_POINTER_DOWN || action==MotionEvent.ACTION_POINTER_UP) {
+            fingerFocus=focus; fingerCount=count
+        } else if (action==MotionEvent.ACTION_MOVE) {
             fingerFocus?.let { before ->
-                editor.viewport=editor.viewport.copy(x=editor.viewport.x+focus.first-before.first,y=editor.viewport.y+focus.second-before.second)
+                editor.viewport=clamp(editor.viewport.copy(x=editor.viewport.x+focus.first-before.first,y=editor.viewport.y+focus.second-before.second))
                 refresh()
             }
             fingerFocus=focus
-        } else fingerFocus=null
-        return true
+        }
+        if (action==MotionEvent.ACTION_UP) {
+            velocity?.let { tracker ->
+                tracker.computeCurrentVelocity(1000)
+                val v=editor.viewport
+                layoutPages()
+                val big=(max(docWidth,docHeight)*v.scale*2).toInt()
+                scroller.fling(v.x.toInt(),v.y.toInt(),tracker.xVelocity.toInt(),tracker.yVelocity.toInt(),-big,big,-big,big)
+                postInvalidateOnAnimation()
+            }
+            stopFingerGesture()
+        }
     }
+    private fun stopFingerGesture() { fingerFocus=null; fingerCount=0; velocity?.recycle(); velocity=null }
     private fun recordRealSamples(e:MotionEvent,i:Int) {
         val p=current ?: return
         for(h in 0..e.historySize) {
             val historical=h<e.historySize
             val x=if(historical)e.getHistoricalX(i,h) else e.getX(i)
             val y=if(historical)e.getHistoricalY(i,h) else e.getY(i)
-            val point=editor.viewport.toPage(x,y)
+            val doc=editor.viewport.toPage(x,y)
+            val point=doc.first-p.left to doc.second-p.top
             val time=if(historical)e.getHistoricalEventTime(h) else e.eventTime
             val pressure=if(historical)e.getHistoricalPressure(i,h) else e.getPressure(i)
             fun axis(axis:Int)=if(historical)e.getHistoricalAxisValue(axis,i,h) else e.getAxisValue(axis,i)
             val sample=Sample(point.first,point.second,pressure,axis(MotionEvent.AXIS_TILT),axis(MotionEvent.AXIS_ORIENTATION),time-p.startTime)
             if(p.samples.lastOrNull()!=sample) p.samples+=sample
             if(p.tool==Tool.ERASER) {
-                val from=lastErase ?: point
-                erasePreview=(erasePreview ?: editor.history.items).filterNot { hitStroke(it.data,from,point,editor.size*3) }
-                lastErase=point
+                val from=lastErase ?: doc
+                erasePreview=(erasePreview ?: editor.history.items).filterNot { hit(it,from,doc) }
+                lastErase=doc
             }
         }
         if(p.tool==Tool.ERASER) refresh()
     }
+    /** Silgi yolu belge koordinatındadır; çizginin kendi sayfasının yerel koordinatına çevrilerek sınanır. */
+    private fun hit(stroke: RenderedStroke, from: Pair<Float,Float>, to: Pair<Float,Float>): Boolean {
+        val i=editor.pages.indexOfFirst { it.id==stroke.data.pageId }
+        if (i < 0) return false
+        val dx=lefts[i]; val dy=tops[i]
+        return hitStroke(stroke.data,from.first-dx to from.second-dy,to.first-dx to to.second-dy,editor.size*3)
+    }
     private fun cancelGesture(e:MotionEvent) {
         strokeId?.let { live.cancelStroke(it,e); pending.remove(it) }
-        pointerId=-1; strokeId=null; current=null; erasePreview=null; lastErase=null; fingerFocus=null
+        pointerId=-1; strokeId=null; current=null; erasePreview=null; lastErase=null; stopFingerGesture(); palmGesture=false
         editor.busy=pending.isNotEmpty(); refresh()
     }
     override fun onDetachedFromWindow() {
         removeCallbacks(handoffWatchdog)
+        scroller.forceFinished(true)
         claimFinished() // Kalemi kalkmış ama henüz teslim edilmemiş çizgiler ekran kapanırken kaybolmasın.
         live.cancelUnfinishedStrokes()
         pending.clear(); pointerId=-1; current=null; strokeId=null; erasePreview=null
         editor.busy=false
         super.onDetachedFromWindow()
     }
-    private companion object { const val HANDOFF_TIMEOUT_MS=700L }
+    private companion object {
+        const val HANDOFF_TIMEOUT_MS=700L
+        /** Sayfalar arası boşluk (belge birimi). */
+        const val GAP=32f
+        /** Bundan geniş temas avuç sayılır ve kaydırma yapmaz. */
+        const val PALM_DP=90f
+    }
 }

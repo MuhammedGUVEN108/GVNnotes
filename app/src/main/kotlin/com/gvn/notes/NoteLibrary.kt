@@ -16,7 +16,7 @@ import java.util.UUID
 import kotlinx.coroutines.*
 
 data class NoteCard(val key:String,val title:String,val modified:Long,val strokeCount:Int,
-    val revision:Long,val preview:File?,val unreadable:Boolean=false)
+    val revision:Long,val preview:File?,val unreadable:Boolean=false,val pageCount:Int=1,val isPdf:Boolean=false)
 
 /** Dizin adı not kimliğinden bağımsızdır; eski notebooks/main yerinde okunur. */
 class NoteLibrary(private val root:File) {
@@ -34,7 +34,8 @@ class NoteLibrary(private val root:File) {
                 val snapshot=PageStore(dir).open().snapshot ?: return@mapNotNull null
                 val modified=listOf("document-a.gvn","document-b.gvn").maxOf { File(dir,it).lastModified() }
                 val preview=runCatching { thumbnail(dir,snapshot) }.getOrNull()
-                NoteCard(dir.name,snapshot.note.title,modified,snapshot.strokes.size,snapshot.revision,preview)
+                NoteCard(dir.name,snapshot.note.title,modified,snapshot.strokes.size,snapshot.revision,preview,
+                    pageCount=snapshot.pages.size,isPdf=snapshot.source!=null)
             } catch(e:Exception) {
                 NoteCard(dir.name,"Not açılamadı",dir.lastModified(),0,0,null,true)
             }
@@ -52,6 +53,45 @@ class NoteLibrary(private val root:File) {
         catch(e:Exception) { dir.deleteRecursively(); throw e } // Yalnız bu çağrıda oluşturulan boş not.
         return key
     }
+    /**
+     * PDF'yi yeni bir nota dönüştürür: içerik özel klasöre kopyalanır (özgün dosyaya dokunulmaz),
+     * SHA256 parmak izi alınır ve her PDF sayfası için bir not sayfası oluşturulur.
+     * Hata olursa yalnız bu çağrıda oluşturulan klasör silinir.
+     */
+    fun importPdf(title:String,input:()->java.io.InputStream):String {
+        val name=title.trim().ifEmpty { "PDF notu" }.take(100)
+        val key=UUID.randomUUID().toString(); val dir=directory(key)
+        check(!dir.exists() && dir.mkdirs()) { "Yeni not klasörü oluşturulamadı." }
+        try {
+            val target=PageStore.sourceFile(dir); val temp=File(dir,"source.pdf.part")
+            val digest=java.security.MessageDigest.getInstance("SHA-256")
+            FileOutputStream(temp).use { out ->
+                input().use { stream ->
+                    val buffer=ByteArray(64*1024); var total=0L
+                    while(true) {
+                        val n=stream.read(buffer); if(n<0) break
+                        total+=n; require(total<=MAX_PDF_BYTES) { "PDF çok büyük." }
+                        digest.update(buffer,0,n); out.write(buffer,0,n)
+                    }
+                    require(total>0) { "PDF boş." }
+                }
+                out.flush(); out.fd.sync()
+            }
+            check(temp.renameTo(target)) { "PDF kopyası tamamlanamadı." }
+            val hash=digest.digest().joinToString("") { "%02x".format(it) }
+            val sizes=PdfPages.pageSizes(target)
+            require(sizes.isNotEmpty() && sizes.size<=PageStore.MAX_PAGES) { "PDF sayfa sayısı desteklenmiyor." }
+            val folder=Folder(parentId=null,name="Notlar",relativePath="")
+            val note=Note(folderId=folder.id,title=name)
+            // Sayfa genişliği boş sayfayla aynı (1000 birim); kalem kalınlıkları her notta aynı görünür.
+            val pages=sizes.mapIndexed { i,(w,h) ->
+                Page(noteId=note.id,order=i,width=PAGE_WIDTH,height=PAGE_WIDTH*h/w,
+                    background=BackgroundType.PDF,sourceBlobHash=hash,sourcePageIndex=i)
+            }
+            PageStore(dir).save(PageSnapshot(1,folder,note,pages,emptyList(),NoteSource(hash,name,sizes.size)))
+            return key
+        } catch(e:Exception) { dir.deleteRecursively(); throw e } // Yalnız bu çağrıda oluşturulan not.
+    }
     private fun thumbnail(directory:File,snapshot:PageSnapshot):File {
         val image=File(directory,"preview.png"); val marker=File(directory,"preview-revision.txt")
         if(image.isFile && marker.isFile && marker.readText()==snapshot.revision.toString())return image
@@ -60,10 +100,15 @@ class NoteLibrary(private val root:File) {
         val file=AtomicFile(image); var output:FileOutputStream?=null
         try {
             val canvas=Canvas(bitmap); canvas.drawColor(Color.WHITE)
+            val first=snapshot.page
+            if(first.background==BackgroundType.PDF && first.sourcePageIndex!=null) {
+                val background=PdfPages.renderOnce(PageStore.sourceFile(directory),first.sourcePageIndex!!,w)
+                try { canvas.drawBitmap(background,null,android.graphics.Rect(0,0,w,h),null) } finally { background.recycle() }
+            }
             val matrix=Matrix().apply { setScale(w/snapshot.page.width,h/snapshot.page.height) }
             canvas.concat(matrix)
             val renderer=CanvasStrokeRenderer.create()
-            snapshot.strokes.forEach { renderer.draw(canvas,it.ink,matrix) }
+            snapshot.strokes.filter { it.data.pageId==first.id }.forEach { renderer.draw(canvas,it.ink,matrix) }
             output=file.startWrite(); check(bitmap.compress(Bitmap.CompressFormat.PNG,100,output)); file.finishWrite(output)
             marker.writeText(snapshot.revision.toString())
             return image
@@ -71,6 +116,9 @@ class NoteLibrary(private val root:File) {
         finally { bitmap.recycle() }
     }
 }
+
+private const val PAGE_WIDTH=1000f
+private const val MAX_PDF_BYTES=512L*1024*1024
 
 class LibraryState(val library:NoteLibrary):ViewModel() {
     var notes by mutableStateOf<List<NoteCard>>(emptyList()); private set
@@ -95,6 +143,21 @@ class LibraryState(val library:NoteLibrary):ViewModel() {
     fun open(key:String) { library.directory(key); selectedKey=key }
     fun close() { selectedKey=null; refresh() }
     fun clearCreationError() { creationError=null }
+    var importing by mutableStateOf(false); private set
+    var importError by mutableStateOf<String?>(null); private set
+    fun clearImportError() { importError=null }
+    /** Seçilen PDF'yi kopyalayıp not yapar ve notu açar. */
+    fun importPdf(title:String,input:()->java.io.InputStream) {
+        if(importing) return
+        importing=true; importError=null
+        viewModelScope.launch {
+            try { selectedKey=withContext(Dispatchers.IO) { library.importPdf(title,input) } }
+            catch(e:Exception) {
+                if(e is CancellationException) throw e
+                importError="PDF açılamadı. Dosya bozuk, şifreli veya çok büyük olabilir."
+            } finally { importing=false }
+        }
+    }
     fun create(title:String,onSuccess:()->Unit) {
         if(creating)return
         creating=true; creationError=null
