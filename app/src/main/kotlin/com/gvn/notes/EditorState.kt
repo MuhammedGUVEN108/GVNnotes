@@ -1,0 +1,77 @@
+package com.gvn.notes
+
+import androidx.compose.runtime.*
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.ink.strokes.Stroke
+import com.gvn.notes.core.*
+import java.io.File
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
+
+data class RenderedStroke(val data: PageStroke, val ink: Stroke)
+
+class EditorState(directory:File) : ViewModel() {
+    var folder = Folder(parentId=null,name="Notlar",relativePath=""); private set
+    var note = Note(folderId=folder.id,title="İlk sayfam"); private set
+    var page = Page(noteId=note.id,order=0); private set
+    val history = History<RenderedStroke>()
+    var revision by mutableIntStateOf(0); private set
+    var tool by mutableStateOf(Tool.PEN)
+    var color by mutableIntStateOf(0xff18222e.toInt())
+    var size by mutableFloatStateOf(3f)
+    var mouseInput by mutableStateOf(false)
+    var busy by mutableStateOf(false)
+    var navigationPending by mutableStateOf(false)
+    var viewport by mutableStateOf(Viewport())
+    var fitted = false
+    var ready by mutableStateOf(false); private set
+    var saveStatus by mutableStateOf("Açılıyor…"); private set
+    var problem by mutableStateOf<String?>(null); private set
+    var savedVersion by mutableLongStateOf(0); private set
+    var editVersion by mutableLongStateOf(0); private set
+    private val store=PageStore(directory)
+    private val writes=Channel<PageSnapshot>(Channel.CONFLATED)
+    init {
+        open()
+        viewModelScope.launch(Dispatchers.IO) {
+            for(snapshot in writes) {
+                try {
+                    store.save(snapshot)
+                    withContext(Dispatchers.Main) {
+                        savedVersion=snapshot.revision
+                        if(savedVersion==editVersion) { saveStatus="Kaydedildi"; problem=null }
+                    }
+                } catch(e:Exception) {
+                    if(e is CancellationException) throw e
+                    withContext(Dispatchers.Main) { problem="Kayıt yapılamadı. Değişiklikler bellekte duruyor."; saveStatus="Kaydedilemedi" }
+                }
+            }
+        }
+    }
+    private fun open() = viewModelScope.launch {
+        problem=null; saveStatus="Açılıyor…"
+        try {
+            val loaded=withContext(Dispatchers.IO) { store.open() }
+            loaded.snapshot?.let { snapshot ->
+                folder=snapshot.folder; note=snapshot.note; page=snapshot.page
+                history.restore(snapshot.strokes); editVersion=snapshot.revision; savedVersion=snapshot.revision
+            }
+            ready=true; revision++
+            saveStatus=if(loaded.recovered) "Önceki sağlam kayıt açıldı" else if(loaded.snapshot!=null) "Kaydedildi" else "Otomatik kayıt açık"
+        } catch(e:Exception) {
+            if(e is CancellationException) throw e
+            ready=false; problem="Not açılamadı. Kayıt dosyaları korundu; üzerine yazılmayacak."
+            saveStatus="Açılamadı"
+        }
+    }
+    private fun changed() {
+        revision++; editVersion++; saveStatus="Kaydediliyor…"
+        writes.trySend(PageSnapshot(editVersion,folder,note,page,history.items.toList()))
+    }
+    fun retry() { if(ready) { saveStatus="Kaydediliyor…"; writes.trySend(PageSnapshot(editVersion,folder,note,page,history.items.toList())) } else open() }
+    fun replace(strokes: List<RenderedStroke>) { if(ready && strokes!=history.items) { history.replace(strokes); changed() } }
+    fun undo() { if (ready && !busy && history.canUndo) { history.undo(); changed() } }
+    fun redo() { if (ready && !busy && history.canRedo) { history.redo(); changed() } }
+    override fun onCleared() { writes.close(); super.onCleared() }
+}

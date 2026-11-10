@@ -1,0 +1,225 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-10T20:27:33.174907+00:00",
+  "title": "Design System: GVNnotes",
+  "extensions": {
+    "colorMeta": {
+      "rail-midnight": {
+        "role": "neutral",
+        "displayName": "Rail Midnight",
+        "canonical": "#18222E",
+        "tonalRamp": [
+          "oklch(15% 0.0090 253.37)",
+          "oklch(27% 0.0144 253.37)",
+          "oklch(39% 0.0198 253.37)",
+          "oklch(51% 0.0253 253.37)",
+          "oklch(63% 0.0235 253.37)",
+          "oklch(75% 0.0180 253.37)",
+          "oklch(87% 0.0126 253.37)",
+          "oklch(95% 0.0090 253.37)"
+        ]
+      },
+      "tool-active": {
+        "role": "primary",
+        "displayName": "Tool Active",
+        "canonical": "#186C84",
+        "tonalRamp": [
+          "oklch(15% 0.0280 222.20)",
+          "oklch(27% 0.0448 222.20)",
+          "oklch(39% 0.0616 222.20)",
+          "oklch(51% 0.0784 222.20)",
+          "oklch(63% 0.0728 222.20)",
+          "oklch(75% 0.0560 222.20)",
+          "oklch(87% 0.0392 222.20)",
+          "oklch(95% 0.0280 222.20)"
+        ]
+      },
+      "accent-cyan": {
+        "role": "secondary",
+        "displayName": "Accent Cyan",
+        "canonical": "#4FC4DD",
+        "tonalRamp": [
+          "oklch(15% 0.0364 214.37)",
+          "oklch(27% 0.0583 214.37)",
+          "oklch(39% 0.0801 214.37)",
+          "oklch(51% 0.1020 214.37)",
+          "oklch(63% 0.0947 214.37)",
+          "oklch(75% 0.0728 214.37)",
+          "oklch(87% 0.0510 214.37)",
+          "oklch(95% 0.0364 214.37)"
+        ]
+      },
+      "chrome-surface": {
+        "role": "neutral",
+        "displayName": "Chrome Surface",
+        "canonical": "#EFF5F9",
+        "tonalRamp": [
+          "oklch(15% 0.0028 236.56)",
+          "oklch(27% 0.0045 236.56)",
+          "oklch(39% 0.0061 236.56)",
+          "oklch(51% 0.0078 236.56)",
+          "oklch(63% 0.0072 236.56)",
+          "oklch(75% 0.0056 236.56)",
+          "oklch(87% 0.0039 236.56)",
+          "oklch(95% 0.0028 236.56)"
+        ]
+      },
+      "workspace": {
+        "role": "neutral",
+        "displayName": "Workspace",
+        "canonical": "#E5EBEF",
+        "tonalRamp": [
+          "oklch(15% 0.0028 236.56)",
+          "oklch(27% 0.0045 236.56)",
+          "oklch(39% 0.0062 236.56)",
+          "oklch(51% 0.0079 236.56)",
+          "oklch(63% 0.0073 236.56)",
+          "oklch(75% 0.0056 236.56)",
+          "oklch(87% 0.0039 236.56)",
+          "oklch(95% 0.0028 236.56)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "oklch(15% 0.0000 89.88)",
+          "oklch(27% 0.0000 89.88)",
+          "oklch(39% 0.0000 89.88)",
+          "oklch(51% 0.0000 89.88)",
+          "oklch(63% 0.0000 89.88)",
+          "oklch(75% 0.0000 89.88)",
+          "oklch(87% 0.0000 89.88)",
+          "oklch(95% 0.0000 89.88)"
+        ]
+      },
+      "rail-divider": {
+        "role": "neutral",
+        "displayName": "Rail Divider",
+        "canonical": "#394B5C",
+        "tonalRamp": [
+          "oklch(15% 0.0122 247.28)",
+          "oklch(27% 0.0195 247.28)",
+          "oklch(39% 0.0269 247.28)",
+          "oklch(51% 0.0342 247.28)",
+          "oklch(63% 0.0318 247.28)",
+          "oklch(75% 0.0244 247.28)",
+          "oklch(87% 0.0171 247.28)",
+          "oklch(95% 0.0122 247.28)"
+        ]
+      },
+      "icon-disabled": {
+        "role": "neutral",
+        "displayName": "Icon Disabled",
+        "canonical": "#738393",
+        "tonalRamp": [
+          "oklch(15% 0.0103 248.34)",
+          "oklch(27% 0.0164 248.34)",
+          "oklch(39% 0.0226 248.34)",
+          "oklch(51% 0.0287 248.34)",
+          "oklch(63% 0.0267 248.34)",
+          "oklch(75% 0.0205 248.34)",
+          "oklch(87% 0.0144 248.34)",
+          "oklch(95% 0.0103 248.34)"
+        ]
+      },
+      "ink-red": {
+        "role": "neutral",
+        "displayName": "Ink Red",
+        "canonical": "#D33F49",
+        "tonalRamp": [
+          "oklch(15% 0.0400 21.33)",
+          "oklch(27% 0.0640 21.33)",
+          "oklch(39% 0.0880 21.33)",
+          "oklch(51% 0.1120 21.33)",
+          "oklch(63% 0.1040 21.33)",
+          "oklch(75% 0.0800 21.33)",
+          "oklch(87% 0.0560 21.33)",
+          "oklch(95% 0.0400 21.33)"
+        ]
+      },
+      "ink-yellow": {
+        "role": "neutral",
+        "displayName": "Ink Yellow",
+        "canonical": "#E5A900",
+        "tonalRamp": [
+          "oklch(15% 0.0400 82.86)",
+          "oklch(27% 0.0640 82.86)",
+          "oklch(39% 0.0880 82.86)",
+          "oklch(51% 0.1120 82.86)",
+          "oklch(63% 0.1040 82.86)",
+          "oklch(75% 0.0800 82.86)",
+          "oklch(87% 0.0560 82.86)",
+          "oklch(95% 0.0400 82.86)"
+        ]
+      }
+    },
+    "typographyMeta": {},
+    "shadows": [],
+    "motion": [],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Araç düğmesi",
+      "kind": "button",
+      "refersTo": "tool-button",
+      "description": "Native IconButton geometri önizlemesi; tarayıcı odağı native görsel kabul değildir.",
+      "html": "<div style=\"background:#18222e;padding:12px\"><button class=\"ds-tool\" aria-label=\"Kalem\"><svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z\"/></svg></button></div>",
+      "css": ".ds-tool{width:48px;height:48px;border:0;border-radius:50%;display:grid;place-items:center;color:#fff;background:transparent}.ds-tool:focus-visible{outline:2px solid currentColor;outline-offset:2px}.ds-tool:disabled{color:#738393}"
+    },
+    {
+      "name": "Seçili araç",
+      "kind": "button",
+      "refersTo": "tool-button-selected",
+      "description": "Petrol mavisi daire ve seçili durum.",
+      "html": "<button class=\"ds-tool ds-selected\" aria-label=\"Kalem\" aria-pressed=\"true\"><svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z\"/></svg></button>",
+      "css": ".ds-tool{width:48px;height:48px;border:0;border-radius:50%;display:grid;place-items:center;color:#fff;background:transparent}.ds-tool:focus-visible{outline:2px solid currentColor;outline-offset:2px}.ds-tool:disabled{color:#738393}.ds-selected{background:#186c84}"
+    },
+    {
+      "name": "Sol araç şeridi",
+      "kind": "nav",
+      "refersTo": "tool-rail",
+      "description": "72 dp native şeridin ölçeklenmemiş belge önizlemesi.",
+      "html": "<nav class=\"ds-rail\" aria-label=\"Araçlar\"><span>GVNpen</span><button class=\"ds-tool ds-selected\" aria-label=\"Kalem\" aria-pressed=\"true\"><svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z\"/></svg></button></nav>",
+      "css": ".ds-tool{width:48px;height:48px;border:0;border-radius:50%;display:grid;place-items:center;color:#fff;background:transparent}.ds-tool:focus-visible{outline:2px solid currentColor;outline-offset:2px}.ds-tool:disabled{color:#738393}.ds-rail{background:#18222e;color:white;width:72px;padding:12px 0;display:flex;flex-direction:column;align-items:center;gap:12px;font:500 12px system-ui}.ds-selected{background:#186c84}"
+    },
+    {
+      "name": "Renk örneği",
+      "kind": "button",
+      "refersTo": "color-swatch",
+      "description": "48 dp hedef, 30 dp daire; seçili çerçeve.",
+      "html": "<div class=\"ds-swatch-wrap\"><button class=\"ds-swatch\" aria-label=\"Petrol mavisi\" aria-pressed=\"true\"><span></span></button></div>",
+      "css": ".ds-swatch-wrap{background:#18222e;padding:8px}.ds-swatch{display:grid;place-items:center;width:48px;height:48px;background:transparent;border:0}.ds-swatch span{width:30px;height:30px;border:3px solid white;border-radius:50%;background:#186c84;box-sizing:border-box}.ds-swatch:focus-visible{outline:2px solid white;outline-offset:2px}"
+    },
+    {
+      "name": "Kâğıt çalışma alanı",
+      "kind": "custom",
+      "refersTo": "paper",
+      "description": "Beyaz dikdörtgen kâğıt ve gri çalışma masası; mürekkep örneği üretilmez.",
+      "html": "<div class=\"ds-workspace\"><div class=\"ds-paper\" role=\"img\" aria-label=\"Boş not sayfası\"></div></div>",
+      "css": ".ds-workspace{background:#e5ebef;padding:20px}.ds-paper{background:white;width:180px;height:240px;overflow:hidden}"
+    }
+  ],
+  "narrative": {
+    "northStar": "",
+    "overview": "Mevcut GVNpen arayüz kimliği referans alınır; motor kodu kullanılmaz. Mod: Operate. Kompakt, uygulama içine yerleşik sol araç şeridi kâğıt çalışma alanını öncelikli tutar. Samsung Notes yalnız davranış/mimari referansıdır; Samsung kodu veya görseli kopyalanmaz.",
+    "keyCharacteristics": [
+      "Gece mavisi kompakt sol şerit, petrol mavisi seçili araç, beyaz kâğıt.",
+      "Material 3 bağlam satırı, Material Icons (Apache 2.0) ve özgün silgi vektörü.",
+      "İlk prototip açık tema; koyu tema henüz teslim kapsamına dahil değil."
+    ],
+    "rules": [],
+    "dos": [
+      "**Do** Kâğıt çalışma alanını ve kompakt, uygulama içi sol şeridi koru.",
+      "**Do** Seçimi hem görsel durum hem erişilebilirlik semantiğiyle belirt.",
+      "**Do** Görsel ve S Pen kabulünü gerçek tablette ayrıca doğrula."
+    ],
+    "donts": [
+      "**Don't** GVNpen motorunu/kodunu veya Samsung kodu/görsellerini taşıma.",
+      "**Don't** Henüz bulunmayan kayıt veya dosya yönetimini çalışıyormuş gibi gösterme.",
+      "**Don't** Kaynak incelemesini görsel veya fiziksel kabul olarak sunma."
+    ]
+  }
+}
