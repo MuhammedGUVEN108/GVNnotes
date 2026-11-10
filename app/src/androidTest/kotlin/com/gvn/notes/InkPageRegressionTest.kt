@@ -102,4 +102,26 @@ class InkPageRegressionTest {
         gesture(listOf(400f to 800f,500f to 800f,600f to 800f),cancel=true)
         ui { assertEquals("Canceled gesture must not persist",1,editor.history.items.size) }
     }
+    /** 0.1.3 hatası: teslimden hemen sonra zoom/kaydırma yapılınca sonraki çizgi "Çiziliyor" durumunda kalıyordu. */
+    @Test fun strokeAfterQuickZoomDoesNotStayBusy() {
+        File(inst.targetContext.filesDir,"test-document").deleteRecursively()
+        val activity=inst.startActivitySync(Intent(inst.targetContext,MainActivity::class.java)
+            .putExtra("gvnnotes.testDocument",true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        inst.waitForIdleSync(); SystemClock.sleep(600)
+        ui {
+            page=checkNotNull(find(activity.window.decorView))
+            editor=InkPageView::class.java.getDeclaredField("editor").apply { isAccessible=true }.get(page) as EditorState
+            editor.tool=Tool.PEN; editor.size=6f
+        }
+        settle()
+        repeat(4) { round ->
+            val y=500f+round*120f
+            gesture(listOf(300f to y,400f to y,500f to y))
+            // Teslimden hemen sonra (Ink'in 500 ms tampon temizliği bitmeden) görünümü değiştir.
+            ui { editor.viewport=editor.viewport.zoomAt(if(round%2==0)1.15f else .87f,600f,700f).let { it.copy(x=it.x+30f) }; page.refresh() }
+        }
+        gesture(listOf(300f to 1100f,450f to 1100f,600f to 1100f))
+        ui { assertEquals(5,editor.history.items.size); assertFalse(editor.busy) }
+        assertEquals(5,PageStore(File(inst.targetContext.filesDir,"test-document")).open().snapshot!!.strokes.size)
+    }
 }

@@ -70,39 +70,49 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         addView(finished,LayoutParams(-1,-1))
         addView(live,LayoutParams(-1,-1))
         live.addFinishedStrokesListener(object: InProgressStrokesFinishedListener {
-          override fun onStrokesFinished(strokes: Map<InProgressStrokeId, Stroke>) {
-            var next=editor.history.items
-            strokes.forEach { (id, ink) ->
-                pending.remove(id)?.let { p ->
-                    next += RenderedStroke(PageStroke(pageId=editor.page.id,tool=p.tool,
-                        color=p.color,width=p.size,samples=p.samples.toList()),ink)
-                    editor.replace(next) // Ink birden çok çizgiyi beraber teslim etse de her çizgi ayrı geri alınır.
-                }
-            }
-            // Aynı UI döngüsünde sahipliği devral; fosforlu kalem iki kez çizilmesin.
-            finished.invalidate()
-            live.removeFinishedStrokes(strokes.keys)
-            editor.busy=pointerId != -1 || pending.isNotEmpty()
-          }
+          override fun onStrokesFinished(strokes: Map<InProgressStrokeId, Stroke>) = adopt(strokes)
         })
     }
+    /** Ink'in teslim ettiği bitmiş çizgileri sayfa verisine alır; aynı UI döngüsünde canlı yüzeyden kaldırır. */
+    private fun adopt(strokes: Map<InProgressStrokeId, Stroke>) {
+        var next=editor.history.items
+        strokes.forEach { (id, ink) ->
+            pending.remove(id)?.let { p ->
+                next += RenderedStroke(PageStroke(pageId=editor.page.id,tool=p.tool,
+                    color=p.color,width=p.size,samples=p.samples.toList()),ink)
+                editor.replace(next) // Ink birden çok çizgiyi beraber teslim etse de her çizgi ayrı geri alınır.
+            }
+        }
+        // Aynı UI döngüsünde sahipliği devral; fosforlu kalem iki kez çizilmesin.
+        finished.invalidate()
+        if(strokes.isNotEmpty()) live.removeFinishedStrokes(strokes.keys)
+        editor.busy=pointerId != -1 || pending.isNotEmpty()
+    }
+    /**
+     * Ink teslimi bazı durumlarda (ör. teslimden hemen sonra yüzey yeniden boyutlanınca) kendiliğinden
+     * gelmeyebilir. Kalem kalktıktan sonra teslim gecikirse bitmiş çizgileri genel API ile kendimiz alırız;
+     * böylece ekran "Çiziliyor" durumunda kilitli kalmaz ve yazı kaybolmaz.
+     */
+    private val handoffWatchdog=Runnable {
+        if(pointerId==-1 && pending.isNotEmpty()) {
+            android.util.Log.w("GVNnotes","Ink teslimi gecikti; ${pending.size} bitmiş çizgi elle alınıyor.")
+            claimFinished()
+        }
+        if(pointerId==-1 && pending.isNotEmpty()) scheduleWatchdog()
+    }
+    private fun scheduleWatchdog() { removeCallbacks(handoffWatchdog); postDelayed(handoffWatchdog,HANDOFF_TIMEOUT_MS) }
+    private fun claimFinished() = adopt(live.getFinishedStrokes().filterKeys { it in pending })
     fun refresh() {
-        // Canlı düşük gecikme yüzeyi de yalnız görünür kâğıdı kaplar.
-        // Fiziksel child sınırı, SurfaceView tabanlı ön tamponu da masadan uzak tutar.
+        // Canlı yüzey her zaman tüm alanı kaplar: zoom/kaydırmada boyutu değişirse Ink teslimi duraklı kalabiliyor.
+        // Masa alanında ıslak mürekkep görünmesin diye kâğıt dışı maskeyle gizlenir.
         if(width>0 && height>0) {
             val bounds=pageBounds.apply { set(0f,0f,editor.page.width,editor.page.height) }
             pageToScreen().mapRect(bounds)
-            val left=kotlin.math.ceil(bounds.left.coerceIn(0f,width.toFloat())).toInt()
-            val top=kotlin.math.ceil(bounds.top.coerceIn(0f,height.toFloat())).toInt()
-            val right=kotlin.math.floor(bounds.right.coerceIn(0f,width.toFloat())).toInt()
-            val bottom=kotlin.math.floor(bounds.bottom.coerceIn(0f,height.toFloat())).toInt()
-            val params=live.layoutParams as LayoutParams
-            val w=(right-left).coerceAtLeast(1); val h=(bottom-top).coerceAtLeast(1)
-            if(params.width!=w || params.height!=h || params.leftMargin!=left || params.topMargin!=top) {
-                live.layoutParams=LayoutParams(w,h).apply { leftMargin=left; topMargin=top }
+            live.maskPath=android.graphics.Path().apply {
+                fillType=android.graphics.Path.FillType.EVEN_ODD
+                addRect(0f,0f,width.toFloat(),height.toFloat(),android.graphics.Path.Direction.CW)
+                addRect(bounds,android.graphics.Path.Direction.CW)
             }
-            live.motionEventToViewTransform=Matrix().apply { setTranslate(-left.toFloat(),-top.toFloat()) }
-            live.visibility=if(right>left && bottom>top) View.VISIBLE else View.INVISIBLE
         }
         finished.invalidate()
     }
@@ -148,8 +158,9 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
             pointerId=event.getPointerId(ai); editor.busy=true; fingerFocus=null
             // Yan düğme eşlemesi henüz ürün kararı değil; bu prototipte sadece araç seçicisi.
             val tool=if(event.getToolType(ai)==MotionEvent.TOOL_TYPE_ERASER) Tool.ERASER else editor.tool
+            if(tool==Tool.ERASER && pending.isNotEmpty()) claimFinished() // Silmeden önce bitmiş mürekkebi sayfaya al.
             if(tool==Tool.ERASER && pending.isNotEmpty()) {
-                pointerId=-1; return true // Teslim edilmemiş mürekkep üzerinde silme yarışı oluşturma.
+                pointerId=-1; editor.busy=true; scheduleWatchdog(); return true // Yarım çizgi üzerinde silme yarışı oluşturma.
             }
             val width=if(tool==Tool.HIGHLIGHTER) editor.size*5 else editor.size
             val color=if(tool==Tool.HIGHLIGHTER) (editor.color and 0x00ffffff) or 0x66000000 else editor.color
@@ -180,6 +191,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
                 } else strokeId?.let { live.finishStroke(event,pointerId,it) }
                 pointerId=-1; strokeId=null; current=null; lastErase=null
                 editor.busy=pending.isNotEmpty(); refresh()
+                if(pending.isNotEmpty()) scheduleWatchdog()
             }
             return true // Kalem varken avuç/parmak zoom yapamaz.
         }
@@ -224,9 +236,12 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         editor.busy=pending.isNotEmpty(); refresh()
     }
     override fun onDetachedFromWindow() {
+        removeCallbacks(handoffWatchdog)
+        claimFinished() // Kalemi kalkmış ama henüz teslim edilmemiş çizgiler ekran kapanırken kaybolmasın.
         live.cancelUnfinishedStrokes()
         pending.clear(); pointerId=-1; current=null; strokeId=null; erasePreview=null
         editor.busy=false
         super.onDetachedFromWindow()
     }
+    private companion object { const val HANDOFF_TIMEOUT_MS=700L }
 }

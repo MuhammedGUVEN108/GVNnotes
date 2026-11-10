@@ -1,5 +1,25 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.1.4 — "Çiziliyor" kilitlenmesi düzeltmesi, 11 Kasım 2026
+
+Kullanıcı bildirimi: editör "Çiziliyor…" durumunda takılı kalıyor; araçlar ve Notlara dön kilitleniyor.
+
+Kök neden (Ink 1.0.0 kaynağıyla doğrulandı): Uygulama zoom/kaydırmada canlı `InProgressStrokesView` boyutunu kâğıt sınırına göre değiştiriyordu. Ink, çizgi tesliminden sonra eski tamponu ~500 ms içinde temizleyip teslimleri yeniden açar; bu sürede yüzey yeniden boyutlanırsa eski viewport atılır ve `cohortHandoffPaused` hiç kapanmaz. Sonraki çizgiler teslim edilmez, `pending` boşalmaz, `busy` kalıcı olarak açık kalır.
+
+Düzeltme (`InkPageView`):
+- Canlı yüzey artık hiç yeniden boyutlanmaz, tüm alanı kaplar. Masa alanında ıslak mürekkep görünmemesi için kâğıt dışı `maskPath` ile gizlenir.
+- Güvenlik ağı: kalem kalktıktan 700 ms sonra teslim gelmemişse bitmiş çizgiler genel `getFinishedStrokes()` API ile alınır ve `GVNnotes` etiketiyle loglanır.
+- Silgi, teslim bekleyen çizgi varken artık sessizce yok sayılmaz; bitmiş çizgileri önce sayfaya alır.
+- Ekran kapanırken kalemi kalkmış ama teslim edilmemiş çizgiler iptal edilmeden önce sayfaya alınır (olası son çizgi kaybı).
+
+Doğrulama (gerçek SM-X810):
+- Yeni test `strokeAfterQuickZoomDoesNotStayBusy`: dört çizginin her birinden hemen sonra zoom/kaydırma, ardından son çizgi. **Eski kodda başarısız** ("Ink ownership transfer timed out"), **yeni kodda OK**. Güvenlik ağı logu 0 kez tetiklendi; düzeltme kök nedeni gideriyor.
+- Tüm cihaz testleri yeniden geçti: InkPageRegressionTest (2), PageStore (3), kalıcılık seed/reopen/deleted, kütüphane seed/verify.
+- `build.ps1 -Offline`: BUILD SUCCESSFUL, JVM testleri, lint 0 hata / 11 uyarı.
+- 0.1.4 tablete kuruldu; kullanıcının mevcut notları (İlk sayfam, arda) listede açıldı.
+
+APK: `dist/GVNnotes-0.1.4-prototype.apk`, SHA256 `986015d254538577d250f5b2d076cc0fcfa885e5ae409f4b6b50829bbaea109a`. Fiziksel S Pen ile kullanıcı denemesi bekleniyor.
+
 ## 0.1.3 — Notlar arayüzü ve bağımsız notlar, 11 Kasım 2026
 
 Yeni normal açılış Notlar ekranıdır: gerçek sayfa küçük önizlemeleri, ad vererek Yeni not/Oluştur, not açma, editörde Notlara dön ve sistem Back. Her not ayrı UUID dizini ve EditorState/geçmiş/kayıt dosyası kullanır. Notlara dönüş tamamlanan çizgi ve kayıt sonuçlanana kadar bekler; kayıt hatasında notta kalma/yeniden deneme sunulur. Çizim motoru ve onaylı araç şeridi korunur.
