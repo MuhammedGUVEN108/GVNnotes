@@ -98,7 +98,7 @@ class PdfNoteDeviceTest {
         compose.waitUntil(15000) { runCatching { compose.onAllNodesWithTag("editor").fetchSemanticsNodes().isNotEmpty() }.getOrDefault(false) }
         val (view,state)=editor()
         settle(state)
-        compose.onNodeWithText("Sayfa 1 / 3").assertExists()
+        compose.onNodeWithContentDescription("Sayfa 1 / 3").assertExists()
 
         // PDF'deki siyah dikdörtgenin merkezi (200,150 pt) → not birimi (333.3,250).
         val (rx,ry)=screenOf(view,state,0,1000f*200/600,1000f*150/600)
@@ -114,7 +114,7 @@ class PdfNoteDeviceTest {
 
         // İkinci sayfaya git ve yaz.
         inst.runOnMainSync { view.scrollToPage(1) }
-        compose.waitUntil(5000) { runCatching { compose.onAllNodesWithText("Sayfa 2 / 3").fetchSemanticsNodes().isNotEmpty() }.getOrDefault(false) }
+        compose.waitUntil(5000) { runCatching { compose.onAllNodesWithContentDescription("Sayfa 2 / 3").fetchSemanticsNodes().isNotEmpty() }.getOrDefault(false) }
         inst.runOnMainSync { state.tool=Tool.PEN; state.color=0xff18222e.toInt(); state.size=8f }
         val start=SystemClock.uptimeMillis()
         listOf(400f,500f,600f).forEachIndexed { i,x ->
@@ -148,9 +148,19 @@ class PdfNoteDeviceTest {
         assertEquals(saved.pages[1].id,saved.strokes.single().data.pageId)
         assertEquals(expectedHash,saved.source!!.sha256)
 
+        // Sayfa sıralayıcı: küçük resme dokununca o sayfaya gidilir.
+        compose.onNodeWithContentDescription("Sayfa sıralayıcı").performClick()
+        compose.onNodeWithTag("page-sorter").assertExists()
+        compose.waitUntil(5000) { runCatching { compose.onAllNodesWithContentDescription("Sayfa 3").fetchSemanticsNodes().isNotEmpty() }.getOrDefault(false) }
+        compose.onNodeWithContentDescription("Sayfa 3").performClick()
+        compose.waitUntil(5000) { runCatching { compose.onAllNodesWithContentDescription("Sayfa 3 / 4").fetchSemanticsNodes().isNotEmpty() }.getOrDefault(false) }
+        SystemClock.sleep(800) // Küçük resimlerin arka planda üretilmesi için.
+        screenshot("05-page-sorter").recycle()
+        compose.onNodeWithContentDescription("Sayfa sıralayıcı").performClick()
+
         compose.onNodeWithTag("back-to-notes").performClick()
         compose.waitUntil(15000) { runCatching { compose.onAllNodesWithText("4 sayfa · PDF",substring=true).fetchSemanticsNodes().isNotEmpty() }.getOrDefault(false) }
         assertTrue(NoteLibrary(root).list().single().preview?.isFile==true)
-        screenshot("05-library-after-edit").recycle()
+        screenshot("06-library-after-edit").recycle()
     }
 }

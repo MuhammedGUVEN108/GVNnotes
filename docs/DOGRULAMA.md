@@ -1,5 +1,19 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.2.1 — Samsung Notes düzeninde arayüz, 11 Kasım 2026
+
+Kullanıcı 0.2.0'ı onayladı ("evet düzgün şuan") ve tabletteki Samsung Notes arayüzünün referans alınmasını istedi. Samsung Notes tablette yalnızca görüntülenerek incelendi; not içerikleri kaydedilmedi. Yerleşim ve davranış referans alındı; Samsung kodu, simgeleri ve görselleri kullanılmadı.
+
+- **Not listesi:** "Tüm notlar" başlığı ve not sayısı; satırlarda 96 dp küçük resim, başlık ve "tarih · N sayfa · PDF". Sağ üstte PDF içe aktarma, arama (başlığa göre süzme) ve menü (Notları yenile); sağ altta yuvarlak "Yeni not" düğmesi.
+- **Editör:** Üstte geri, dokunulunca değiştirilebilen başlık, sayfa sıralayıcı, sona sayfa ekle, tam ekran ve menü (başlığı değiştir, fare ile çizim). Solda dar, açık renkli araç şeridi: kalem, fosforlu, silgi; 5 renk; ince/orta/kalın ön ayarları; geri/ileri al. Alt kalınlık çubuğu kaldırıldı.
+- **Tuval üstü:** Sağ üstte yakınlaştırma yüzdesi ve "Ekrana sığdır"; sağ altta sayfa sayacı (erişilebilirlik: "Sayfa X / N"); sol altta kayıt durumu; hata olursa üstte "Tekrar dene" bandı.
+- **Sayfa sıralayıcı:** Soldaki panelde numaralı küçük resimler (PDF zemini + yazılar, arka planda üretilir); dokununca o sayfaya gider, + kutucuğu sona boş sayfa ekler.
+- **Tam ekran:** Üst çubuk ve sistem çubukları gizlenir; çıkış düğmesi tuvalin sağ üstünde.
+
+Doğrulama: PDF testine sayfa sıralayıcı adımı eklendi (panel açılır, 3. sayfaya dokunulur, sayaç "Sayfa 3 / 4" olur). Tüm cihaz testleri (PageStore, Ink regresyonu 2, PDF, kalıcılık 3 aşama, kütüphane seed/verify) geçti. `build.ps1 -Offline` BUILD SUCCESSFUL, lint 0 hata / 12 uyarı. Ekran görüntüleri `logs/ui-0.2.1/`. Tablete kuruldu; kullanıcının mevcut notları yeni listede önizlemeleriyle görünüyor.
+
+APK: `dist/GVNnotes-0.2.1-prototype.apk`, SHA256 `762935a3d8b31390e9c714597d050387e984aed9a72a38e404b424ffde8503a7`. Kullanıcının arayüz denemesi bekleniyor.
+
 ## 0.2.0 — PDF notları, çok sayfa ve kaydırma, 11 Kasım 2026
 
 Yeni özellikler:

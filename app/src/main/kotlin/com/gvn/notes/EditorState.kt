@@ -11,7 +11,7 @@ import kotlinx.coroutines.channels.Channel
 
 data class RenderedStroke(val data: PageStroke, val ink: Stroke)
 
-class EditorState(private val directory:File) : ViewModel() {
+class EditorState(val directory:File) : ViewModel() {
     var folder = Folder(parentId=null,name="Notlar",relativePath=""); private set
     var note = Note(folderId=folder.id,title="İlk sayfam"); private set
     var pages by mutableStateOf(listOf(Page(noteId=note.id,order=0))); private set
@@ -85,6 +85,12 @@ class EditorState(private val directory:File) : ViewModel() {
         val last=pages.last()
         pages=pages+Page(noteId=note.id,order=last.order+1,width=last.width,height=last.height)
         changed()
+    }
+    /** Not başlığını değiştirir; boş veya 100 karakterden uzun ad kabul edilmez. */
+    fun rename(title:String) {
+        val name=title.trim()
+        if(!ready || name.isEmpty() || name.length>100 || name==note.title) return
+        note=note.copy(title=name); revision++; changed()
     }
     fun replace(strokes: List<RenderedStroke>) { if(ready && strokes!=history.items) { history.replace(strokes); changed() } }
     fun undo() { if (ready && !busy && history.canUndo) { history.undo(); changed() } }

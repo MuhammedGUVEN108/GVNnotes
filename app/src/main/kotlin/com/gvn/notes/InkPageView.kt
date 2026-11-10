@@ -70,7 +70,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     private val finished = object : View(context) {
         override fun onDraw(canvas: Canvas) {
             layoutPages()
-            canvas.drawColor(0xffe5ebef.toInt())
+            canvas.drawColor(0xffe9eaec.toInt())
             val strokes = byPage(erasePreview ?: editor.history.items)
             val pages = editor.pages
             for (i in pages.indices) {
@@ -241,6 +241,16 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         val v = editor.viewport
         editor.viewport = clamp(v.copy(y = 16 * density - tops[index] * v.scale))
         refresh()
+    }
+    /** Görünümü başlangıç sığdırmasına döndürür (yakınlaştırma düğmesi). */
+    fun fit() {
+        if (editor.busy || width <= 0 || height <= 0) return
+        scroller.forceFinished(true)
+        val keepTop = editor.pages.size > 1 || editor.pages.first().background != BackgroundType.BLANK
+        val page = editor.currentPage
+        editor.fitted = false
+        onSizeChanged(width, height, width, height)
+        if (keepTop) scrollToPage(page)
     }
     /** Belge en az kenar payı kadar görünür kalsın; küçükse tamamen ekranda kalsın. */
     private fun clamp(v: Viewport): Viewport {

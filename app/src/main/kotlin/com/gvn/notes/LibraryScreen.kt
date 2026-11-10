@@ -2,23 +2,23 @@ package com.gvn.notes
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.provider.OpenableColumns
 import android.text.format.DateUtils
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import android.provider.OpenableColumns
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -27,16 +27,31 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+private val LibInk=Color(0xff1f2328)
+private val LibMuted=Color(0xff6b7075)
+private val LibAccent=Color(0xff186c84)
+private val LibBorder=Color(0xffe3e5e8)
+
+/** Not listesi: Samsung Notes'taki liste düzeni referans alınır (küçük resim + başlık + tarih). */
 @Composable fun LibraryScreen(state:LibraryState) {
     var showNew by rememberSaveable { mutableStateOf(false) }
     var title by rememberSaveable { mutableStateOf("") }
+    var searching by rememberSaveable { mutableStateOf(false) }
+    var query by rememberSaveable { mutableStateOf("") }
+    var menu by remember { mutableStateOf(false) }
     val context=LocalContext.current
     // Sistem dosya seçicisi; uygulama yalnız kullanıcının seçtiği PDF'yi okur ve kendi alanına kopyalar.
     val pickPdf=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -49,46 +64,67 @@ import kotlinx.coroutines.withContext
             state.importPdf(name) { checkNotNull(context.contentResolver.openInputStream(uri)) { "PDF okunamadı." } }
         }
     }
-    Scaffold(modifier=Modifier.fillMaxSize().testTag("library"),containerColor=MaterialTheme.colorScheme.surface,
-        topBar={TopAppBar(title={Column {
-            Text("Notlar",style=MaterialTheme.typography.headlineMedium)
-            Text("GVNnotes",style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
-        }},actions={IconButton(onClick={state.refresh()},enabled=!state.loading) {Icon(Icons.Outlined.Refresh,"Notları yenile")}})},
-        floatingActionButton={Row(horizontalArrangement=Arrangement.spacedBy(16.dp)) {
-            ExtendedFloatingActionButton(
-                onClick={ if(!state.importing) { state.clearImportError(); pickPdf.launch(arrayOf("application/pdf")) } },
-                icon={Icon(Icons.Outlined.PictureAsPdf,null)},text={Text(if(state.importing)"PDF açılıyor…" else "PDF'den not")},
-                modifier=Modifier.testTag("import-pdf"),
-                containerColor=MaterialTheme.colorScheme.surfaceContainerLow,contentColor=MaterialTheme.colorScheme.primary)
-            ExtendedFloatingActionButton(
-                onClick={title=""; state.clearCreationError(); showNew=true},
-                icon={Icon(Icons.Outlined.Add,null)},text={Text("Yeni not")},modifier=Modifier.testTag("new-note"),
-                containerColor=MaterialTheme.colorScheme.primary,contentColor=MaterialTheme.colorScheme.onPrimary)
-        }}
-    ) { insets ->
-        when {
-            state.loading -> Box(Modifier.fillMaxSize().padding(insets),contentAlignment=Alignment.Center) {
-                Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(16.dp)) {
-                    CircularProgressIndicator(); Text("Notlar açılıyor…")
+    val visible=if(query.isBlank()) state.notes else state.notes.filter { it.title.contains(query.trim(),ignoreCase=true) }
+    Box(Modifier.fillMaxSize().background(Color(0xfffafafa)).testTag("library").safeDrawingPadding()) {
+        Column(Modifier.fillMaxSize()) {
+            Row(Modifier.fillMaxWidth().height(72.dp).padding(start=24.dp,end=12.dp),verticalAlignment=Alignment.CenterVertically) {
+                if(searching) {
+                    IconButton(onClick={searching=false; query=""}) { Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Aramayı kapat",tint=LibInk) }
+                    OutlinedTextField(value=query,onValueChange={query=it},singleLine=true,placeholder={Text("Notlarda ara")},
+                        modifier=Modifier.weight(1f).testTag("search-field"),shape=RoundedCornerShape(24.dp))
+                } else {
+                    Column(Modifier.weight(1f)) {
+                        Text("Tüm notlar",fontSize=26.sp,fontWeight=FontWeight.SemiBold,color=LibInk)
+                        Text("${state.notes.size} not",style=MaterialTheme.typography.bodyMedium,color=LibMuted)
+                    }
+                    IconButton(onClick={ if(!state.importing) { state.clearImportError(); pickPdf.launch(arrayOf("application/pdf")) } },
+                        enabled=!state.importing,modifier=Modifier.testTag("import-pdf")) {
+                        Icon(Icons.Outlined.PictureAsPdf,"PDF'yi içe aktar",tint=LibInk)
+                    }
+                    IconButton(onClick={searching=true}) { Icon(Icons.Outlined.Search,"Ara",tint=LibInk) }
+                    Box {
+                        IconButton(onClick={menu=true}) { Icon(Icons.Outlined.MoreVert,"Diğer seçenekler",tint=LibInk) }
+                        DropdownMenu(expanded=menu,onDismissRequest={menu=false}) {
+                            DropdownMenuItem(text={Text("Notları yenile")},onClick={menu=false; state.refresh()},
+                                leadingIcon={Icon(Icons.Outlined.Refresh,null)})
+                        }
+                    }
                 }
             }
-            state.error!=null -> Box(Modifier.fillMaxSize().padding(insets).padding(24.dp),contentAlignment=Alignment.Center) {
-                Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(16.dp)) {
-                    Text(state.error!!); Button(onClick={state.refresh()}){Text("Yeniden dene")}
+            when {
+                state.loading -> Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) {
+                    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(16.dp)) {
+                        CircularProgressIndicator(color=LibAccent); Text("Notlar açılıyor…",color=LibMuted)
+                    }
+                }
+                state.error!=null -> Box(Modifier.fillMaxSize().padding(24.dp),contentAlignment=Alignment.Center) {
+                    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(16.dp)) {
+                        Text(state.error!!); Button(onClick={state.refresh()}){Text("Yeniden dene")}
+                    }
+                }
+                state.notes.isEmpty() -> Box(Modifier.fillMaxSize().padding(32.dp),contentAlignment=Alignment.Center) {
+                    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                        Icon(Icons.Outlined.Description,null,Modifier.size(48.dp),tint=LibAccent)
+                        Text("İlk notunu oluştur",style=MaterialTheme.typography.headlineSmall)
+                        Text("Yeni not aç veya bir PDF içe aktar.",style=MaterialTheme.typography.bodyLarge,color=LibMuted)
+                    }
+                }
+                visible.isEmpty() -> Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) { Text("Eşleşen not yok",color=LibMuted) }
+                else -> LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(start=24.dp,end=24.dp,top=8.dp,bottom=120.dp)) {
+                    items(visible,key={it.key}) { note -> NoteRow(note) { state.open(note.key) } }
                 }
             }
-            state.notes.isEmpty() -> Box(Modifier.fillMaxSize().padding(insets).padding(32.dp),contentAlignment=Alignment.Center) {
-                Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(12.dp)) {
-                    Icon(Icons.Outlined.Description,null,Modifier.size(48.dp),tint=MaterialTheme.colorScheme.primary)
-                    Text("İlk notunu oluştur",style=MaterialTheme.typography.headlineSmall)
-                    Text("Yeni not açıp S Pen ile yazmaya başla.",style=MaterialTheme.typography.bodyLarge)
-                }
+        }
+        if(state.importing) Surface(Modifier.align(Alignment.BottomCenter).padding(bottom=32.dp),shape=RoundedCornerShape(24.dp),shadowElevation=3.dp,color=Color.White) {
+            Row(Modifier.padding(horizontal=20.dp,vertical=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                CircularProgressIndicator(Modifier.size(20.dp),strokeWidth=2.dp,color=LibAccent); Text("PDF açılıyor…")
             }
-            else -> LazyVerticalGrid(columns=GridCells.Adaptive(220.dp),modifier=Modifier.fillMaxSize().padding(insets),
-                contentPadding=PaddingValues(start=24.dp,end=24.dp,top=24.dp,bottom=112.dp),
-                verticalArrangement=Arrangement.spacedBy(20.dp),horizontalArrangement=Arrangement.spacedBy(20.dp)) {
-                items(state.notes,key={it.key}) { note -> NoteCardView(note,onClick={state.open(note.key)}) }
-            }
+        }
+        // Sağ altta yuvarlak yeni not düğmesi.
+        Surface(onClick={title=""; state.clearCreationError(); showNew=true},shape=CircleShape,color=Color.White,shadowElevation=4.dp,
+            modifier=Modifier.align(Alignment.BottomEnd).padding(28.dp).size(72.dp).testTag("new-note")
+                .semantics { contentDescription="Yeni not" }) {
+            Box(contentAlignment=Alignment.Center) { Icon(Icons.Outlined.EditNote,null,tint=LibAccent,modifier=Modifier.size(34.dp)) }
         }
     }
     state.importError?.let { message ->
@@ -105,27 +141,28 @@ import kotlinx.coroutines.withContext
         dismissButton={TextButton(onClick={showNew=false},enabled=!state.creating){Text("Vazgeç")}})
 }
 
+private val dayFormat=SimpleDateFormat("d MMM",Locale("tr"))
+private val timeFormat=SimpleDateFormat("HH:mm",Locale("tr"))
+private fun shortDate(time:Long)=if(DateUtils.isToday(time)) timeFormat.format(time) else dayFormat.format(time)
+
 private data class PreviewState(val bitmap:Bitmap?,val loaded:Boolean)
-@Composable private fun NoteCardView(note:NoteCard,onClick:()->Unit) {
+@Composable private fun NoteRow(note:NoteCard,onClick:()->Unit) {
     val preview by produceState(PreviewState(null,false),note.key,note.revision,note.preview?.path) {
         value=PreviewState(null,false)
         value=PreviewState(withContext(Dispatchers.IO) { note.preview?.let { BitmapFactory.decodeFile(it.path) } },true)
     }
-    Card(onClick=onClick,modifier=Modifier.fillMaxWidth().testTag("note-${note.key}"),shape=RoundedCornerShape(12.dp),
-        colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surfaceContainerLow),
-        elevation=CardDefaults.cardElevation(defaultElevation=0.dp)) {
-        Box(Modifier.fillMaxWidth().height(232.dp).background(Color.White).padding(12.dp),contentAlignment=Alignment.Center) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick=onClick).padding(vertical=10.dp).testTag("note-${note.key}"),
+        verticalAlignment=Alignment.CenterVertically) {
+        Box(Modifier.size(96.dp).border(1.dp,LibBorder,RoundedCornerShape(14.dp)).background(Color.White,RoundedCornerShape(14.dp)).padding(6.dp),
+            contentAlignment=Alignment.Center) {
             preview.bitmap?.let { Image(it.asImageBitmap(),contentDescription=null,modifier=Modifier.fillMaxSize().testTag("preview-${note.key}"),contentScale=ContentScale.Fit) }
-                ?: Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Outlined.Description,null,tint=MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(if(note.unreadable)"Kayıt açılamadı" else if(!preview.loaded)"Önizleme hazırlanıyor…" else if(note.strokeCount==0)"Boş sayfa" else "Önizleme yok",
-                        style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+                ?: Icon(Icons.Outlined.Description,null,tint=LibBorder)
         }
-        Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
-            Text(note.title,style=MaterialTheme.typography.titleMedium,maxLines=2,overflow=TextOverflow.Ellipsis)
-            Text(if(note.unreadable)"Açıp yeniden deneyin" else "${note.pageCount} sayfa${if(note.isPdf)" · PDF" else ""} · ${DateUtils.getRelativeTimeSpanString(note.modified,System.currentTimeMillis(),DateUtils.MINUTE_IN_MILLIS)}",
-                style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(Modifier.padding(start=20.dp).weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+            Text(note.title,fontSize=20.sp,color=LibInk,maxLines=1,overflow=TextOverflow.Ellipsis)
+            Text(if(note.unreadable) "Kayıt açılamadı · açıp yeniden deneyin"
+                else "${shortDate(note.modified)} · ${note.pageCount} sayfa${if(note.isPdf) " · PDF" else ""}",
+                style=MaterialTheme.typography.bodyMedium,color=LibMuted)
         }
     }
 }

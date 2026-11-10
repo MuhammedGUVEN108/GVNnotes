@@ -95,26 +95,36 @@ class NoteLibrary(private val root:File) {
     private fun thumbnail(directory:File,snapshot:PageSnapshot):File {
         val image=File(directory,"preview.png"); val marker=File(directory,"preview-revision.txt")
         if(image.isFile && marker.isFile && marker.readText()==snapshot.revision.toString())return image
-        val w=320; val h=(w*snapshot.page.height/snapshot.page.width).toInt().coerceIn(1,640)
-        val bitmap=Bitmap.createBitmap(w,h,Bitmap.Config.ARGB_8888)
+        val bitmap=renderPage(directory,snapshot.page,snapshot.strokes,320)
         val file=AtomicFile(image); var output:FileOutputStream?=null
         try {
-            val canvas=Canvas(bitmap); canvas.drawColor(Color.WHITE)
-            val first=snapshot.page
-            if(first.background==BackgroundType.PDF && first.sourcePageIndex!=null) {
-                val background=PdfPages.renderOnce(PageStore.sourceFile(directory),first.sourcePageIndex!!,w)
-                try { canvas.drawBitmap(background,null,android.graphics.Rect(0,0,w,h),null) } finally { background.recycle() }
-            }
-            val matrix=Matrix().apply { setScale(w/snapshot.page.width,h/snapshot.page.height) }
-            canvas.concat(matrix)
-            val renderer=CanvasStrokeRenderer.create()
-            snapshot.strokes.filter { it.data.pageId==first.id }.forEach { renderer.draw(canvas,it.ink,matrix) }
             output=file.startWrite(); check(bitmap.compress(Bitmap.CompressFormat.PNG,100,output)); file.finishWrite(output)
             marker.writeText(snapshot.revision.toString())
             return image
         } catch(e:Exception) { output?.let { file.failWrite(it) }; throw e }
         finally { bitmap.recycle() }
     }
+}
+
+/**
+ * Tek sayfayı (PDF zemini + o sayfanın çizgileri) verilen genişlikte bitmap'e çizer.
+ * Kütüphane önizlemesi ve sayfa sıralayıcı küçük resimleri için; arka plan iş parçacığında çağrılır.
+ */
+fun renderPage(directory:File,page:Page,strokes:List<RenderedStroke>,width:Int):Bitmap {
+    val h=(width*page.height/page.width).toInt().coerceIn(1,width*4)
+    val bitmap=Bitmap.createBitmap(width,h,Bitmap.Config.ARGB_8888)
+    try {
+        val canvas=Canvas(bitmap); canvas.drawColor(Color.WHITE)
+        if(page.background==BackgroundType.PDF && page.sourcePageIndex!=null) {
+            val background=PdfPages.renderOnce(PageStore.sourceFile(directory),page.sourcePageIndex!!,width)
+            try { canvas.drawBitmap(background,null,android.graphics.Rect(0,0,width,h),null) } finally { background.recycle() }
+        }
+        val matrix=Matrix().apply { setScale(width/page.width,h/page.height) }
+        canvas.concat(matrix)
+        val renderer=CanvasStrokeRenderer.create()
+        strokes.filter { it.data.pageId==page.id }.forEach { renderer.draw(canvas,it.ink,matrix) }
+        return bitmap
+    } catch(e:Exception) { bitmap.recycle(); throw e }
 }
 
 private const val PAGE_WIDTH=1000f
