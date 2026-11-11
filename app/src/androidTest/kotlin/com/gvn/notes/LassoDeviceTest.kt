@@ -44,6 +44,7 @@ class LassoDeviceTest {
     }
     @Test fun lasso() {
         File(inst.targetContext.filesDir,"test-document").deleteRecursively()
+        File(inst.targetContext.filesDir,"pen.txt").delete()
         val activity=inst.startActivitySync(Intent(inst.targetContext,MainActivity::class.java)
             .putExtra("gvnnotes.testDocument",true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         inst.waitForIdleSync(); SystemClock.sleep(600)

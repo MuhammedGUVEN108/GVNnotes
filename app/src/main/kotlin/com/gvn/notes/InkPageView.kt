@@ -167,6 +167,9 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
                 finished.invalidate()
             }
             (action==MotionEvent.ACTION_UP || action==MotionEvent.ACTION_POINTER_UP) && e.getPointerId(ai)==lassoPointer -> {
+                // Kalemin kalktığı son konum da sayılır (yoksa bırakırken son hareket kadar geride kalır).
+                dragFrom?.let { from -> dragDelta=local.first-from.first to local.second-from.second }
+                if(dragFrom==null) lassoPath+=PenGeometry.P(local.first,local.second)
                 if(dragFrom!=null) editor.moveSelection(dragDelta.first,dragDelta.second)
                 else {
                     val pageId=editor.pages[lassoPage].id

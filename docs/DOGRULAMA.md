@@ -1,5 +1,19 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.9.1 — Tablet test oturumu, 12 Kasım 2026
+
+Kullanıcı tableti bağladı. Önce gerçek notların yedeği alındı (`yedek/gvnnotes-notlar-20261112-0038.tar`, 28 öge, 9 kayıt dosyası; git dışında). Not: PowerShell 5.1 `>` ikili veriyi bozuyor; yedek Git Bash `adb exec-out` ile alındı ve `tar -tf` ile doğrulandı.
+
+Otomatik cihaz testleri (gerçek SM-X810):
+- İlk çalıştırmada 0.6.0 kalem araçları (alan silgisi, S Pen düğmesi, akıllı şekil, sayfa ekleme, ayar kalıcılığı) **geçti**.
+- **Kement testi gerçek bir hata yakaladı:** kalem kalkarken son konum işlenmiyordu; taşıma 100 yerine 90 birim yapıldı. UP olayında son konum hesaba katılarak düzeltildi; kement, şablon ve parmakla çizim testleri geçti.
+- İkinci tam çalıştırmada Ink regresyon testi başarısız oldu: kalem testi `pen.txt`'ye alan silgisi ayarı bırakmış, kalıcılık özelliği doğru çalıştığı için sonraki test bunu yükledi. Uygulama hatası değil, test yalıtımı: silgi kullanan eski testler modu açıkça ayarlar, kalem testleri ayar dosyasını temizler.
+- Son tam çalıştırma: **13 cihaz aşaması + 2 kütüphane aşaması geçti** (PageStore, Ink regresyonu, PDF, klasör eşitleme, not yönetimi, iki yönlü işlemler, kalem araçları, kement, şablonlar, parmakla çizim, kalıcılık 3 aşama, kütüphane seed/verify).
+- `build.ps1 -Offline` BUILD SUCCESSFUL, JVM testleri geçti, lint 0 hata / 9 uyarı.
+- 0.9.1 kuruldu; kullanıcının 5 notu listede, 97 sayfalık PDF notu açıldı ("Sayfa 1 / 97", "Kaydedildi"), çökme kaydı yok.
+
+APK: `dist/GVNnotes-0.9.1.apk`, SHA256 `1c6d37ab481efd5a5b6668a812fac12e8d16ccebf1fd60a81ed493e51dcb0174`. Sırada: kullanıcıyla S Pen elle deneme listesi (TABLET-TESTI.md bölüm 2).
+
 ## 0.9.0 — Yayına hazırlık (cihazda henüz denenmedi), 11 Kasım 2026
 
 - **Ayarlar** (liste ⋮ → Ayarlar): Parmakla çizim (açıkken tek parmak yazar; yazarken ikinci parmak değerse yarım çizgi iptal edilip kaydırmaya geçilir; avuç eşiği korunur), yeni notların varsayılan şablonu, kaynak klasör durumu (okuma/yazma izni) ile bağla/yeniden bağla/değiştir/şimdi eşitle/bağlantıyı kaldır, sürüm ve veri saklama notu. Ayarlar `files/settings.json`.

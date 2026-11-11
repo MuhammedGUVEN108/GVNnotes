@@ -102,5 +102,6 @@ class PenToolsDeviceTest {
         assertEquals(0xff00d9f5.toInt(),reopened!!.color)
         assertEquals(listOf(0xff00d9f5.toInt()),reopened!!.customColors)
         assertFalse(reopened!!.eraserWhole); assertEquals(22f,reopened!!.eraserSize,.01f); assertTrue(reopened!!.smartShape)
+        File(inst.targetContext.filesDir,"pen.txt").delete() // Sonraki testler varsayılan kalem ayarlarıyla başlasın.
     }
 }

@@ -90,7 +90,7 @@ class InkPageRegressionTest {
         ui { editor.viewport=editor.viewport.zoomAt(1.2f,700f,900f).let { it.copy(x=it.x+25f,y=it.y+70f) }; page.refresh() }
         val zoomed=screenshot("02-after-zoom-pan")
         try { assertTrue("Ink lost page alignment after zoom/pan",hasInk(zoomed,500f to 650f)) } finally { zoomed.recycle() }
-        ui { editor.tool=Tool.ERASER }
+        ui { editor.tool=Tool.ERASER; editor.eraserWhole=true; editor.eraserSize=24f }
         gesture(listOf(500f to 620f,500f to 650f,500f to 680f))
         ui { assertTrue("Eraser did not remove stroke",editor.history.items.isEmpty()) }
         val erased=screenshot("03-erased")

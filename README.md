@@ -14,7 +14,7 @@ Proje merkezi: `D:/Sanal Desktop/GVNnotes`.
 
 **0.9.0 — ilk kullanılabilir sürüm adayı.** PDF/resim/boş sayfa notları, çok sayfa, sayfa sıralayıcı ve şablonlar; Samsung Notes düzeninde arayüz; S Pen kalem/fosforlu, tüm çizgi ve alan silgisi, S Pen yan düğmesi, akıllı şekil, kement seçimi; otomatik kayıt; `Documents/GVNnotes` iki yönlü klasör eşitlemesi; çöp kutusu; PDF olarak dışa aktarma; ayarlar ve hata kaydı.
 
-Tablette denenenler: 0.5.0'a kadar (tam cihaz test seti geçti; kullanıcı 0.2.0 ve 0.2.1'i onayladı). **0.6.0–0.9.0 cihazda henüz denenmedi**; derleme, JVM testleri ve lint geçti, cihaz testleri yazıldı. [Tablet test oturumu planı](docs/TABLET-TESTI.md) · [Kullanım kılavuzu](docs/KULLANIM.md)
+Tablette denenenler: 0.5.0'a kadar (tam cihaz test seti geçti; kullanıcı 0.2.0 ve 0.2.1'i onayladı). 12 Kasım 2026 tablet oturumunda **tüm otomatik cihaz testleri geçti** (0.9.1; kement bırakma hatası düzeltildi). Elle S Pen denemesi sürüyor. [Tablet test oturumu planı](docs/TABLET-TESTI.md) · [Kullanım kılavuzu](docs/KULLANIM.md)
 
 [Samsung Notes inceleme raporu](research/samsung-notes-4.3.831/RAPOR.md)
 
@@ -36,6 +36,6 @@ Kullanıcıyla tablette 0.9.0 test oturumu (DEVICE-TEST.ps1 + elle deneme listes
 
 `./build.ps1` birim testleri, debug APK ve Android lint çalıştırır. Mevcut JDK21/SDK35 ve yerel Gradle8.11.1 kullanılır. İlk çalışmada resmî Maven depolarından bağımlılıklar indirilebilir. Sonraki çalışmada `./build.ps1 -Offline` kullanılabilir. Android Studio bu klasörü Gradle projesi olarak açabilir.
 
-Güncel çıktı: `dist/GVNnotes-0.9.0.apk` (SHA256 `4a42f03338c931f3f812850e742cd1727e7ae8bff1eeeca21eaf2f12a85c670c`). Debug imzalı, yerel kurulum içindir; paket kimliği `com.gvn.notes.prototype` mevcut notları korumak için değiştirilmedi.
+Güncel çıktı: `dist/GVNnotes-0.9.1.apk` (SHA256 `1c6d37ab481efd5a5b6668a812fac12e8d16ccebf1fd60a81ed493e51dcb0174`). Debug imzalı, yerel kurulum içindir; paket kimliği `com.gvn.notes.prototype` mevcut notları korumak için değiştirilmedi.
 
 0.1.1: Tamamlanan çizgilerin Canvas sayfa dönüşümü düzeltildi; yukarı sıçrama ve görünen yazıyla silgi konumunun ayrılması aynı kök nedene bağlıydı. Gerçek tablet üzerinde sentetik stylus olayı + ekran pikseli kullanan regresyon testi eklendi. Test sonucu docs/DOGRULAMA.md içinde.

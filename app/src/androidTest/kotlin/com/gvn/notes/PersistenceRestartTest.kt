@@ -52,7 +52,7 @@ class PersistenceRestartTest {
     }
     private fun erase() {
         val now=SystemClock.uptimeMillis()
-        ui { editor.tool=Tool.ERASER; editor.size=8f }
+        ui { editor.tool=Tool.ERASER; editor.size=8f; editor.eraserWhole=true; editor.eraserSize=24f }
         listOf(620f,650f,680f).forEachIndexed { i,y ->
             ui {
                 val p=editor.viewport.toScreen(500f,y)
