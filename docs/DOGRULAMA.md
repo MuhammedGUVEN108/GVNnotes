@@ -1,5 +1,13 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.8.0 — Sayfa şablonları (cihazda henüz denenmedi), 11 Kasım 2026
+
+- Boş sayfa şablonları: Düz, Çizgili (sol kenar çizgisi ile), Kareli, Noktalı; aralık 38 birim ≈ 8 mm. Ekranda, küçük resimlerde ve dışa aktarılan PDF'te çizilir; çizgiler her yakınlaştırmada 1 px.
+- Yeni not penceresinde şablon seçimi. Eklenen sayfa yanındaki boş sayfanın şablonunu alır (PDF sayfasının yanına eklenirse notun ilk boş sayfasınınkini). Sayfa sıralayıcı menüsünde "Şablon: …" ile değiştirme (PDF/resim sayfalarında yok).
+- **Kayıt biçimi 3:** her sayfaya şablon kodu eklendi. Biçim 1 ve 2 okunmaya devam eder (şablon = düz); ilk değişiklikte biçim 3 yazılır. 0.7.x ve öncesi biçim 3'ü açmaz, üzerine yazmaz.
+
+Doğrulama: `build.ps1 -Offline` BUILD SUCCESSFUL, JVM testleri geçti, lint 0 hata / 11 uyarı. `TemplateDeviceTest` yazıldı; **tablette çalıştırılmadı.**
+
 ## 0.7.0 — Kement seçimi (cihazda henüz denenmedi), 11 Kasım 2026
 
 - Araç şeridinde **Kement**: kalemle döngü çizilir, örneklerinin en az yarısı döngü içinde kalan çizgiler (aynı sayfada) seçilir. Seçim kesikli çerçeve ve hafif dolguyla gösterilir.

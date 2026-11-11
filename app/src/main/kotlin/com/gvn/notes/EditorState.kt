@@ -117,17 +117,26 @@ class EditorState(val directory:File) : ViewModel() {
     fun insertBlankPageAfter(index:Int):Int {
         if(!ready || busy || pages.size>=PageStore.MAX_PAGES || index !in pages.indices) return -1
         val base=pages[index]
-        val blank=Page(noteId=note.id,order=0,width=base.width,height=base.height)
+        val blank=Page(noteId=note.id,order=0,width=base.width,height=base.height,pattern=defaultPattern(base))
         val list=pages.toMutableList(); list.add(index+1,blank)
         pages=list.mapIndexed { i,p -> p.copy(order=i) }
         changed()
         return index+1
     }
+    /** Yeni boş sayfanın şablonu: yanındaki boş sayfanınki, PDF sayfasıysa notun ilk boş sayfasınınki. */
+    private fun defaultPattern(near:Page)=if(near.background==BackgroundType.BLANK) near.pattern
+        else pages.firstOrNull { it.background==BackgroundType.BLANK }?.pattern ?: 0
+    /** Boş sayfanın şablonunu değiştirir (PDF/resim sayfalarında etkisiz). */
+    fun setPattern(index:Int,pattern:Int) {
+        if(!ready || busy || index !in pages.indices || pages[index].background!=BackgroundType.BLANK || pages[index].pattern==pattern) return
+        pages=pages.mapIndexed { i,p -> if(i==index) p.copy(pattern=pattern) else p }
+        changed()
+    }
     /** Notun sonuna boş sayfa ekler. Çizgi geçmişinden bağımsızdır; geri alma sayfayı silmez. */
     fun addBlankPage() {
         if(!ready || busy || pages.size>=PageStore.MAX_PAGES) return
         val last=pages.last()
-        pages=pages+Page(noteId=note.id,order=last.order+1,width=last.width,height=last.height)
+        pages=pages+Page(noteId=note.id,order=last.order+1,width=last.width,height=last.height,pattern=defaultPattern(last))
         changed()
     }
     var exporting by mutableStateOf<String?>(null); private set

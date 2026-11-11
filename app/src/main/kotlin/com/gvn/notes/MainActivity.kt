@@ -421,6 +421,10 @@ private val PickerColors=listOf(
                                     leadingIcon={Icon(Icons.Outlined.ArrowDownward,null)})
                                 DropdownMenuItem(text={Text("Arkasına boş sayfa ekle")},onClick={open=false; val n=editor.insertBlankPageAfter(i); if(n>=0) onOpen(n)},
                                     leadingIcon={Icon(Icons.Outlined.Add,null)})
+                                if(page.background==com.gvn.notes.core.BackgroundType.BLANK) PagePattern.entries.forEach { p ->
+                                    DropdownMenuItem(text={Text("Şablon: ${p.label}")},enabled=page.pattern!=p.code,
+                                        onClick={open=false; editor.setPattern(i,p.code)},leadingIcon={Icon(Icons.Outlined.GridOn,null)})
+                                }
                                 DropdownMenuItem(text={Text("Sayfayı sil")},enabled=editor.pages.size>1,onClick={open=false; deleting=i},
                                     leadingIcon={Icon(Icons.Outlined.Delete,null)})
                             }

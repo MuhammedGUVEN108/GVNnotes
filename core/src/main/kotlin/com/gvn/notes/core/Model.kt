@@ -15,7 +15,9 @@ data class SourceEntry(val id: String = newId(), val uri: String, val relativePa
 data class Page(val id: String = newId(), val noteId: String, val order: Int,
     val width: Float = 1000f, val height: Float = 1414f,
     val background: BackgroundType = BackgroundType.BLANK, val sourceEntryId: String? = null,
-    val sourceBlobHash: String? = null, val sourcePageIndex: Int? = null)
+    val sourceBlobHash: String? = null, val sourcePageIndex: Int? = null,
+    /** Boş sayfa şablonu kodu (0 düz, 1 çizgili, 2 kareli, 3 noktalı); kayıt biçimi 3'ten itibaren saklanır. */
+    val pattern: Int = 0)
 data class Sample(val x: Float, val y: Float, val pressure: Float, val tiltRadians: Float,
     val orientationRadians: Float, val elapsedMillis: Long)
 data class PageStroke(val id: String = newId(), val pageId: String, val formatVersion: Int = 1,

@@ -66,14 +66,14 @@ class NoteLibrary(private val root:File) {
             try { out.write(o.toString().toByteArray()); file.finishWrite(out) } catch(e:Exception) { file.failWrite(out); throw e }
         }
     }
-    fun create(title:String):String {
+    fun create(title:String,pattern:Int=0):String {
         val name=title.trim()
         require(name.isNotEmpty() && name.length<=100) { "Not adı 1–100 karakter olmalı." }
         val key=UUID.randomUUID().toString(); val dir=directory(key)
         check(!dir.exists() && dir.mkdirs()) { "Yeni not klasörü oluşturulamadı." }
         val folder=Folder(parentId=null,name="Notlar",relativePath="")
         val note=Note(folderId=folder.id,title=name)
-        val page=Page(noteId=note.id,order=0)
+        val page=Page(noteId=note.id,order=0,pattern=pattern)
         try { PageStore(dir).save(PageSnapshot(1,folder,note,page,emptyList())) }
         catch(e:Exception) { dir.deleteRecursively(); throw e } // Yalnız bu çağrıda oluşturulan boş not.
         return key
@@ -226,6 +226,7 @@ fun renderPage(directory:File,page:Page,strokes:List<RenderedStroke>,width:Int):
         }
         val matrix=Matrix().apply { setScale(width/page.width,h/page.height) }
         canvas.concat(matrix)
+        drawPattern(canvas,page)
         val renderer=CanvasStrokeRenderer.create()
         strokes.filter { it.data.pageId==page.id }.forEach { renderer.draw(canvas,it.ink,matrix) }
         return bitmap
@@ -412,12 +413,12 @@ class LibraryState(val library:NoteLibrary,private val treeFor:(String)->SourceT
             } finally { importing=false }
         }
     }
-    fun create(title:String,onSuccess:()->Unit) {
+    fun create(title:String,pattern:Int=0,onSuccess:()->Unit) {
         if(creating)return
         creating=true; creationError=null
         viewModelScope.launch {
             try {
-                val key=withContext(Dispatchers.IO) { library.create(title) }
+                val key=withContext(Dispatchers.IO) { library.create(title,pattern) }
                 selectedKey=key; onSuccess()
             } catch(e:Exception) {
                 if(e is CancellationException)throw e

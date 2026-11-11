@@ -70,6 +70,7 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
 @Composable fun LibraryScreen(state:LibraryState) {
     var showNew by rememberSaveable { mutableStateOf(false) }
     var title by rememberSaveable { mutableStateOf("") }
+    var pattern by rememberSaveable { mutableStateOf(0) }
     var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     var folder by rememberSaveable { mutableStateOf<String?>(null) }
@@ -307,8 +308,14 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
         text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(value=title,onValueChange={if(it.length<=100)title=it},singleLine=true,
                 label={Text("Not adı")},enabled=!state.creating,modifier=Modifier.fillMaxWidth().testTag("note-title"))
+            Text("Sayfa",style=MaterialTheme.typography.labelLarge,color=LibMuted)
+            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                PagePattern.entries.forEach { p ->
+                    FilterChip(selected=pattern==p.code,onClick={pattern=p.code},label={Text(p.label)},modifier=Modifier.testTag("pattern-${p.code}"))
+                }
+            }
             state.creationError?.let { Text(it,color=MaterialTheme.colorScheme.error,style=MaterialTheme.typography.bodySmall) }
-        }},confirmButton={TextButton(onClick={state.create(title){showNew=false}},enabled=title.isNotBlank()&&!state.creating,
+        }},confirmButton={TextButton(onClick={state.create(title,pattern){showNew=false}},enabled=title.isNotBlank()&&!state.creating,
             modifier=Modifier.testTag("create-note")) {Text(if(state.creating)"Oluşturuluyor…" else "Oluştur")}},
         dismissButton={TextButton(onClick={showNew=false},enabled=!state.creating){Text("Vazgeç")}})
 }

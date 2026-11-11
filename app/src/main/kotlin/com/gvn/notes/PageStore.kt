@@ -49,7 +49,7 @@ class PageStore(private val directory:File) {
         check(directory.isDirectory || directory.mkdirs()) { "Kayıt klasörü oluşturulamadı." }
         val payload=ByteArrayOutputStream()
         DataOutputStream(payload).use { out ->
-            out.writeInt(SCHEMA) // 2: çok sayfa + PDF arka planı. 1 yalnız okunur.
+            out.writeInt(SCHEMA) // 3: sayfa şablonu; 2: çok sayfa + PDF; 1 ve 2 okunur.
             out.writeUTF(snapshot.folder.id); out.writeUTF(snapshot.folder.name); out.writeUTF(snapshot.folder.relativePath)
             out.writeUTF(snapshot.note.id); out.writeUTF(snapshot.note.title)
             require(snapshot.folder.parentId==null && snapshot.pages.size<=MAX_PAGES)
@@ -59,7 +59,7 @@ class PageStore(private val directory:File) {
                 require(p.background!=BackgroundType.IMAGE)
                 require(p.background==BackgroundType.BLANK || (snapshot.source!=null && p.sourcePageIndex!=null))
                 out.writeUTF(p.id); out.writeInt(p.order); out.writeFloat(p.width); out.writeFloat(p.height)
-                out.writeUTF(p.background.name); out.writeInt(p.sourcePageIndex ?: -1)
+                out.writeUTF(p.background.name); out.writeInt(p.sourcePageIndex ?: -1); out.writeInt(p.pattern)
             }
             out.writeBoolean(snapshot.source!=null)
             snapshot.source?.let { out.writeUTF(it.sha256); out.writeUTF(it.displayName); out.writeInt(it.pageCount) }
@@ -111,8 +111,9 @@ class PageStore(private val directory:File) {
             val list=List(n) {
                 val id=input.readUTF(); val order=input.readInt(); val w=input.readFloat(); val h=input.readFloat()
                 val background=BackgroundType.valueOf(input.readUTF()); val index=input.readInt()
+                val pattern=if(schema>=3) input.readInt().coerceIn(0,15) else 0
                 require(background!=BackgroundType.IMAGE && (background==BackgroundType.BLANK)==(index<0))
-                Page(id=id,noteId=note.id,order=order,width=w,height=h,background=background,
+                Page(id=id,noteId=note.id,order=order,width=w,height=h,background=background,pattern=pattern,
                     sourcePageIndex=index.takeIf { it>=0 })
             }
             if(input.readBoolean()) source=NoteSource(input.readUTF(),input.readUTF(),input.readInt()).also { s ->
@@ -155,7 +156,7 @@ class PageStore(private val directory:File) {
         PageSnapshot(envelope.revision,folder,note,pages,strokes,source)
     }
     companion object {
-        const val SCHEMA=2
+        const val SCHEMA=3
         const val MAX_PAGES=2000
         /** Not klasöründeki özgün PDF kopyası. */
         fun sourceFile(directory:File)=File(directory,"source.pdf")

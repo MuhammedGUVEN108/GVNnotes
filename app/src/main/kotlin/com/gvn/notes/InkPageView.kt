@@ -91,6 +91,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
                 // Ink'in transform parametresi geometri/kalite bilgisidir; Canvas'ı dönüştürmez.
                 // Sayfa koordinatındaki çizgileri gerçekten ekrana taşımak için aynı matrisi uygula.
                 canvas.concat(m)
+                drawPattern(canvas,page)
                 val dragging=dragFrom!=null && lassoPage==i
                 strokes[page.id]?.forEach {
                     if(dragging && it.data.id in editor.selection) {
