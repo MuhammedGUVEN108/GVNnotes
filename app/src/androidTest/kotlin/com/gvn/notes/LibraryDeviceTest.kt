@@ -11,7 +11,6 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
-import com.gvn.notes.core.Tool
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -72,7 +71,7 @@ class LibraryDeviceTest {
     }
     private fun draw(y:Float) {
         val now=SystemClock.uptimeMillis(); val (page,state)=editor()
-        inst.runOnMainSync { state.tool=Tool.PEN; state.color=0xff186c84.toInt(); state.size=8f }
+        inst.runOnMainSync { page.usePen(color=0xff186c84.toInt()) }
         listOf(400f,500f,600f).forEachIndexed { i,x ->
             inst.runOnMainSync {
                 val p=state.viewport.toScreen(x,y)

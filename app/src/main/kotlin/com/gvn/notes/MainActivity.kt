@@ -125,18 +125,23 @@ private val Muted=Color(0xff5f6368)
 private val Accent=Color(0xff186c84)
 private val AccentSoft=Color(0xffdcecf1)
 private val Divider=Color(0xffe3e5e8)
-private val Palette=listOf(0xff18222e to "Siyah",0xff1f6fd1 to "Mavi",0xffd33f49 to "Kırmızı",0xff2e9e5b to "Yeşil",0xff8a4fd8 to "Mor")
-private val Thickness=listOf(1.5f to "İnce",3f to "Orta",6f to "Kalın")
 
 @Composable private fun EditorScreen(editor:EditorState,onBack:(()->Unit)?=null,closing:Boolean=false) {
     val revision=editor.revision
     val canEdit=editor.ready && !editor.busy && !closing
     var pageView by remember { mutableStateOf<InkPageView?>(null) }
+    var toolbar by remember { mutableStateOf<com.gvn.notes.pen.PenToolbar?>(null) }
+    // GVNpen ayarları ekranından dönünce yeni ayarlar şeride ve yazma yüzeyine uygulanır.
+    val penSettings=androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) {
+        pageView?.let { v -> v.reloadPrefs(); toolbar?.setPrefs(v.prefs) }
+    }
     var sorter by rememberSaveable { mutableStateOf(false) }
     var fullscreen by rememberSaveable { mutableStateOf(false) }
     var renaming by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     val view=LocalView.current
+    fun openPenSettings() { penSettings.launch(android.content.Intent(view.context,com.gvn.notes.pen.PenSettingsActivity::class.java)) }
     val context=androidx.compose.ui.platform.LocalContext.current
     // Dışa aktarma hedefi kullanıcının seçtiği yerdir (sistem "Kaydet" penceresi).
     val exportTo=androidx.activity.compose.rememberLauncherForActivityResult(
@@ -164,6 +169,8 @@ private val Thickness=listOf(1.5f to "İnce",3f to "Orta",6f to "Kalın")
                 Text(if(revision>=0) editor.note.title else "",style=MaterialTheme.typography.titleLarge,color=Ink,maxLines=1,
                     overflow=TextOverflow.Ellipsis,
                     modifier=Modifier.weight(1f).padding(start=8.dp).clickable(enabled=canEdit,onClickLabel="Başlığı değiştir") { renaming=true })
+                TopAction(Icons.Outlined.Gesture,"Kement seçimi",editor.lassoMode,editor.ready) {
+                    editor.lassoMode=!editor.lassoMode; editor.clearSelection(); pageView?.refresh() }
                 TopAction(Icons.Outlined.ViewSidebar,"Sayfa sıralayıcı",sorter,editor.ready) { sorter=!sorter }
                 TopAction(Icons.Outlined.Add,"Bu sayfanın arkasına boş sayfa ekle",false,canEdit) {
                     val added=editor.insertBlankPageAfter(editor.currentPage)
@@ -184,11 +191,30 @@ private val Thickness=listOf(1.5f to "İnce",3f to "Orta",6f to "Kalın")
             HorizontalDivider(color=Divider)
         }
         Row(Modifier.weight(1f)) {
-            ToolStrip(editor,canEdit)
             if(sorter && !fullscreen) PageSorter(editor,revision,canEdit) { i -> pageView?.scrollToPage(i) }
             Box(Modifier.weight(1f).fillMaxHeight()) {
-                AndroidView(factory={ InkPageView(it,editor).also { v -> pageView=v } },modifier=Modifier.fillMaxSize(),
-                    update={ if(revision>=0) it.refresh() })
+                // Yazma yüzeyi + üstünde kayan GVNpen araç şeridi.
+                AndroidView(factory={ ctx ->
+                    val ink=InkPageView(ctx,editor).also { v -> pageView=v }
+                    val bar=com.gvn.notes.pen.PenToolbar(ctx,object:com.gvn.notes.pen.PenToolbar.Host {
+                        override fun selectTool(tool:String) { editor.lassoMode=false; editor.clearSelection(); ink.drawing=true; ink.savePrefs() }
+                        override fun setDrawing(drawing:Boolean) { ink.drawing=drawing }
+                        override fun drawing()=ink.drawing
+                        override fun temporary()=false
+                        override fun undo() { ink.cancel(); editor.undo(); ink.refresh() }
+                        override fun redo() { ink.cancel(); editor.redo(); ink.refresh() }
+                        override fun canUndo()=editor.history.canUndo
+                        override fun canRedo()=editor.history.canRedo
+                        override fun clear() { ink.clearCurrentPage() }
+                        override fun openSettings() { openPenSettings() }
+                        override fun close() { onBack?.invoke() }
+                        override fun prefsChanged() { ink.savePrefs(); ink.refresh() }
+                    },ink.prefs)
+                    toolbar=bar
+                    ink.onStateChanged={ bar.refreshSelection(); bar.refreshHistory() }
+                    android.widget.FrameLayout(ctx).apply { addView(ink,-1,-1); addView(bar,-1,-1) }
+                },modifier=Modifier.fillMaxSize(),
+                    update={ if(revision>=0) { pageView?.refresh(); toolbar?.refreshHistory() } })
                 // Tuval üstü göstergeler: sağ üstte yakınlaştırma, sağ altta sayfa sayacı.
                 Row(Modifier.align(Alignment.TopEnd).padding(12.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                     if(fullscreen) Pill {
@@ -211,8 +237,8 @@ private val Thickness=listOf(1.5f to "İnce",3f to "Orta",6f to "Kalın")
                         Text("${editor.selection.size} çizgi",color=Ink,style=MaterialTheme.typography.labelLarge,modifier=Modifier.padding(horizontal=10.dp))
                         TextButton(onClick={editor.deleteSelection()},enabled=canEdit,modifier=Modifier.testTag("selection-delete")) { Icon(Icons.Outlined.Delete,null); Spacer(Modifier.width(6.dp)); Text("Sil") }
                         TextButton(onClick={editor.duplicateSelection()},enabled=canEdit) { Icon(Icons.Outlined.ContentCopy,null); Spacer(Modifier.width(6.dp)); Text("Çoğalt") }
-                        TextButton(onClick={editor.recolorSelection(editor.color)},enabled=canEdit) {
-                            Box(Modifier.size(18.dp).background(Color(editor.color),CircleShape)); Spacer(Modifier.width(6.dp)); Text("Rengi uygula") }
+                        TextButton(onClick={ pageView?.let { editor.recolorSelection(it.prefs.color) } },enabled=canEdit) {
+                            Box(Modifier.size(18.dp).background(Color(pageView?.prefs?.color ?: 0xff000000.toInt()),CircleShape)); Spacer(Modifier.width(6.dp)); Text("Rengi uygula") }
                         IconButton(onClick={editor.clearSelection(); pageView?.refresh()}) { Icon(Icons.Outlined.Close,"Seçimi kaldır",tint=Ink) }
                     }
                 }
@@ -257,118 +283,6 @@ private val Thickness=listOf(1.5f to "İnce",3f to "Orta",6f to "Kalın")
 @Composable private fun Pill(content:@Composable RowScope.()->Unit) {
     Surface(shape=RoundedCornerShape(24.dp),color=Color.White.copy(alpha=.94f),shadowElevation=2.dp) {
         Row(verticalAlignment=Alignment.CenterVertically,content=content)
-    }
-}
-
-/** GVNpen paletindeki renkler + ek tonlar (renk seçici). */
-private val PickerColors=listOf(
-    0xff00d9f5,0xff3b82f6,0xffa78bfa,0xffef4444,0xfff59e0b,0xfffacc15,0xff22c55e,0xffff00ff,0xffffffff,0xff000000,
-    0xff0f766e,0xff1e3a8a,0xff6d28d9,0xff9f1239,0xffc2410c,0xff854d0e,0xff166534,0xff475569,0xff94a3b8,0xffe11d48,
-    0xff0284c7,0xff7c3aed,0xffea580c,0xff65a30d).map { it.toInt() }
-
-/** Dar, açık renkli dikey araç şeridi: araçlar, renkler, kalınlık ön ayarları, geri/ileri al. Seçili araca tekrar dokunmak ayarlarını açar. */
-@Composable private fun ToolStrip(editor:EditorState,canEdit:Boolean) {
-    var settings by remember { mutableStateOf<Tool?>(null) }
-    var picking by remember { mutableStateOf(false) }
-    var sizing by remember { mutableStateOf(false) }
-    fun choose(tool:Tool) {
-        if(editor.tool==tool) { if(tool!=Tool.LASSO) settings=tool }
-        else { editor.tool=tool; editor.clearSelection(); editor.savePen() }
-    }
-    Column(Modifier.width(68.dp).fillMaxHeight().background(Color.White)
-        .verticalScroll(rememberScrollState()).padding(vertical=12.dp),
-        horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(6.dp)) {
-        ToolButton(Icons.Outlined.Edit,"Kalem",editor.tool==Tool.PEN,canEdit) { choose(Tool.PEN) }
-        ToolButton(Icons.Outlined.Highlight,"Fosforlu kalem",editor.tool==Tool.HIGHLIGHTER,canEdit) { choose(Tool.HIGHLIGHTER) }
-        ToolButton(EraserIcon,if(editor.eraserWhole) "Silgi (tüm çizgi)" else "Silgi (alan)",editor.tool==Tool.ERASER,canEdit) { choose(Tool.ERASER) }
-        ToolButton(Icons.Outlined.Gesture,"Kement seçimi",editor.tool==Tool.LASSO,canEdit) { choose(Tool.LASSO) }
-        HorizontalDivider(Modifier.width(36.dp).padding(vertical=6.dp),color=Divider)
-        val colors=Palette.map { it.first.toInt() to it.second }+editor.customColors.map { it to "Özel renk" }
-        colors.forEach { (value,name) ->
-            val selected=editor.color==value
-            Box(Modifier.size(44.dp).clickable(enabled=canEdit) { editor.useColor(value) }
-                .semantics { contentDescription=name; this.selected=selected },contentAlignment=Alignment.Center) {
-                Box(Modifier.size(30.dp)
-                    .border(2.dp,if(selected) Color(value).copy(alpha=.4f) else Color.Transparent,CircleShape)
-                    .padding(4.dp).background(Color(value),CircleShape).border(if(value==0xffffffff.toInt()) 1.dp else 0.dp,Divider,CircleShape))
-            }
-        }
-        ToolButton(Icons.Outlined.Palette,"Renk seç",false,canEdit) { picking=true }
-        HorizontalDivider(Modifier.width(36.dp).padding(vertical=6.dp),color=Divider)
-        Thickness.forEach { (size,name) ->
-            val selected=editor.size==size
-            Box(Modifier.size(44.dp).background(if(selected) AccentSoft else Color.Transparent,CircleShape)
-                .clickable(enabled=canEdit) { if(selected) sizing=true else { editor.size=size; editor.savePen() } }
-                .semantics { contentDescription="$name kalınlık"; this.selected=selected },contentAlignment=Alignment.Center) {
-                Box(Modifier.width(24.dp).height((size*1.3f).dp.coerceAtLeast(2.dp)).background(if(selected) Accent else Ink,RoundedCornerShape(4.dp)))
-            }
-        }
-        if(Thickness.none { it.first==editor.size }) Box(Modifier.size(44.dp).background(AccentSoft,CircleShape).clickable(enabled=canEdit) { sizing=true }
-            .semantics { contentDescription="Özel kalınlık ${"%.1f".format(editor.size)}"; selected=true },contentAlignment=Alignment.Center) {
-            Text("%.1f".format(editor.size),style=MaterialTheme.typography.labelSmall,color=Accent)
-        }
-        HorizontalDivider(Modifier.width(36.dp).padding(vertical=6.dp),color=Divider)
-        ToolButton(Icons.AutoMirrored.Outlined.Undo,"Geri al",false,canEdit&&editor.history.canUndo) { editor.undo() }
-        ToolButton(Icons.AutoMirrored.Outlined.Redo,"İleri al",false,canEdit&&editor.history.canRedo) { editor.redo() }
-    }
-    Box(Modifier.width(1.dp).fillMaxHeight().background(Divider))
-
-    if(picking) AlertDialog(onDismissRequest={picking=false},title={Text("Renk seç")},
-        text={
-            Column(verticalArrangement=Arrangement.spacedBy(10.dp)) {
-                PickerColors.chunked(6).forEach { row ->
-                    Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-                        row.forEach { value ->
-                            Box(Modifier.size(44.dp).clip(CircleShape).background(Color(value)).border(if(editor.color==value) 3.dp else 1.dp,
-                                if(editor.color==value) Accent else Divider,CircleShape).clickable { editor.useColor(value); picking=false }
-                                .semantics { contentDescription="Renk #%06X".format(value and 0xffffff) })
-                        }
-                    }
-                }
-            }
-        },confirmButton={TextButton(onClick={picking=false}){Text("Kapat")}})
-
-    if(sizing) {
-        var value by remember { mutableFloatStateOf(editor.size) }
-        AlertDialog(onDismissRequest={sizing=false},title={Text("Kalem kalınlığı · ${"%.1f".format(value)}")},
-            text={
-                Column {
-                    Slider(value=value,onValueChange={ value=(it*2).roundToInt()/2f },valueRange=.5f..16f)
-                    Box(Modifier.fillMaxWidth().height(48.dp),contentAlignment=Alignment.Center) {
-                        Box(Modifier.width(180.dp).height((value*1.3f).dp.coerceAtLeast(1.dp)).background(Color(editor.color),RoundedCornerShape(8.dp)))
-                    }
-                }
-            },
-            confirmButton={TextButton(onClick={ editor.size=value; editor.savePen(); sizing=false }){Text("Uygula")}},
-            dismissButton={TextButton(onClick={sizing=false}){Text("Vazgeç")}})
-    }
-
-    settings?.let { tool ->
-        AlertDialog(onDismissRequest={settings=null},
-            title={Text(when(tool) { Tool.ERASER->"Silgi"; Tool.HIGHLIGHTER->"Fosforlu kalem"; else->"Kalem" })},
-            text={
-                Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
-                    if(tool==Tool.ERASER) {
-                        SettingSwitch("Dokunulan çizgiyi tamamen sil","Kapalıysa yalnız silginin değdiği alan silinir. Yanlışlıkla silersen Geri al.",editor.eraserWhole) { editor.eraserWhole=it }
-                        Text("Silgi boyutu · ${editor.eraserSize.roundToInt()}",style=MaterialTheme.typography.labelLarge)
-                        Slider(value=editor.eraserSize,onValueChange={ editor.eraserSize=it.roundToInt().toFloat() },valueRange=2f..60f)
-                    } else {
-                        SettingSwitch("Akıllı şekil","Çizip kalemi ucunda kısa süre beklet: çizgi, üçgen, dikdörtgen veya daire düzgünleşir.",editor.smartShape) { editor.smartShape=it }
-                        Text("S Pen yan düğmesi basılıyken kalem geçici olarak silgi olur.",style=MaterialTheme.typography.bodySmall,color=Muted)
-                    }
-                }
-            },
-            confirmButton={TextButton(onClick={ editor.savePen(); settings=null }){Text("Tamam")}})
-    }
-}
-
-@Composable private fun SettingSwitch(title:String,body:String,checked:Boolean,onChange:(Boolean)->Unit) {
-    Row(Modifier.fillMaxWidth().clickable { onChange(!checked) },verticalAlignment=Alignment.CenterVertically) {
-        Column(Modifier.weight(1f).padding(end=12.dp)) {
-            Text(title,style=MaterialTheme.typography.titleSmall,color=Ink)
-            Text(body,style=MaterialTheme.typography.bodySmall,color=Muted)
-        }
-        Switch(checked=checked,onCheckedChange=onChange)
     }
 }
 

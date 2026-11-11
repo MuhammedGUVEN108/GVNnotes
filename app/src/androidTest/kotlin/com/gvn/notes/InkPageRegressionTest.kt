@@ -10,7 +10,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.gvn.notes.core.Tool
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -79,7 +78,7 @@ class InkPageRegressionTest {
         ui {
             page=checkNotNull(find(activity.window.decorView))
             editor=InkPageView::class.java.getDeclaredField("editor").apply { isAccessible=true }.get(page) as EditorState
-            editor.color=0xff18222e.toInt(); editor.size=8f; editor.tool=Tool.PEN
+            page.usePen(width=8f)
         }
         settle()
         gesture(listOf(400f to 650f,450f to 650f,500f to 650f,550f to 650f,600f to 650f))
@@ -90,7 +89,7 @@ class InkPageRegressionTest {
         ui { editor.viewport=editor.viewport.zoomAt(1.2f,700f,900f).let { it.copy(x=it.x+25f,y=it.y+70f) }; page.refresh() }
         val zoomed=screenshot("02-after-zoom-pan")
         try { assertTrue("Ink lost page alignment after zoom/pan",hasInk(zoomed,500f to 650f)) } finally { zoomed.recycle() }
-        ui { editor.tool=Tool.ERASER; editor.eraserWhole=true; editor.eraserSize=24f }
+        ui { page.usePen(tool="eraser") }
         gesture(listOf(500f to 620f,500f to 650f,500f to 680f))
         ui { assertTrue("Eraser did not remove stroke",editor.history.items.isEmpty()) }
         val erased=screenshot("03-erased")
@@ -98,7 +97,7 @@ class InkPageRegressionTest {
         ui { editor.undo(); page.refresh(); assertEquals(1,editor.history.items.size) }
         val undone=screenshot("04-undo-restores")
         try { assertTrue("Undo did not restore ink at original page position",hasInk(undone,500f to 650f)) } finally { undone.recycle() }
-        ui { editor.tool=Tool.PEN }
+        ui { page.usePen() }
         gesture(listOf(400f to 800f,500f to 800f,600f to 800f),cancel=true)
         ui { assertEquals("Canceled gesture must not persist",1,editor.history.items.size) }
     }
@@ -111,7 +110,7 @@ class InkPageRegressionTest {
         ui {
             page=checkNotNull(find(activity.window.decorView))
             editor=InkPageView::class.java.getDeclaredField("editor").apply { isAccessible=true }.get(page) as EditorState
-            editor.tool=Tool.PEN; editor.size=6f
+            page.usePen(width=6f)
         }
         settle()
         repeat(4) { round ->

@@ -59,7 +59,7 @@ class NoteManagementDeviceTest {
         inst.runOnMainSync {
             ids=editor.pages.map { it.id }
             // Yazı 2. sayfada.
-            editor.replace(listOf(RenderedStroke(fixture.data.copy(pageId=ids[1]),fixture.ink)))
+            editor.replace(listOf(RenderedStroke(fixture.data.copy(pageId=ids[1]))))
         }
         saved(editor)
         inst.runOnMainSync { editor.movePage(1,0) }; saved(editor)

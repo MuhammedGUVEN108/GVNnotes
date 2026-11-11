@@ -1,5 +1,19 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.10.0 — Yazma tarafı GVNpen ile aynı, 12 Kasım 2026
+
+Kullanıcı yazma tarafını beğenmedi: "GVNpen'in tüm özellikleri olmalı ve yazma, geçişler, ikonlar aynı olmalı." Bu, 10 Kasım'daki "GVNpen motoru taşınmaz" kararını yazma tarafı için kaldırır. Kütüphane/klasör tarafı Samsung Notes düzeninde kalır.
+
+- **Kaynak kopya** (`app/src/main/java/com/gvn/notes/pen`, yalnız paket adı değişti): Geometry, SmartShape, ToolIcon, Prefs, SizeScale, UiKit; InkView'ün çizgi çizimi → PenRenderer; brand.png ve pencil_cursor.png.
+- **Çizim motoru** (InkPageView): GVNpen InkView akışı sayfa koordinatına uyarlandı: basınç×1,4 (0,15–1,5), segment kalınlığı, yumuşatma, fosforlu %32, 0,15 birim nokta eşiği, akıllı şekil (3 birim hareket çıpası, ayarlanan bekleme, 120 ms geçiş), 2B/3B sürükleme şekilleri, kapsül silgi (tüm çizgi/alan), S Pen düğmesi (basılı tutma süresi, yaklaşınca silme), kalem imleci/silgi halkası, Android 14+ tahmin. Her kalem teması tek geri alma adımı (GVNpen checkpoint). Yakınlaştırma, çok sayfa, PDF/şablon zemini, kement ve parmak davranışı korundu. **Jetpack Ink kaldırıldı** (APK 63,6 → 56,2 MB).
+- **Araç şeridi** (PenToolbar): GVNpen şeridi notun üzerinde kayan panel: tutamak, göz (katla + okuma modu; yazılar görünür kalır), gezinme (kalem sayfayı kaydırır), kalem, fosforlu, silgi, 2B, 3B, kalınlık, geri al, yinele, temizle (görünür sayfa, geri alınabilir), ayarlar, kapat (notu kapatır), 2×2 hızlı renk, renk paleti, marka. 150 ms katlanma, kalem yaklaşınca 350 ms'de açılan / 400 ms'de kapanan menüler, 120 ms soluklaşma/büyüme.
+- **Ayarlar** (PenSettingsActivity): GVNpen ayar ekranının Çizim, Silgi, Görünüm, Kalem düğmesi, Dosyalar (profil) bölümleri aynen. Ayarlar GVNpen biçiminde (`gvnpen` SharedPreferences, profil dosyası uyumlu). Kütüphane ayarlarındaki "Parmakla çizim" GVNpen "Parmakla çizimi engelle"nin tersidir. Kement üst çubuğa taşındı.
+- **Kayıt biçimi 4:** Ink verisi yok; basınç GVNpen katsayısı olarak saklanır. Biçim 1–3 okunur (ham basınç ×1,4; eski yarı saydam fosforlu tam renge çevrilir).
+
+Doğrulama: GVNpen'in kendi JVM testleri (GeometryTests, EraseTests: 43.568 silgi kontrolü) kopya koda karşı geçti ve build.ps1'e eklendi; core JVM testleri geçti; lint 0 hata. Cihazda: kalem araçları testi GVNpen semantiğine göre yeniden yazıldı (yaklaşırken yan düğme, akıllı şekil, dikdörtgen, küp, temizle). Test turları iki gerçek hata yakaladı: kalkıştan sonra yaklaşma olmazsa imlecin asılı kalması (160 ms'de gizlenir) ve kısa not alanında şerit yazısının otomatik boyut çökmesi (düzeltildi; hata kaydı mekanizması çökmeyi yakaladı). Son tam çalıştırma: **13 cihaz aşaması + 2 kütüphane aşaması geçti.** 0.10.0 kuruldu; gerçek not GVNpen şeridiyle açıldı (ekran görüntüsüyle kontrol edildi). Bilinen küçük kusur: sol alttaki "Kaydedildi" yazısı şeridin altında kalabiliyor.
+
+APK: `dist/GVNnotes-0.10.0.apk`, SHA256 `33ef6aa8c08dd8a8eea94fcda305a996b91ed048bf0f67136c9fd4f5210bedde`. Fiziksel S Pen ile kullanıcı denemesi bekleniyor.
+
 ## 0.9.1 — Tablet test oturumu, 12 Kasım 2026
 
 Kullanıcı tableti bağladı. Önce gerçek notların yedeği alındı (`yedek/gvnnotes-notlar-20261112-0038.tar`, 28 öge, 9 kayıt dosyası; git dışında). Not: PowerShell 5.1 `>` ikili veriyi bozuyor; yedek Git Bash `adb exec-out` ile alındı ve `tar -tf` ile doğrulandı.

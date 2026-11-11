@@ -443,16 +443,18 @@ private data class PreviewState(val bitmap:Bitmap?,val loaded:Boolean)
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=32.dp,vertical=8.dp).widthIn(max=760.dp),
             verticalArrangement=Arrangement.spacedBy(20.dp)) {
             SettingsSection("Yazma") {
-                Row(Modifier.fillMaxWidth().clickable { state.updateSettings(state.settings.copy(fingerDraw=!state.settings.fingerDraw)) }
-                    .padding(vertical=8.dp).testTag("setting-finger"),verticalAlignment=Alignment.CenterVertically) {
+                // GVNpen "Parmakla çizimi engelle" ayarının tersi; tek kaynak GVNpen ayarlarıdır.
+                var fingerDraw by remember { mutableStateOf(!com.gvn.notes.pen.Prefs.load(context).onlyPen) }
+                fun setFinger(on:Boolean) { fingerDraw=on; com.gvn.notes.pen.Prefs.load(context).also { it.onlyPen=!on; it.save(context) } }
+                Row(Modifier.fillMaxWidth().clickable { setFinger(!fingerDraw) }.padding(vertical=8.dp).testTag("setting-finger"),verticalAlignment=Alignment.CenterVertically) {
                     Column(Modifier.weight(1f).padding(end=16.dp)) {
                         Text("Parmakla çizim",fontWeight=FontWeight.Medium,color=LibInk)
                         Text("Açıkken tek parmak da yazar; iki parmak her zaman kaydırır ve yakınlaştırır. Kapalıyken yalnız S Pen yazar (önerilen).",
                             style=MaterialTheme.typography.bodySmall,color=LibMuted)
                     }
-                    Switch(checked=state.settings.fingerDraw,onCheckedChange={ state.updateSettings(state.settings.copy(fingerDraw=it)) })
+                    Switch(checked=fingerDraw,onCheckedChange={ setFinger(it) })
                 }
-                Text("Kalem, renk, kalınlık, silgi ve akıllı şekil ayarları notun içindeki araç şeridinden yapılır; seçili araca tekrar dokun.",
+                Text("Kalem, renk, kalınlık, silgi, akıllı şekil ve S Pen düğmesi ayarları notun içindeki GVNpen şeridinin Ayarlar düğmesindedir.",
                     style=MaterialTheme.typography.bodySmall,color=LibMuted)
             }
             SettingsSection("Yeni not") {

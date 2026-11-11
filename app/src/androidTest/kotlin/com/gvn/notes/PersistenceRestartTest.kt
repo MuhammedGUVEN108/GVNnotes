@@ -52,7 +52,7 @@ class PersistenceRestartTest {
     }
     private fun erase() {
         val now=SystemClock.uptimeMillis()
-        ui { editor.tool=Tool.ERASER; editor.size=8f; editor.eraserWhole=true; editor.eraserSize=24f }
+        ui { page.usePen(tool="eraser") }
         listOf(620f,650f,680f).forEachIndexed { i,y ->
             ui {
                 val p=editor.viewport.toScreen(500f,y)
@@ -93,15 +93,15 @@ class PersistenceRestartTest {
         ui { assertEquals("persistence-page",editor.page.id) }
         when(phase) {
             "seed" -> {
-                ui { editor.tool=Tool.PEN; editor.size=8f; editor.color=0xff18222e.toInt() }
+                ui { page.usePen(width=8f) }
                 drawLine(650f)
-                ui { editor.tool=Tool.HIGHLIGHTER; editor.color=0xffe5a900.toInt() }
+                ui { page.usePen(tool="highlighter",color=0xffe5a900.toInt()) }
                 drawLine(850f)
                 ui { assertEquals(2,editor.history.items.size) }
                 assertTrue(hasInkAt500650("01-seeded"))
             }
             "verify" -> {
-                ui { assertEquals(2,editor.history.items.size); assertEquals(0.5f,editor.history.items[0].data.samples[0].pressure,0f) }
+                ui { assertEquals(2,editor.history.items.size); assertEquals(0.7f,editor.history.items[0].data.samples[0].pressure,.001f) /* GVNpen: basınç×1,4 */ }
                 assertTrue("Reloaded ink no longer aligns with its page",hasInkAt500650("02-reopened"))
                 erase(); ui { assertEquals(1,editor.history.items.size) }
                 ui { editor.undo(); page.refresh() }; waitSaved(); ui { assertEquals(2,editor.history.items.size) }

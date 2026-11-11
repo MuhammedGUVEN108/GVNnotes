@@ -3,16 +3,16 @@ package com.gvn.notes
 import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.ink.strokes.Stroke
 import com.gvn.notes.core.*
 import java.io.File
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
-data class RenderedStroke(val data: PageStroke, val ink: Stroke)
+/** Kayıtlı çizgi. GVNpen çizim görünümü (Geometry.Stroke) ilk kullanımda üretilir; çizgiler kayıttan sonra değişmez. */
+data class RenderedStroke(val data: PageStroke) {
+    val geo: com.gvn.notes.pen.Geometry.Stroke by lazy { data.toGeo() }
+}
 
-/** Araç şeridindeki sabit renkler; bunların dışındaki seçimler "özel renk" olarak hatırlanır. */
-val BASE_COLORS=listOf(0xff18222e.toInt(),0xff1f6fd1.toInt(),0xffd33f49.toInt(),0xff2e9e5b.toInt(),0xff8a4fd8.toInt())
 
 class EditorState(val directory:File) : ViewModel() {
     var folder = Folder(parentId=null,name="Notlar",relativePath=""); private set
@@ -25,18 +25,9 @@ class EditorState(val directory:File) : ViewModel() {
     var pdf:PdfPages?=null; private set
     val history = History<RenderedStroke>()
     var revision by mutableIntStateOf(0); private set
-    var tool by mutableStateOf(Tool.PEN)
-    var color by mutableIntStateOf(0xff18222e.toInt())
-    var size by mutableFloatStateOf(3f)
     var mouseInput by mutableStateOf(false)
-    /** Silgi: true = dokunulan çizginin tamamı (varsayılan, GVNpen ile aynı), false = yalnız süpürülen alan. */
-    var eraserWhole by mutableStateOf(true)
-    /** Silgi yarıçapı (sayfa birimi; 1000 birim = sayfa genişliği). */
-    var eraserSize by mutableFloatStateOf(12f)
-    /** Akıllı şekil: çizip uçta bekletince çizgi/üçgen/dikdörtgen/daireye çevir. */
-    var smartShape by mutableStateOf(true)
-    /** Uygulama ayarı: parmakla çizim (not açılırken settings.json'dan okunur). */
-    var fingerDraw by mutableStateOf(runCatching { AppSettings.load(AppSettings.fileFor(directory.parentFile ?: directory)).fingerDraw }.getOrDefault(false))
+    /** Kement seçimi modu (GVNpen şeridinde yok; üst çubuktan açılır). */
+    var lassoMode by mutableStateOf(false)
     var busy by mutableStateOf(false)
     var navigationPending by mutableStateOf(false)
     var viewport by mutableStateOf(Viewport())
@@ -50,29 +41,7 @@ class EditorState(val directory:File) : ViewModel() {
     var editVersion by mutableLongStateOf(0); private set
     private val store=PageStore(directory)
     private val writes=Channel<PageSnapshot>(Channel.CONFLATED)
-    /** Kalem ayarları (araç, renk, kalınlık, özel renkler) tüm notlar için ortaktır ve hatırlanır. */
-    private val penFile get()=File(directory.parentFile ?: directory,"pen.txt")
-    /** Kullanıcının paletten eklediği renkler (en yeni başta, en çok 6). */
-    var customColors by mutableStateOf<List<Int>>(emptyList()); private set
-    fun useColor(value:Int) {
-        color=value
-        if(value !in BASE_COLORS) customColors=(listOf(value)+customColors.filter { it!=value }).take(6)
-        savePen()
-    }
-    fun savePen() {
-        runCatching { penFile.writeText(listOf(tool.name,color,size,customColors.joinToString(","),eraserWhole,eraserSize,smartShape).joinToString(";")) }
-    }
-    private fun loadPen() = runCatching {
-        val parts=penFile.readText().trim().split(';')
-        tool=Tool.valueOf(parts[0]).takeIf { it!=Tool.ERASER } ?: Tool.PEN
-        color=parts[1].toInt(); size=parts[2].toFloat().coerceIn(.5f,24f)
-        customColors=parts.getOrNull(3)?.split(',')?.filter { it.isNotBlank() }?.map { it.toInt() } ?: emptyList()
-        parts.getOrNull(4)?.toBooleanStrictOrNull()?.let { eraserWhole=it }
-        parts.getOrNull(5)?.toFloatOrNull()?.let { eraserSize=it.coerceIn(2f,80f) }
-        parts.getOrNull(6)?.toBooleanStrictOrNull()?.let { smartShape=it }
-    }
     init {
-        loadPen()
         open()
         viewModelScope.launch(Dispatchers.IO) {
             for(snapshot in writes) {
@@ -201,8 +170,7 @@ class EditorState(val directory:File) : ViewModel() {
         if(!ready || busy || selection.isEmpty() || (dx==0f && dy==0f)) return
         history.replace(history.items.map { rs ->
             if(rs.data.id !in selection) rs else {
-                val shifted=rs.data.samples.map { it.copy(x=it.x+dx,y=it.y+dy) }
-                RenderedStroke(rs.data.copy(samples=shifted),inkFromSamples(rs.ink.brush,shifted))
+                RenderedStroke(rs.data.copy(samples=rs.data.samples.map { it.copy(x=it.x+dx,y=it.y+dy) }))
             }
         }); changed()
     }
@@ -212,14 +180,12 @@ class EditorState(val directory:File) : ViewModel() {
         val copies=selected().map { rs -> rs.withSamples(rs.data.samples.map { it.copy(x=it.x+24f,y=it.y+24f) }) }
         history.replace(history.items+copies); selection=copies.map { it.data.id }.toSet(); changed()
     }
-    /** Seçili çizgilere geçerli rengi uygular (fosforlu kalem yarı saydamlığını korur). */
+    /** Seçili çizgilere geçerli rengi uygular. */
     fun recolorSelection(value:Int) {
         if(!ready || busy || selection.isEmpty()) return
         history.replace(history.items.map { rs ->
             if(rs.data.id !in selection) rs else {
-                val c=if(rs.data.tool==Tool.HIGHLIGHTER) (value and 0x00ffffff) or 0x66000000 else value
-                val b=rs.ink.brush
-                RenderedStroke(rs.data.copy(color=c),inkFromSamples(androidx.ink.brush.Brush.createWithColorIntArgb(b.family,c,b.size,b.epsilon),rs.data.samples))
+                RenderedStroke(rs.data.copy(color=(value and 0x00ffffff) or (rs.data.color and 0xff000000.toInt())))
             }
         }); changed()
     }
@@ -231,7 +197,6 @@ class EditorState(val directory:File) : ViewModel() {
     var initialPage=runCatching { viewFile.readText().trim().toInt() }.getOrDefault(0)
     override fun onCleared() {
         runCatching { if(directory.isDirectory) viewFile.writeText(currentPage.toString()) }
-        savePen()
         writes.close(); pdf?.close(); super.onCleared()
     }
 }

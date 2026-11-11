@@ -5,7 +5,6 @@ import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Color
 import android.util.AtomicFile
-import androidx.ink.rendering.android.canvas.CanvasStrokeRenderer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.compose.runtime.*
@@ -215,7 +214,7 @@ class NoteLibrary(private val root:File) {
  * Tek sayfayı (PDF zemini + o sayfanın çizgileri) verilen genişlikte bitmap'e çizer.
  * Kütüphane önizlemesi ve sayfa sıralayıcı küçük resimleri için; arka plan iş parçacığında çağrılır.
  */
-fun renderPage(directory:File,page:Page,strokes:List<RenderedStroke>,width:Int):Bitmap {
+fun renderPage(directory:File,page:Page,strokes:List<RenderedStroke>,width:Int,smooth:Boolean=false):Bitmap {
     val h=(width*page.height/page.width).toInt().coerceIn(1,width*4)
     val bitmap=Bitmap.createBitmap(width,h,Bitmap.Config.ARGB_8888)
     try {
@@ -227,8 +226,9 @@ fun renderPage(directory:File,page:Page,strokes:List<RenderedStroke>,width:Int):
         val matrix=Matrix().apply { setScale(width/page.width,h/page.height) }
         canvas.concat(matrix)
         drawPattern(canvas,page)
-        val renderer=CanvasStrokeRenderer.create()
-        strokes.filter { it.data.pageId==page.id }.forEach { renderer.draw(canvas,it.ink,matrix) }
+        // GVNpen çizimiyle (ekrandakiyle aynı).
+        com.gvn.notes.pen.PenRenderer.drawStrokes(canvas,strokes.filter { it.data.pageId==page.id }.map { it.geo },
+            android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG),smooth)
         return bitmap
     } catch(e:Exception) { bitmap.recycle(); throw e }
 }

@@ -6,7 +6,7 @@ $gradle='D:/Sanal Desktop/yerel-araclar/araclar/gradle-8.11.1/bin/gradle.bat'
 if(!(Test-Path -LiteralPath $gradle)){$gradle=Join-Path $PSScriptRoot 'gradlew.bat'}
 if(!(Test-Path -LiteralPath $gradle)){throw 'Yerel Gradle veya proje wrapper bulunamadi.'}
 New-Item -ItemType Directory -Force "$PSScriptRoot/logs","$PSScriptRoot/dist" | Out-Null
-$arguments=@('-p',$PSScriptRoot,':core:test',':app:assembleDebug',':app:lintDebug','--console','plain','--no-daemon')
+$arguments=@('-p',$PSScriptRoot,':core:test',':app:testDebugUnitTest',':app:assembleDebug',':app:lintDebug','--console','plain','--no-daemon')
 if($Offline){$arguments+='--offline'}
 $ErrorActionPreference='Continue'
 & $gradle @arguments *> "$PSScriptRoot/logs/build.log"

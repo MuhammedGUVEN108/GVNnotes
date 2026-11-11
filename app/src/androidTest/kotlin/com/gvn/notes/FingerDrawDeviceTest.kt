@@ -8,7 +8,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.gvn.notes.core.Tool
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -41,18 +40,17 @@ class FingerDrawDeviceTest {
     }
     @Test fun fingerDrawing() {
         File(inst.targetContext.filesDir,"test-document").deleteRecursively()
-        File(inst.targetContext.filesDir,"pen.txt").delete()
         val activity=inst.startActivitySync(Intent(inst.targetContext,MainActivity::class.java)
             .putExtra("gvnnotes.testDocument",true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         inst.waitForIdleSync(); SystemClock.sleep(600)
         ui { page=checkNotNull(find(activity.window.decorView))
             editor=InkPageView::class.java.getDeclaredField("editor").apply { isAccessible=true }.get(page) as EditorState
-            editor.tool=Tool.PEN; editor.smartShape=false; editor.fingerDraw=false }
+            page.usePen(onlyPen=true) }
         settle()
         val before=editor.viewport
         fingerLine(500f)
         ui { assertEquals("ayar kapalıyken parmak yazmaz",0,editor.history.items.size); assertNotEquals("parmak kaydırmalı",before,editor.viewport) }
-        ui { editor.fingerDraw=true }
+        ui { page.usePen(onlyPen=false) }
         fingerLine(500f)
         ui { assertEquals("ayar açıkken parmak yazar",1,editor.history.items.size) }
         // Yazarken ikinci parmak: yarım çizgi iptal, çizgi eklenmez.

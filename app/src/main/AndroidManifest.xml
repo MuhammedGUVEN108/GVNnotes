@@ -8,5 +8,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".pen.PenSettingsActivity" android:exported="false" android:label="GVNpen · Ayarlar"
+            android:theme="@android:style/Theme.Material.NoActionBar"/>
     </application>
 </manifest>

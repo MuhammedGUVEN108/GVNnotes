@@ -1,13 +1,6 @@
 package com.gvn.notes
 
 import android.util.AtomicFile
-import androidx.ink.brush.Brush
-import androidx.ink.brush.BrushFamily
-import androidx.ink.brush.ExperimentalInkCustomBrushApi
-import androidx.ink.storage.decode
-import androidx.ink.storage.encode
-import androidx.ink.strokes.Stroke
-import androidx.ink.strokes.StrokeInputBatch
 import com.gvn.notes.core.*
 import java.io.*
 import java.util.WeakHashMap
@@ -25,10 +18,10 @@ data class PageSnapshot(val revision:Long,val folder:Folder,val note:Note,val pa
 data class OpenedPage(val snapshot:PageSnapshot?,val recovered:Boolean=false)
 
 /** Tek IO yazıcısı kullanır. İki atomik slot, son kayıtta sorun varsa önceki sağlam kaydı korur. */
-@OptIn(ExperimentalInkCustomBrushApi::class)
 class PageStore(private val directory:File) {
     private val slots=listOf("document-a.gvn","document-b.gvn").map { AtomicFile(File(directory,it)) }
-    private val encoded=WeakHashMap<Stroke,ByteArray>()
+    /** Değişmeyen çizgilerin kodlanmış hali yeniden üretilmez (çizgiler kayıttan sonra değiştirilmez). */
+    private val encoded=WeakHashMap<PageStroke,ByteArray>()
     fun open():OpenedPage {
         var hadFiles=false; var damaged=false
         val valid=slots.mapNotNull { slot ->
@@ -49,7 +42,7 @@ class PageStore(private val directory:File) {
         check(directory.isDirectory || directory.mkdirs()) { "Kayıt klasörü oluşturulamadı." }
         val payload=ByteArrayOutputStream()
         DataOutputStream(payload).use { out ->
-            out.writeInt(SCHEMA) // 3: sayfa şablonu; 2: çok sayfa + PDF; 1 ve 2 okunur.
+            out.writeInt(SCHEMA) // 4: GVNpen çizgileri (Ink verisi yok); 3: şablon; 2: çok sayfa + PDF; 1–3 okunur.
             out.writeUTF(snapshot.folder.id); out.writeUTF(snapshot.folder.name); out.writeUTF(snapshot.folder.relativePath)
             out.writeUTF(snapshot.note.id); out.writeUTF(snapshot.note.title)
             require(snapshot.folder.parentId==null && snapshot.pages.size<=MAX_PAGES)
@@ -67,7 +60,7 @@ class PageStore(private val directory:File) {
             require(snapshot.strokes.size<=20000 && snapshot.strokes.all { it.data.pageId in pageIds })
             out.writeInt(snapshot.strokes.size)
             snapshot.strokes.forEach { stroke ->
-                val bytes=encoded[stroke.ink] ?: encode(stroke).also { encoded[stroke.ink]=it }
+                val bytes=encoded[stroke.data] ?: encode(stroke).also { encoded[stroke.data]=it }
                 out.blob(bytes)
                 require(payload.size()<=SaveEnvelopeCodec.MAX_BYTES) { "Not kayıt sınırını aşıyor." }
             }
@@ -88,15 +81,12 @@ class PageStore(private val directory:File) {
             val s=stroke.data
             require(s.formatVersion==1 && s.samples.size in 1..1_000_000)
             out.writeUTF(s.id); out.writeUTF(s.pageId); out.writeInt(s.formatVersion)
-            out.writeUTF(s.tool.name); out.writeInt(s.color); out.writeFloat(s.width); out.writeFloat(stroke.ink.brush.epsilon)
+            out.writeUTF(s.tool.name); out.writeInt(s.color); out.writeFloat(s.width)
             out.writeInt(s.samples.size)
             s.samples.forEach { p ->
                 out.writeFloat(p.x); out.writeFloat(p.y); out.writeFloat(p.pressure)
                 out.writeFloat(p.tiltRadians); out.writeFloat(p.orientationRadians); out.writeLong(p.elapsedMillis)
             }
-            val family=ByteArrayOutputStream().also { stroke.ink.brush.family.encode(it) }.toByteArray()
-            val inputs=ByteArrayOutputStream().also { stroke.ink.inputs.encode(it) }.toByteArray()
-            out.blob(family); out.blob(inputs)
         }
     }.toByteArray()
     private fun decode(envelope:SaveEnvelope):PageSnapshot = DataInputStream(ByteArrayInputStream(envelope.payload)).use { input ->
@@ -134,29 +124,33 @@ class PageStore(private val directory:File) {
                 if(version>1) throw NewerSaveFormatException()
                 require(version==1 && pageId in pageIds)
                 val tool=Tool.valueOf(s.readUTF()); require(tool==Tool.PEN || tool==Tool.HIGHLIGHTER)
-                val color=s.readInt(); val width=s.readFloat(); val epsilon=s.readFloat()
-                require(width.isFinite() && epsilon.isFinite() && epsilon>0 && width>=epsilon)
+                var color=s.readInt(); val width=s.readFloat()
+                if(schema<4) s.readFloat() // Eski Ink fırça hassasiyeti; artık kullanılmıyor.
+                require(width.isFinite() && width>0f && width<=400f)
                 val n=s.readInt(); require(n in 1..1_000_000)
                 totalSamples+=n; require(totalSamples<=2_000_000)
                 var previous=-1L
                 val samples=List(n) {
-                    val sample=Sample(s.readFloat(),s.readFloat(),s.readFloat(),s.readFloat(),s.readFloat(),s.readLong())
+                    var sample=Sample(s.readFloat(),s.readFloat(),s.readFloat(),s.readFloat(),s.readFloat(),s.readLong())
+                    // Biçim 1–3 ham basınç (0..1) saklar; GVNpen çizimi basınç katsayısı (0,15..1,5) kullanır.
+                    if(schema<4) sample=sample.copy(pressure=(sample.pressure*1.4f).coerceIn(.15f,1.5f))
                     require(listOf(sample.x,sample.y,sample.pressure,sample.tiltRadians,sample.orientationRadians).all { it.isFinite() })
                     require(sample.elapsedMillis>=previous); previous=sample.elapsedMillis
                     sample
                 }
-                val family=BrushFamily.decode(ByteArrayInputStream(s.blob()))
-                val inputs=StrokeInputBatch.decode(ByteArrayInputStream(s.blob()))
+                if(schema<4) { s.blob(); s.blob() } // Eski Ink fırça ailesi ve girdileri atlanır.
                 require(s.available()==0)
-                val ink=Stroke(Brush.createWithColorIntArgb(family,color,width,epsilon),inputs)
-                RenderedStroke(PageStroke(id,pageId,version,tool,color,width,samples),ink).also { encoded[ink]=bytes }
+                // Eski fosforlu renkler yarı saydam saklanırdı; GVNpen fosforluyu tam renkle %32 saydam çizer.
+                if(schema<4 && tool==Tool.HIGHLIGHTER) color=color or 0xff000000.toInt()
+                val data=PageStroke(id,pageId,version,tool,color,width,samples)
+                RenderedStroke(data).also { if(schema>=4) encoded[data]=bytes }
             }
         }
         require(input.available()==0)
         PageSnapshot(envelope.revision,folder,note,pages,strokes,source)
     }
     companion object {
-        const val SCHEMA=3
+        const val SCHEMA=4
         const val MAX_PAGES=2000
         /** Not klasöründeki özgün PDF kopyası. */
         fun sourceFile(directory:File)=File(directory,"source.pdf")

@@ -8,7 +8,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.gvn.notes.core.Tool
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -44,18 +43,17 @@ class LassoDeviceTest {
     }
     @Test fun lasso() {
         File(inst.targetContext.filesDir,"test-document").deleteRecursively()
-        File(inst.targetContext.filesDir,"pen.txt").delete()
         val activity=inst.startActivitySync(Intent(inst.targetContext,MainActivity::class.java)
             .putExtra("gvnnotes.testDocument",true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         inst.waitForIdleSync(); SystemClock.sleep(600)
         ui { page=checkNotNull(find(activity.window.decorView))
             editor=InkPageView::class.java.getDeclaredField("editor").apply { isAccessible=true }.get(page) as EditorState
-            editor.tool=Tool.PEN; editor.smartShape=false; editor.size=4f }
+            page.usePen(width=4f) }
         settle()
         pen((0..10).map { 300f+it*20f to 400f })   // A
         pen((0..10).map { 300f+it*20f to 800f })   // B
         val a=editor.history.items[0].data.id
-        ui { editor.tool=Tool.LASSO }
+        ui { editor.lassoMode=true }
         // Yalnız A'nın çevresine döngü.
         val loop=(0..36).map { k -> val t=k*Math.PI*2/36; (400f+180f*kotlin.math.cos(t).toFloat()) to (400f+80f*kotlin.math.sin(t).toFloat()) }
         pen(loop)

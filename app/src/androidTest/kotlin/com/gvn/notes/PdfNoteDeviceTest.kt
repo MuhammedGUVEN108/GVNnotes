@@ -12,7 +12,6 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.gvn.notes.core.BackgroundType
-import com.gvn.notes.core.Tool
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -115,7 +114,7 @@ class PdfNoteDeviceTest {
         // İkinci sayfaya git ve yaz.
         inst.runOnMainSync { view.scrollToPage(1) }
         compose.waitUntil(5000) { runCatching { compose.onAllNodesWithContentDescription("Sayfa 2 / 3").fetchSemanticsNodes().isNotEmpty() }.getOrDefault(false) }
-        inst.runOnMainSync { state.tool=Tool.PEN; state.color=0xff18222e.toInt(); state.size=8f }
+        inst.runOnMainSync { view.usePen() }
         val start=SystemClock.uptimeMillis()
         listOf(400f,500f,600f).forEachIndexed { i,x ->
             inst.runOnMainSync {
