@@ -134,6 +134,12 @@ private val Thickness=listOf(1.5f to "İnce",3f to "Orta",6f to "Kalın")
     var renaming by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     val view=LocalView.current
+    val context=androidx.compose.ui.platform.LocalContext.current
+    // Dışa aktarma hedefi kullanıcının seçtiği yerdir (sistem "Kaydet" penceresi).
+    val exportTo=androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
+        if(uri!=null) editor.export { checkNotNull(context.contentResolver.openOutputStream(uri,"wt")) { "Hedef açılamadı." } }
+    }
     LaunchedEffect(fullscreen) {
         val window=(view.context as? Activity)?.window ?: return@LaunchedEffect
         val controller=WindowCompat.getInsetsController(window,view)
@@ -164,6 +170,8 @@ private val Thickness=listOf(1.5f to "İnce",3f to "Orta",6f to "Kalın")
                     TopAction(Icons.Outlined.MoreVert,"Diğer seçenekler",false,true) { menu=true }
                     DropdownMenu(expanded=menu,onDismissRequest={menu=false}) {
                         DropdownMenuItem(text={Text("Başlığı değiştir")},enabled=canEdit,onClick={menu=false; renaming=true})
+                        DropdownMenuItem(text={Text("PDF olarak dışa aktar")},enabled=editor.ready&&editor.exporting==null,
+                            onClick={menu=false; exportTo.launch("${editor.note.title}.pdf")},leadingIcon={Icon(Icons.Outlined.IosShare,null)})
                         DropdownMenuItem(text={Text("Fare ile çizim (deneme)")},onClick={editor.mouseInput=!editor.mouseInput; menu=false},
                             trailingIcon={Checkbox(checked=editor.mouseInput,onCheckedChange=null)})
                     }
@@ -192,6 +200,16 @@ private val Thickness=listOf(1.5f to "İnce",3f to "Orta",6f to "Kalın")
                         .semantics { contentDescription="Sayfa ${editor.currentPage+1} / ${editor.pages.size}" })
                 val status=if(closing) "Notlara dönülüyor…" else if(editor.busy) "Çiziliyor…" else editor.saveStatus
                 Text(status,color=Muted,style=MaterialTheme.typography.bodySmall,modifier=Modifier.align(Alignment.BottomStart).padding(16.dp))
+                (editor.exporting ?: editor.exportResult)?.let { message ->
+                    Surface(Modifier.align(Alignment.BottomCenter).padding(bottom=16.dp),shape=RoundedCornerShape(24.dp),
+                        color=Color.White,shadowElevation=3.dp) {
+                        Row(Modifier.padding(start=18.dp,end=6.dp),verticalAlignment=Alignment.CenterVertically) {
+                            if(editor.exporting!=null) CircularProgressIndicator(Modifier.size(18.dp),strokeWidth=2.dp,color=Accent)
+                            Text(message,color=Ink,style=MaterialTheme.typography.bodyMedium,modifier=Modifier.padding(horizontal=10.dp,vertical=12.dp).testTag("export-status"))
+                            if(editor.exporting==null) TextButton(onClick={editor.exportResult=null}) { Text("Tamam") }
+                        }
+                    }
+                }
                 editor.problem?.let { message ->
                     Surface(Modifier.align(Alignment.TopCenter).padding(top=12.dp),shape=RoundedCornerShape(24.dp),
                         color=MaterialTheme.colorScheme.errorContainer,shadowElevation=2.dp) {
@@ -271,6 +289,13 @@ private val Thickness=listOf(1.5f to "İnce",3f to "Orta",6f to "Kalın")
 /** Sol panel: numaralı sayfa küçük resimleri; dokununca o sayfaya gider, + kutucuğu boş sayfa ekler. */
 @Composable private fun PageSorter(editor:EditorState,revision:Int,canEdit:Boolean,onOpen:(Int)->Unit) {
     val strokes=editor.history.items
+    var deleting by remember { mutableStateOf<Int?>(null) }
+    deleting?.let { i ->
+        AlertDialog(onDismissRequest={deleting=null},title={Text("Sayfa ${i+1} silinsin mi?")},
+            text={Text("Sayfa ve üzerindeki yazılar silinir. Bu işlem geri alınamaz.")},
+            confirmButton={TextButton(onClick={editor.deletePage(i); deleting=null},modifier=Modifier.testTag("confirm-delete-page")){Text("Sil")}},
+            dismissButton={TextButton(onClick={deleting=null}){Text("Vazgeç")}})
+    }
     Column(Modifier.width(220.dp).fillMaxHeight().background(Color(0xfff4f5f6)).testTag("page-sorter")) {
         Text("${editor.currentPage+1}/${editor.pages.size}",style=MaterialTheme.typography.titleMedium,color=Ink,
             modifier=Modifier.padding(start=20.dp,top=16.dp,bottom=8.dp))
@@ -290,6 +315,21 @@ private val Thickness=listOf(1.5f to "İnce",3f to "Orta",6f to "Kalın")
                         .background(Color.White).clickable { onOpen(i) }
                         .semantics { contentDescription="Sayfa ${i+1}"; selected=current }) {
                         thumb?.let { Image(it.asImageBitmap(),null,Modifier.fillMaxSize().padding(2.dp)) }
+                        // Sayfa işlemleri: taşı / sil.
+                        Box(Modifier.align(Alignment.TopEnd)) {
+                            var open by remember { mutableStateOf(false) }
+                            IconButton(onClick={open=true},enabled=canEdit,modifier=Modifier.size(36.dp).testTag("page-menu-$i")) {
+                                Icon(Icons.Outlined.MoreVert,"Sayfa ${i+1} seçenekleri",tint=Muted)
+                            }
+                            DropdownMenu(expanded=open,onDismissRequest={open=false}) {
+                                DropdownMenuItem(text={Text("Yukarı taşı")},enabled=i>0,onClick={open=false; editor.movePage(i,i-1)},
+                                    leadingIcon={Icon(Icons.Outlined.ArrowUpward,null)})
+                                DropdownMenuItem(text={Text("Aşağı taşı")},enabled=i<editor.pages.lastIndex,onClick={open=false; editor.movePage(i,i+1)},
+                                    leadingIcon={Icon(Icons.Outlined.ArrowDownward,null)})
+                                DropdownMenuItem(text={Text("Sayfayı sil")},enabled=editor.pages.size>1,onClick={open=false; deleting=i},
+                                    leadingIcon={Icon(Icons.Outlined.Delete,null)})
+                            }
+                        }
                     }
                     Text("${i+1}",style=MaterialTheme.typography.labelMedium,color=if(current) Accent else Muted,modifier=Modifier.padding(top=6.dp))
                 }

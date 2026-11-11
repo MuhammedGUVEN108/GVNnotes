@@ -23,6 +23,7 @@ TestPhase 'persistence-codec-device' 'com.gvn.notes.PageStoreDeviceTest'
 TestPhase 'persistence-ink-regression' 'com.gvn.notes.InkPageRegressionTest'
 TestPhase 'pdf-note' 'com.gvn.notes.PdfNoteDeviceTest'
 TestPhase 'folder-sync' 'com.gvn.notes.FolderSyncDeviceTest'
+TestPhase 'note-management' 'com.gvn.notes.NoteManagementDeviceTest'
 TestPhase 'persistence-seed' 'com.gvn.notes.PersistenceRestartTest' 'seed'
 Adb @('shell','am','force-stop','com.gvn.notes.prototype') | Out-Null
 TestPhase 'persistence-reopen' 'com.gvn.notes.PersistenceRestartTest' 'verify'

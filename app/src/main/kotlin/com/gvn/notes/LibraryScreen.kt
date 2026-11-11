@@ -74,14 +74,19 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
     var query by rememberSaveable { mutableStateOf("") }
     var folder by rememberSaveable { mutableStateOf<String?>(null) }
     var menu by remember { mutableStateOf(false) }
+    var showTrash by rememberSaveable { mutableStateOf(false) }
+    var renamingKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var deletingKey by rememberSaveable { mutableStateOf<String?>(null) }
     val context=LocalContext.current
     val drawer=rememberDrawerState(DrawerValue.Closed)
     val scope=rememberCoroutineScope()
     // Uygulama öne geldiğinde kaynak klasör yeniden taranır (anlık arka plan algılaması yoktur).
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { state.sync() }
-    BackHandler(enabled=folder!=null || drawer.isOpen) {
-        if(drawer.isOpen) scope.launch { drawer.close() } else folder=folder?.let { upOf(it) }
+    BackHandler(enabled=folder!=null || drawer.isOpen || showTrash) {
+        if(drawer.isOpen) scope.launch { drawer.close() } else if(showTrash) showTrash=false else folder=folder?.let { upOf(it) }
     }
+    // Kısa işlem bildirimi birkaç saniye sonra kaybolur.
+    LaunchedEffect(state.actionMessage) { if(state.actionMessage!=null) { kotlinx.coroutines.delay(3500); state.actionMessage=null } }
     // Sistem dosya seçicisi; uygulama yalnız kullanıcının seçtiği PDF'yi okur ve kendi alanına kopyalar.
     val pickPdf=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if(uri!=null) {
@@ -113,11 +118,12 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
     ModalNavigationDrawer(drawerState=drawer,drawerContent={
         ModalDrawerSheet(Modifier.width(340.dp),drawerContainerColor=Color(0xfffafafa)) {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical=16.dp)) {
-                DrawerRow(Icons.Outlined.Description,"Tüm notlar",state.notes.size,current==null,0) { folder=null; scope.launch { drawer.close() } }
+                DrawerRow(Icons.Outlined.Description,"Tüm notlar",state.notes.size,current==null && !showTrash,0) { folder=null; showTrash=false; scope.launch { drawer.close() } }
+                DrawerRow(Icons.Outlined.Delete,"Çöp kutusu",state.trash.size,showTrash,0) { showTrash=true; scope.launch { drawer.close() } }
                 HorizontalDivider(Modifier.padding(horizontal=20.dp,vertical=8.dp),color=LibBorder)
-                DrawerRow(Icons.Outlined.Folder,"Klasörler",state.notes.count { it.folderPath.isEmpty() },current=="",0) { folder=""; scope.launch { drawer.close() } }
+                DrawerRow(Icons.Outlined.Folder,"Klasörler",state.notes.count { it.folderPath.isEmpty() },current=="" && !showTrash,0) { folder=""; showTrash=false; scope.launch { drawer.close() } }
                 allFolders.forEach { p ->
-                    DrawerRow(Icons.Outlined.FolderOpen,nameOf(p),countUnder(p),current==p,p.count { it=='/' }+1) { folder=p; scope.launch { drawer.close() } }
+                    DrawerRow(Icons.Outlined.FolderOpen,nameOf(p),countUnder(p),current==p && !showTrash,p.count { it=='/' }+1) { folder=p; showTrash=false; scope.launch { drawer.close() } }
                 }
                 HorizontalDivider(Modifier.padding(horizontal=20.dp,vertical=8.dp),color=LibBorder)
                 Text(if(state.source==null) "Kaynak klasör bağlı değil" else "Kaynak klasör: Documents/GVNnotes",
@@ -130,7 +136,7 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
         }
     }) {
     Box(Modifier.fillMaxSize().background(Color(0xfffafafa)).testTag("library").safeDrawingPadding()) {
-        Column(Modifier.fillMaxSize()) {
+        if(showTrash) TrashView(state,onBack={showTrash=false},onDelete={deletingKey=it}) else Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().height(72.dp).padding(start=8.dp,end=12.dp),verticalAlignment=Alignment.CenterVertically) {
                 if(searching) {
                     IconButton(onClick={searching=false; query=""}) { Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Aramayı kapat",tint=LibInk) }
@@ -193,7 +199,10 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
                             },color=LibMuted)
                         }
                     }
-                    items(visible,key={it.key}) { note -> NoteRow(note,state.sourceStates[note.key],showFolder=current==null) { state.open(note.key) } }
+                    items(visible,key={it.key}) { note ->
+                        NoteRow(note,state.sourceStates[note.key],showFolder=current==null,
+                            onRename={renamingKey=note.key},onTrash={state.moveToTrash(note.key)}) { state.open(note.key) }
+                    }
                 }
             }
         }
@@ -202,13 +211,35 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
                 CircularProgressIndicator(Modifier.size(20.dp),strokeWidth=2.dp,color=LibAccent); Text("PDF açılıyor…")
             }
         }
+        state.actionMessage?.let { message ->
+            Surface(Modifier.align(Alignment.BottomCenter).padding(bottom=36.dp),shape=RoundedCornerShape(24.dp),shadowElevation=3.dp,color=LibInk) {
+                Text(message,color=Color.White,modifier=Modifier.padding(horizontal=22.dp,vertical=14.dp).testTag("action-message"))
+            }
+        }
         // Sağ altta yuvarlak yeni not düğmesi.
-        Surface(onClick={title=""; state.clearCreationError(); showNew=true},shape=CircleShape,color=Color.White,shadowElevation=4.dp,
+        if(!showTrash) Surface(onClick={title=""; state.clearCreationError(); showNew=true},shape=CircleShape,color=Color.White,shadowElevation=4.dp,
             modifier=Modifier.align(Alignment.BottomEnd).padding(28.dp).size(72.dp).testTag("new-note")
                 .semantics { contentDescription="Yeni not" }) {
             Box(contentAlignment=Alignment.Center) { Icon(Icons.Outlined.EditNote,null,tint=LibAccent,modifier=Modifier.size(34.dp)) }
         }
     }
+    }
+    renamingKey?.let { key ->
+        val note=state.notes.firstOrNull { it.key==key }
+        if(note==null) renamingKey=null else {
+            var name by remember(key) { mutableStateOf(note.title) }
+            AlertDialog(onDismissRequest={renamingKey=null},title={Text("Yeniden adlandır")},
+                text={OutlinedTextField(value=name,onValueChange={ if(it.length<=100) name=it },singleLine=true,modifier=Modifier.fillMaxWidth().testTag("rename-field"))},
+                confirmButton={TextButton(onClick={state.rename(key,name); renamingKey=null},enabled=name.isNotBlank(),modifier=Modifier.testTag("rename-confirm")){Text("Kaydet")}},
+                dismissButton={TextButton(onClick={renamingKey=null}){Text("Vazgeç")}})
+        }
+    }
+    deletingKey?.let { key ->
+        val note=state.trash.firstOrNull { it.key==key }
+        AlertDialog(onDismissRequest={deletingKey=null},title={Text("Kalıcı olarak silinsin mi?")},
+            text={Text("\"${note?.title ?: "Not"}\" ve üzerindeki tüm yazılar kalıcı olarak silinir. Bu işlem geri alınamaz.")},
+            confirmButton={TextButton(onClick={state.deleteForever(key); deletingKey=null},modifier=Modifier.testTag("confirm-delete-forever")){Text("Kalıcı sil",color=Color(0xffb3261e))}},
+            dismissButton={TextButton(onClick={deletingKey=null}){Text("Vazgeç")}})
     }
     state.importError?.let { message ->
         AlertDialog(onDismissRequest={state.clearImportError()},title={Text("PDF içe aktarılamadı")},text={Text(message)},
@@ -265,7 +296,8 @@ private val timeFormat=SimpleDateFormat("HH:mm",Locale("tr"))
 private fun shortDate(time:Long)=if(DateUtils.isToday(time)) timeFormat.format(time) else dayFormat.format(time)
 
 private data class PreviewState(val bitmap:Bitmap?,val loaded:Boolean)
-@Composable private fun NoteRow(note:NoteCard,source:SourceState?,showFolder:Boolean,onClick:()->Unit) {
+@Composable private fun NoteRow(note:NoteCard,source:SourceState?,showFolder:Boolean,onRename:(()->Unit)?=null,onTrash:(()->Unit)?=null,
+    trailing:(@Composable ()->Unit)?=null,onClick:()->Unit) {
     val preview by produceState(PreviewState(null,false),note.key,note.revision,note.preview?.path) {
         value=PreviewState(null,false)
         value=PreviewState(withContext(Dispatchers.IO) { note.preview?.let { BitmapFactory.decodeFile(it.path) } },true)
@@ -287,6 +319,38 @@ private data class PreviewState(val bitmap:Bitmap?,val loaded:Boolean)
                 SourceState.MISSING -> Text("Kaynak PDF klasörde bulunamadı · yazılar korunuyor",style=MaterialTheme.typography.bodySmall,color=Color(0xffb3261e))
                 SourceState.REPLACED -> Text("Kaynak PDF değişti · yeni sürüm ayrı not",style=MaterialTheme.typography.bodySmall,color=Color(0xff8a5a00))
                 else -> {}
+            }
+        }
+        trailing?.invoke()
+        if(onRename!=null || onTrash!=null) Box {
+            var open by remember { mutableStateOf(false) }
+            IconButton(onClick={open=true},modifier=Modifier.testTag("note-menu-${note.title}")) { Icon(Icons.Outlined.MoreVert,"${note.title} seçenekleri",tint=LibMuted) }
+            DropdownMenu(expanded=open,onDismissRequest={open=false}) {
+                onRename?.let { DropdownMenuItem(text={Text("Yeniden adlandır")},onClick={open=false; it()},leadingIcon={Icon(Icons.Outlined.Edit,null)}) }
+                onTrash?.let { DropdownMenuItem(text={Text("Çöp kutusuna taşı")},onClick={open=false; it()},leadingIcon={Icon(Icons.Outlined.Delete,null)},
+                    modifier=Modifier.testTag("menu-trash")) }
+            }
+        }
+    }
+}
+
+/** Çöp kutusu: notlar burada silinene kadar saklanır; geri yükleme notu eski klasörüne döndürür. */
+@Composable private fun TrashView(state:LibraryState,onBack:()->Unit,onDelete:(String)->Unit) {
+    Column(Modifier.fillMaxSize().testTag("trash")) {
+        Row(Modifier.fillMaxWidth().height(72.dp).padding(start=8.dp,end=12.dp),verticalAlignment=Alignment.CenterVertically) {
+            IconButton(onClick=onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Notlara dön",tint=LibInk) }
+            Column(Modifier.weight(1f).padding(start=8.dp)) {
+                Text("Çöp kutusu",fontSize=26.sp,fontWeight=FontWeight.SemiBold,color=LibInk)
+                Text("${state.trash.size} not · silinene kadar saklanır",style=MaterialTheme.typography.bodyMedium,color=LibMuted)
+            }
+        }
+        if(state.trash.isEmpty()) Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) { Text("Çöp kutusu boş",color=LibMuted) }
+        else LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(start=24.dp,end=24.dp,top=8.dp,bottom=48.dp)) {
+            items(state.trash,key={it.key}) { note ->
+                NoteRow(note,null,showFolder=true,trailing={
+                    TextButton(onClick={state.restore(note.key)},modifier=Modifier.testTag("restore-${note.title}")) { Text("Geri yükle") }
+                    TextButton(onClick={onDelete(note.key)},modifier=Modifier.testTag("delete-${note.title}")) { Text("Kalıcı sil",color=Color(0xffb3261e)) }
+                }) {}
             }
         }
     }

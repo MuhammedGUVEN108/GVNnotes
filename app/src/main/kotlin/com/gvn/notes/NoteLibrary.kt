@@ -127,6 +127,30 @@ class NoteLibrary(private val root:File) {
         store.save(snapshot.copy(revision=snapshot.revision+1,folder=folderOf(folderPath).copy(id=snapshot.folder.id),
             note=snapshot.note.copy(title=title)))
     }
+    // --- Çöp kutusu: not klasörü olduğu gibi trash/ altına taşınır; geri yükleme aynı klasörü geri getirir. ---
+    private val trashRoot get()=File(root.parentFile,"trash")
+    /** Çöpteki notları listeler (önizlemeler dahil). */
+    fun trash():NoteLibrary=NoteLibrary(trashRoot)
+    fun moveToTrash(key:String) {
+        val dir=directory(key); val target=File(trashRoot,key)
+        check(trashRoot.isDirectory || trashRoot.mkdirs()) { "Çöp klasörü oluşturulamadı." }
+        check(!target.exists() && dir.renameTo(target)) { "Not çöpe taşınamadı." }
+        runCatching { File(target,"trashed-at.txt").writeText(System.currentTimeMillis().toString()) }
+    }
+    fun restoreFromTrash(key:String) {
+        val from=trash().directory(key); val target=directory(key)
+        check(!target.exists() && from.renameTo(target)) { "Not geri yüklenemedi." }
+        File(target,"trashed-at.txt").delete()
+    }
+    /** Kalıcı silme yalnız çöpteki not için yapılır. */
+    fun deleteFromTrash(key:String) { trash().directory(key).deleteRecursively() }
+    fun trashedAt(key:String)=runCatching { File(trash().directory(key),"trashed-at.txt").readText().toLong() }.getOrDefault(0L)
+    fun rename(key:String,title:String) {
+        val name=title.trim(); require(name.isNotEmpty() && name.length<=100)
+        val store=PageStore(directory(key)); val snapshot=store.open().snapshot ?: return
+        if(snapshot.note.title==name) return
+        store.save(snapshot.copy(revision=snapshot.revision+1,note=snapshot.note.copy(title=name)))
+    }
     private fun folderOf(path:String)=Folder(parentId=null,name=path.substringAfterLast('/').ifEmpty { "Notlar" },relativePath=path)
     private fun thumbnail(directory:File,snapshot:PageSnapshot):File {
         val image=File(directory,"preview.png"); val marker=File(directory,"preview-revision.txt")
@@ -224,11 +248,38 @@ class LibraryState(val library:NoteLibrary,private val treeFor:(String)->SourceT
         refreshJob?.cancel()
         refreshJob=viewModelScope.launch {
             loading=true; error=null
-            try { notes=withContext(Dispatchers.IO) { library.list() } }
+            try {
+                val (active,trashed)=withContext(Dispatchers.IO) {
+                    library.list() to runCatching { library.trash().list().map { it.copy(modified=library.trashedAt(it.key).takeIf { t -> t>0 } ?: it.modified) } }.getOrDefault(emptyList())
+                }
+                notes=active; trash=trashed.sortedByDescending { it.modified }
+            }
             catch(e:Exception) { if(e is CancellationException)throw e; error="Notlar açılamadı. Yeniden deneyin." }
             finally { if(generation==refreshGeneration)loading=false }
         }
     }
+    /** Çöpteki notlar; [NoteCard.modified] çöpe atılma zamanıdır. */
+    var trash by mutableStateOf<List<NoteCard>>(emptyList()); private set
+    var actionMessage by mutableStateOf<String?>(null)
+    /** Not dosyası işlemleri eşitlemeyle aynı kilitte, arka planda yürür; ardından liste yenilenir. */
+    private fun noteAction(done:String,failed:String,action:()->Unit) {
+        viewModelScope.launch {
+            actionMessage=try { syncLock.withLock { withContext(Dispatchers.IO) { action() } }; done }
+            catch(e:Exception) { if(e is CancellationException) throw e; failed }
+            loadSyncState(); refresh()
+        }
+    }
+    private val index get()=SyncIndex(library.syncIndexFile)
+    fun moveToTrash(key:String)=noteAction("Not çöp kutusuna taşındı.","Not çöpe taşınamadı.") {
+        library.moveToTrash(key); index.setState(key,SourceState.TRASHED)
+    }
+    fun restore(key:String)=noteAction("Not geri yüklendi.","Not geri yüklenemedi.") {
+        library.restoreFromTrash(key)
+        // Kaynak hâlâ klasördeyse sonraki taramada AVAILABLE kalır; değilse MISSING olarak işaretlenir.
+        index.setState(key,SourceState.AVAILABLE)
+    }
+    fun deleteForever(key:String)=noteAction("Not kalıcı olarak silindi.","Not silinemedi.") { library.deleteFromTrash(key) }
+    fun rename(key:String,title:String)=noteAction("Not adı değiştirildi.","Not adı değiştirilemedi.") { library.rename(key,title) }
     fun open(key:String) {
         library.directory(key)
         if(syncing) pendingOpen=key else selectedKey=key // Eşitleme bitince açılır.

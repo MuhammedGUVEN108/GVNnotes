@@ -1,5 +1,20 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.4.0 — Sayfa yönetimi, PDF dışa aktarma, çöp kutusu, 11 Kasım 2026
+
+- **Sayfa yönetimi:** Sayfa sıralayıcıda her küçük resmin "⋮" menüsü: Yukarı taşı, Aşağı taşı, Sayfayı sil (onaylı). Yazılar ve PDF zemini sayfayla birlikte taşınır. Silme sayfanın yazılarını da siler ve geri alma geçmişini sıfırlar; son sayfa silinemez.
+- **PDF olarak dışa aktar:** Editör menüsünde. Sistem "Kaydet" penceresiyle hedef seçilir. Her sayfa PDF zemini ve yazılarla 1500 px genişlikte (~180 dpi) görüntü olarak yazılır (raster PDF; 1000 birim = 595 pt). İlerleme ve sonuç tuvalin altında gösterilir. Özgün PDF ve not kaydı değişmez.
+- **Çöp kutusu:** Not satırındaki "⋮" menüsü: Yeniden adlandır, Çöp kutusuna taşı. Not klasörü olduğu gibi `trash/` altına taşınır. Yan menüde "Çöp kutusu (N)"; çöp görünümünde Geri yükle ve Kalıcı sil (onaylı). Otomatik silme yok.
+- **Eşitlemeyle etkileşim:** Klasörden gelen not çöpe atılınca eşitleme dizininde `TRASHED` olur; PDF klasörde dursa da yeniden not yapılmaz. Kalıcı silinse de geri gelmez. Geri yüklenince kaynak yeniden izlenir. Kaynak PDF bu sürümde klasörde kalır (klasöre yansıyan silme/taşıma sonraki sürüm).
+
+Doğrulama:
+- Yeni `NoteManagementDeviceTest`: 3 sayfalı PDF notunda 2. sayfaya yazı ve sayfayı başa taşıma (yazı ve PDF zemini sayfayla birlikte, sıra numaraları doğru); dışa aktarılan PDF'de 3 sayfa, zemin ve yazı piksel olarak var; yazılı sayfanın silinmesi yazıyı da siliyor; son sayfa silinemiyor; çöpteki eşitlenmiş not yeniden içe aktarılmıyor, geri yüklenince klasörüyle dönüyor, kalıcı silinince geri gelmiyor; arayüzde menüden çöpe taşıma, yan menüden çöp kutusu ve geri yükleme. **OK.** Ekran görüntüsü: `logs/ui-0.4.0/01-trash.png`.
+- Tüm cihaz testleri (PageStore, Ink regresyonu 2, PDF, klasör eşitleme, not yönetimi, kalıcılık 3 aşama, kütüphane seed/verify) geçti.
+- `build.ps1 -Offline`: ilk denemede lint `SuspiciousIndentation` hatasıyla durdu; satır birleştirilerek düzeltildi. BUILD SUCCESSFUL, lint 0 hata / 14 uyarı.
+- 0.4.0 tablete kuruldu; kullanıcının notları ve bağlı klasör ("Klasör güncel") yerinde.
+
+APK: `dist/GVNnotes-0.4.0-prototype.apk`, SHA256 `385c7158c7da5b76be7bab4327153d45d9fe3d0c415a5c33732bf213a889d20e`.
+
 ## 0.3.0 — Documents/GVNnotes klasör eşitlemesi, 11 Kasım 2026
 
 Kullanıcı 0.2.1 arayüzünü onayladı ("güzel olmuş") ve klasör eşitlemesini istedi. Kaynak klasör kararı: `Documents/GVNnotes` (tablette boş olarak oluşturuldu).

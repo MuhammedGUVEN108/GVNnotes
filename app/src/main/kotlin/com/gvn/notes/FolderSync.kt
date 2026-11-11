@@ -76,7 +76,8 @@ class FileSourceTree(private val root:File):SourceTree {
 private const val MAX_DEPTH=12
 private fun isPdf(name:String,mime:String?)=mime=="application/pdf" || name.endsWith(".pdf",ignoreCase=true)
 
-enum class SourceState { AVAILABLE, MISSING, REPLACED }
+/** TRASHED: not uygulamada çöpe atıldı; kaynak klasörde dursa da yeniden içe aktarılmaz. */
+enum class SourceState { AVAILABLE, MISSING, REPLACED, TRASHED }
 
 /** Kaynak dosya ↔ not eşlemesi. Not kimliği UUID kalır; hash yalnız içerik kimliğidir. */
 data class SyncEntry(val documentId:String?,val key:String,val sha256:String,val size:Long,val modified:Long,
@@ -84,6 +85,12 @@ data class SyncEntry(val documentId:String?,val key:String,val sha256:String,val
 
 /** Eşitleme dizini: notebooks kökünün yanında, atomik yazılır. */
 class SyncIndex(private val file:File) {
+    /** Tek notun kaynak durumunu değiştirir (çöpe atma/geri yükleme). Kayıt yoksa bir şey yapmaz. */
+    fun setState(key:String,state:SourceState) {
+        load()
+        if(entries.none { it.key==key }) return
+        save(entries.map { if(it.key==key) it.copy(state=state) else it },folders,lastSync)
+    }
     var entries:List<SyncEntry> = emptyList(); private set
     var folders:List<String> = emptyList(); private set
     var lastSync:Long=0; private set
@@ -141,15 +148,19 @@ class FolderSync(private val library:NoteLibrary,private val index:SyncIndex,pri
         val files=scan.items.filter { !it.isDirectory }
         val folders=scan.items.filter { it.isDirectory }.map { if(it.path.isEmpty()) it.name else "${it.path}/${it.name}" }.sorted()
         val old=index.entries
-        val byDoc=old.filter { it.documentId!=null && it.state!=SourceState.REPLACED }.associateBy { it.documentId!! }
+        // Etkin kayıtlar eşlenir; değişmiş (REPLACED) ve çöpteki (TRASHED) kayıtlar olduğu gibi korunur.
+        val active=old.filter { it.documentId!=null && (it.state==SourceState.AVAILABLE || it.state==SourceState.MISSING) }
+        val byDoc=active.associateBy { it.documentId!! }
+        val trashedDocs=old.filter { it.state==SourceState.TRASHED }.mapNotNull { it.documentId }.toSet()
         val seen=files.map { it.documentId }.toSet()
         val result=ArrayList<SyncEntry>()
         var imported=0; var moved=0; var replaced=0; var failed=0
         // Kaybolmuş (bu taramada görülmeyen) kayıtlar taşıma adayıdır.
-        val vanished=old.filter { it.state!=SourceState.REPLACED && it.documentId!=null && it.documentId !in seen }.toMutableList()
-        val untouched=old.filter { it.state==SourceState.REPLACED || it.documentId==null }
+        val vanished=active.filter { it.documentId !in seen }.toMutableList()
+        val untouched=old.filter { it !in active }
         result+=untouched
         for(item in files) {
+            if(item.documentId in trashedDocs) continue // Kullanıcı bu notu çöpe attı; yeniden oluşturma.
             val known=byDoc[item.documentId]
             try {
                 if(known!=null && known.size==item.size && known.modified==item.modified) {

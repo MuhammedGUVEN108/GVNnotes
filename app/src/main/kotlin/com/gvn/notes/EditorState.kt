@@ -86,6 +86,45 @@ class EditorState(val directory:File) : ViewModel() {
         pages=pages+Page(noteId=note.id,order=last.order+1,width=last.width,height=last.height)
         changed()
     }
+    var exporting by mutableStateOf<String?>(null); private set
+    var exportResult by mutableStateOf<String?>(null)
+    /** Notu yazılarıyla PDF olarak [open] ile açılan hedefe yazar (arka planda). */
+    fun export(open:()->java.io.OutputStream) {
+        if(!ready || exporting!=null) return
+        val pagesNow=pages; val strokesNow=history.items.toList()
+        exporting="Dışa aktarılıyor…"; exportResult=null
+        viewModelScope.launch {
+            exportResult=try {
+                withContext(Dispatchers.IO) {
+                    open().use { out -> exportPdf(directory,pagesNow,strokesNow,out) { n ->
+                        launch(Dispatchers.Main) { exporting="Dışa aktarılıyor… $n/${pagesNow.size}" } } }
+                }
+                "PDF kaydedildi (${pagesNow.size} sayfa)."
+            } catch(e:Exception) {
+                if(e is CancellationException) throw e
+                "PDF kaydedilemedi. Depolama alanını kontrol edip yeniden deneyin."
+            } finally { exporting=null }
+        }
+    }
+    /**
+     * Sayfayı ve üzerindeki yazıları siler. Sayfa yapısı değiştiği için geri alma geçmişi sıfırlanır;
+     * arayüz bu yüzden önce onay ister. Son sayfa silinemez.
+     */
+    fun deletePage(index:Int) {
+        if(!ready || busy || pages.size<=1 || index !in pages.indices) return
+        val id=pages[index].id
+        pages=pages.filterIndexed { i,_ -> i!=index }.mapIndexed { i,p -> p.copy(order=i) }
+        history.restore(history.items.filter { it.data.pageId!=id })
+        if(currentPage>pages.lastIndex) currentPage=pages.lastIndex
+        changed()
+    }
+    /** Sayfanın sırasını değiştirir; yazılar kendi sayfalarıyla birlikte taşınır. */
+    fun movePage(from:Int,to:Int) {
+        if(!ready || busy || from !in pages.indices || to !in pages.indices || from==to) return
+        val list=pages.toMutableList(); val page=list.removeAt(from); list.add(to,page)
+        pages=list.mapIndexed { i,p -> p.copy(order=i) }
+        changed()
+    }
     /** Not başlığını değiştirir; boş veya 100 karakterden uzun ad kabul edilmez. */
     fun rename(title:String) {
         val name=title.trim()
