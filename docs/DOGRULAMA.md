@@ -1,5 +1,14 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.7.0 — Kement seçimi (cihazda henüz denenmedi), 11 Kasım 2026
+
+- Araç şeridinde **Kement**: kalemle döngü çizilir, örneklerinin en az yarısı döngü içinde kalan çizgiler (aynı sayfada) seçilir. Seçim kesikli çerçeve ve hafif dolguyla gösterilir.
+- Çerçevenin içinden kalemle sürükleme seçimi taşır (sürükleme sırasında yalnız çizim kaydırılır; bırakınca çizgiler örneklerden yeniden kurulur, kimlikler korunur).
+- Seçim çubuğu: Sil, Çoğalt (+24 birim kaydırılmış kopya, seçim kopyaya geçer), Rengi uygula (fosforlu saydamlığı korunur), Seçimi kaldır. Her işlem tek geri alma adımı; geri/ileri al ve araç değişimi seçimi kaldırır.
+- `Tool.LASSO` yalnız araçtır; kayıt okuyucu çizgilerde yalnız Kalem/Fosforlu kabul eder.
+
+Doğrulama: JVM 14 test (kement geometrisi dahil) geçti; `build.ps1 -Offline` BUILD SUCCESSFUL, lint 0 hata / 11 uyarı. `LassoDeviceTest` yazıldı, DEVICE-TEST.ps1'e eklendi; **tablette çalıştırılmadı.**
+
 ## 0.6.0 — Kalem araçları ve hız (cihazda henüz denenmedi), 11 Kasım 2026
 
 Kullanıcı tablet bağlı değilken 0.9.0'a kadar soru sormadan kodlanmasını, cihaz testlerinin birlikte yapılmasını istedi; kalem konusunda kendi GVNpen projesinin (`D:/Sanal Desktop/tablet kalem uygulaması`) kullanılabileceğini söyledi. Bu, önceki "GVNpen kodu taşınmaz" kararını kalem davranışları için günceller; çizim motoru Jetpack Ink olarak kalır.

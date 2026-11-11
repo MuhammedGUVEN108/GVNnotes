@@ -168,6 +168,21 @@ object PenGeometry {
      * Kalem çizginin sonunda [holdMs] boyunca [radius] içinde kaldıysa true (akıllı şekil tetikleyicisi).
      * Örneklerin zaman damgası (P.t, ms) kullanılır.
      */
+    /** Çift-tek kuralıyla nokta çokgen içinde mi (kement seçimi). */
+    fun inside(x:Float,y:Float,poly:List<P>):Boolean {
+        var inside=false; var j=poly.lastIndex
+        for(i in poly.indices) {
+            val a=poly[i]; val b=poly[j]
+            if((a.y>y)!=(b.y>y) && x<(b.x-a.x)*(y-a.y)/(b.y-a.y)+a.x) inside=!inside
+            j=i
+        }
+        return inside
+    }
+    /** Örneklerin en az [ratio] kadarı kement içindeyse çizgi seçilir. */
+    fun selectedBy(points:List<P>,lasso:List<P>,ratio:Float=.5f):Boolean {
+        if(lasso.size<3 || points.isEmpty()) return false
+        return points.count { inside(it.x,it.y,lasso) }>=points.size*ratio
+    }
     fun heldAtEnd(points:List<P>,radius:Float,holdMs:Long):Boolean {
         if(points.size<5) return false
         val end=points.last(); var i=points.lastIndex

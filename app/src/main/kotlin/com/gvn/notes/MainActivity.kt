@@ -203,6 +203,18 @@ private val Thickness=listOf(1.5f to "İnce",3f to "Orta",6f to "Kalın")
                         .semantics { contentDescription="Sayfa ${editor.currentPage+1} / ${editor.pages.size}" })
                 val status=if(closing) "Notlara dönülüyor…" else if(editor.busy) "Çiziliyor…" else editor.saveStatus
                 Text(status,color=Muted,style=MaterialTheme.typography.bodySmall,modifier=Modifier.align(Alignment.BottomStart).padding(16.dp))
+                // Kement seçimi araç çubuğu.
+                if(editor.selection.isNotEmpty()) Surface(Modifier.align(Alignment.TopCenter).padding(top=12.dp).testTag("selection-bar"),
+                    shape=RoundedCornerShape(24.dp),color=Color.White,shadowElevation=3.dp) {
+                    Row(Modifier.padding(horizontal=8.dp),verticalAlignment=Alignment.CenterVertically) {
+                        Text("${editor.selection.size} çizgi",color=Ink,style=MaterialTheme.typography.labelLarge,modifier=Modifier.padding(horizontal=10.dp))
+                        TextButton(onClick={editor.deleteSelection()},enabled=canEdit,modifier=Modifier.testTag("selection-delete")) { Icon(Icons.Outlined.Delete,null); Spacer(Modifier.width(6.dp)); Text("Sil") }
+                        TextButton(onClick={editor.duplicateSelection()},enabled=canEdit) { Icon(Icons.Outlined.ContentCopy,null); Spacer(Modifier.width(6.dp)); Text("Çoğalt") }
+                        TextButton(onClick={editor.recolorSelection(editor.color)},enabled=canEdit) {
+                            Box(Modifier.size(18.dp).background(Color(editor.color),CircleShape)); Spacer(Modifier.width(6.dp)); Text("Rengi uygula") }
+                        IconButton(onClick={editor.clearSelection(); pageView?.refresh()}) { Icon(Icons.Outlined.Close,"Seçimi kaldır",tint=Ink) }
+                    }
+                }
                 (editor.exporting ?: editor.exportResult)?.let { message ->
                     Surface(Modifier.align(Alignment.BottomCenter).padding(bottom=16.dp),shape=RoundedCornerShape(24.dp),
                         color=Color.White,shadowElevation=3.dp) {
@@ -258,13 +270,17 @@ private val PickerColors=listOf(
     var settings by remember { mutableStateOf<Tool?>(null) }
     var picking by remember { mutableStateOf(false) }
     var sizing by remember { mutableStateOf(false) }
-    fun choose(tool:Tool) { if(editor.tool==tool) settings=tool else { editor.tool=tool; editor.savePen() } }
+    fun choose(tool:Tool) {
+        if(editor.tool==tool) { if(tool!=Tool.LASSO) settings=tool }
+        else { editor.tool=tool; editor.clearSelection(); editor.savePen() }
+    }
     Column(Modifier.width(68.dp).fillMaxHeight().background(Color.White)
         .verticalScroll(rememberScrollState()).padding(vertical=12.dp),
         horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(6.dp)) {
         ToolButton(Icons.Outlined.Edit,"Kalem",editor.tool==Tool.PEN,canEdit) { choose(Tool.PEN) }
         ToolButton(Icons.Outlined.Highlight,"Fosforlu kalem",editor.tool==Tool.HIGHLIGHTER,canEdit) { choose(Tool.HIGHLIGHTER) }
         ToolButton(EraserIcon,if(editor.eraserWhole) "Silgi (tüm çizgi)" else "Silgi (alan)",editor.tool==Tool.ERASER,canEdit) { choose(Tool.ERASER) }
+        ToolButton(Icons.Outlined.Gesture,"Kement seçimi",editor.tool==Tool.LASSO,canEdit) { choose(Tool.LASSO) }
         HorizontalDivider(Modifier.width(36.dp).padding(vertical=6.dp),color=Divider)
         val colors=Palette.map { it.first.toInt() to it.second }+editor.customColors.map { it to "Özel renk" }
         colors.forEach { (value,name) ->

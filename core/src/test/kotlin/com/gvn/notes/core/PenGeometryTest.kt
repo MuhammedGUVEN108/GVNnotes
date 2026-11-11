@@ -93,6 +93,13 @@ class PenGeometryTest {
             assertEquals("döndürülmüş çokgen $vertices",vertices,PenGeometry.fitShape(raw)?.size)
         }
     }
+    @Test fun lassoSelection() {
+        val lasso=listOf(P(0f,0f),P(100f,0f),P(100f,100f),P(0f,100f))
+        assertTrue(PenGeometry.inside(50f,50f,lasso)); assertFalse(PenGeometry.inside(150f,50f,lasso))
+        assertTrue(PenGeometry.selectedBy(List(10) { P(10f+it*5,50f) },lasso))
+        assertFalse(PenGeometry.selectedBy(List(10) { P(80f+it*10,50f) },lasso)) // çoğu dışarıda
+        assertFalse(PenGeometry.selectedBy(List(3) { P(it*1f,it*1f) },listOf(P(0f,0f),P(1f,1f))))
+    }
     @Test fun holdDetection() {
         val moving=List(20) { P(it*5f,0f,1f,it*10L) }
         assertFalse(PenGeometry.heldAtEnd(moving,3f,600))

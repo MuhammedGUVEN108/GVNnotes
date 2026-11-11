@@ -175,9 +175,46 @@ class EditorState(val directory:File) : ViewModel() {
         if(!ready || name.isEmpty() || name.length>100 || name==note.title) return
         note=note.copy(title=name); revision++; changed()
     }
+    // --- Kement seçimi ---
+    /** Seçili çizgilerin kimlikleri (boş = seçim yok). */
+    var selection by mutableStateOf<Set<String>>(emptySet())
+    private fun selected()=history.items.filter { it.data.id in selection }
+    fun clearSelection() { selection=emptySet() }
+    /** Seçimi siler (tek geri alma adımı). */
+    fun deleteSelection() {
+        if(!ready || busy || selection.isEmpty()) return
+        history.replace(history.items.filter { it.data.id !in selection }); selection=emptySet(); changed()
+    }
+    /** Seçimi sayfa içinde kaydırır; kimlikler korunur, seçim sürer. */
+    fun moveSelection(dx:Float,dy:Float) {
+        if(!ready || busy || selection.isEmpty() || (dx==0f && dy==0f)) return
+        history.replace(history.items.map { rs ->
+            if(rs.data.id !in selection) rs else {
+                val shifted=rs.data.samples.map { it.copy(x=it.x+dx,y=it.y+dy) }
+                RenderedStroke(rs.data.copy(samples=shifted),inkFromSamples(rs.ink.brush,shifted))
+            }
+        }); changed()
+    }
+    /** Seçimin kopyasını biraz kaydırarak ekler; seçim kopyalara geçer. */
+    fun duplicateSelection() {
+        if(!ready || busy || selection.isEmpty()) return
+        val copies=selected().map { rs -> rs.withSamples(rs.data.samples.map { it.copy(x=it.x+24f,y=it.y+24f) }) }
+        history.replace(history.items+copies); selection=copies.map { it.data.id }.toSet(); changed()
+    }
+    /** Seçili çizgilere geçerli rengi uygular (fosforlu kalem yarı saydamlığını korur). */
+    fun recolorSelection(value:Int) {
+        if(!ready || busy || selection.isEmpty()) return
+        history.replace(history.items.map { rs ->
+            if(rs.data.id !in selection) rs else {
+                val c=if(rs.data.tool==Tool.HIGHLIGHTER) (value and 0x00ffffff) or 0x66000000 else value
+                val b=rs.ink.brush
+                RenderedStroke(rs.data.copy(color=c),inkFromSamples(androidx.ink.brush.Brush.createWithColorIntArgb(b.family,c,b.size,b.epsilon),rs.data.samples))
+            }
+        }); changed()
+    }
     fun replace(strokes: List<RenderedStroke>) { if(ready && strokes!=history.items) { history.replace(strokes); changed() } }
-    fun undo() { if (ready && !busy && history.canUndo) { history.undo(); changed() } }
-    fun redo() { if (ready && !busy && history.canRedo) { history.redo(); changed() } }
+    fun undo() { if (ready && !busy && history.canUndo) { history.undo(); selection=emptySet(); changed() } }
+    fun redo() { if (ready && !busy && history.canRedo) { history.redo(); selection=emptySet(); changed() } }
     /** Not en son hangi sayfada bırakıldıysa oradan açılır (yalnız görünüm bilgisi; not kaydından ayrı). */
     private val viewFile get()=File(directory,"view.txt")
     var initialPage=runCatching { viewFile.readText().trim().toInt() }.getOrDefault(0)

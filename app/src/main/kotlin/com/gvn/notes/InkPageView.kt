@@ -7,6 +7,7 @@ import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.DashPathEffect
 import android.graphics.RectF
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
@@ -90,10 +91,92 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
                 // Ink'in transform parametresi geometri/kalite bilgisidir; Canvas'ı dönüştürmez.
                 // Sayfa koordinatındaki çizgileri gerçekten ekrana taşımak için aynı matrisi uygula.
                 canvas.concat(m)
-                strokes[page.id]?.forEach { renderer.draw(canvas,it.ink,m) }
+                val dragging=dragFrom!=null && lassoPage==i
+                strokes[page.id]?.forEach {
+                    if(dragging && it.data.id in editor.selection) {
+                        val k=canvas.save(); canvas.translate(dragDelta.first,dragDelta.second); renderer.draw(canvas,it.ink,m); canvas.restoreToCount(k)
+                    } else renderer.draw(canvas,it.ink,m)
+                }
+                drawSelection(canvas,i,page.id)
                 canvas.restoreToCount(save)
             }
         }
+    }
+    // --- Kement seçimi (sayfa yerel koordinatı) ---
+    private var lassoPointer=-1
+    private var lassoPage=-1
+    private val lassoPath=ArrayList<PenGeometry.P>()
+    private var dragFrom:Pair<Float,Float>?=null
+    private var dragDelta=0f to 0f
+    private val dashPaint=Paint(Paint.ANTI_ALIAS_FLAG).apply { style=Paint.Style.STROKE; color=0xff186c84.toInt() }
+    private val selectionFill=Paint().apply { style=Paint.Style.FILL; color=0x14186c84 }
+    /** Seçimin sayfası ve sınır kutusu (kenar payıyla), seçim yoksa null. */
+    private fun selectionBox():Pair<String,RectF>? {
+        val chosen=editor.history.items.filter { it.data.id in editor.selection }
+        if(chosen.isEmpty()) return null
+        val box=RectF(chosen.first().data.bounds())
+        chosen.forEach { val b=it.data.bounds(); val w=it.data.width/2
+            box.union(b.left-w,b.top-w,b.right+w,b.bottom+w) }
+        box.inset(-10f,-10f)
+        return chosen.first().data.pageId to box
+    }
+    private fun drawSelection(canvas:Canvas,pageIndex:Int,pageId:String) {
+        val scale=editor.viewport.scale
+        dashPaint.strokeWidth=2f*density/scale
+        dashPaint.pathEffect=DashPathEffect(floatArrayOf(8f*density/scale,6f*density/scale),0f)
+        if(lassoPage==pageIndex && lassoPath.size>1) {
+            val path=Path(); path.moveTo(lassoPath[0].x,lassoPath[0].y); lassoPath.forEach { path.lineTo(it.x,it.y) }
+            canvas.drawPath(path,dashPaint)
+        }
+        selectionBox()?.let { (id,box) ->
+            if(id!=pageId) return
+            if(dragFrom!=null) box.offset(dragDelta.first,dragDelta.second)
+            canvas.drawRect(box,selectionFill); canvas.drawRect(box,dashPaint)
+        }
+    }
+    /** Kement aracı: boş yerde döngü çizerek seçer, seçim çerçevesinin içinden sürükleyerek taşır. Parmaklar karışmaz. */
+    private fun lassoTouch(e:MotionEvent):Boolean {
+        val action=e.actionMasked; val ai=e.actionIndex
+        if(lassoPointer<0) {
+            if(!(action==MotionEvent.ACTION_DOWN || action==MotionEvent.ACTION_POINTER_DOWN) || !isPen(e,ai)) return false
+            if(e.getToolType(ai)==MotionEvent.TOOL_TYPE_ERASER || e.buttonState and (MotionEvent.BUTTON_STYLUS_PRIMARY or MotionEvent.BUTTON_SECONDARY)!=0) return false
+            if(pending.isNotEmpty()) claimFinished()
+            val doc=editor.viewport.toPage(e.getX(ai),e.getY(ai)); val i=pageAt(doc.first,doc.second)
+            if(i<0) { editor.clearSelection(); refresh(); return true }
+            val local=doc.first-lefts[i] to doc.second-tops[i]
+            lassoPointer=e.getPointerId(ai); lassoPage=i; lassoPath.clear(); dragFrom=null; dragDelta=0f to 0f
+            val sel=selectionBox()
+            if(sel!=null && sel.first==editor.pages[i].id && sel.second.contains(local.first,local.second)) dragFrom=local
+            else { editor.clearSelection(); lassoPath+=PenGeometry.P(local.first,local.second) }
+            fingerFocus=null; stopFingerGesture(); refresh(); return true
+        }
+        val index=e.findPointerIndex(lassoPointer)
+        if(index<0) return true
+        val doc=editor.viewport.toPage(e.getX(index),e.getY(index))
+        val local=doc.first-lefts[lassoPage] to doc.second-tops[lassoPage]
+        when {
+            action==MotionEvent.ACTION_MOVE -> {
+                val from=dragFrom
+                if(from!=null) dragDelta=local.first-from.first to local.second-from.second
+                else for(h in 0 until e.historySize) {
+                    val hd=editor.viewport.toPage(e.getHistoricalX(index,h),e.getHistoricalY(index,h))
+                    lassoPath+=PenGeometry.P(hd.first-lefts[lassoPage],hd.second-tops[lassoPage])
+                }
+                if(from==null) lassoPath+=PenGeometry.P(local.first,local.second)
+                finished.invalidate()
+            }
+            (action==MotionEvent.ACTION_UP || action==MotionEvent.ACTION_POINTER_UP) && e.getPointerId(ai)==lassoPointer -> {
+                if(dragFrom!=null) editor.moveSelection(dragDelta.first,dragDelta.second)
+                else {
+                    val pageId=editor.pages[lassoPage].id
+                    editor.selection=editor.history.items.filter { it.data.pageId==pageId && PenGeometry.selectedBy(it.data.samples.map { s -> s.toP() },lassoPath) }
+                        .map { it.data.id }.toSet()
+                }
+                lassoPointer=-1; lassoPage=-1; lassoPath.clear(); dragFrom=null; dragDelta=0f to 0f
+                refresh()
+            }
+        }
+        return true
     }
     private data class Pending(val tool: Tool,val color: Int,val size: Float,val pageId: String,
         val left: Float,val top: Float,val startTime: Long,val brush: Brush?=null,
@@ -307,6 +390,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         if (action==MotionEvent.ACTION_CANCEL || canceledPointer) {
             cancelGesture(event); return true
         }
+        if(editor.tool==Tool.LASSO && lassoTouch(event)) return true
         // Önceki çizginin asenkron teslimini beklemek hızlı el yazısında sonraki harfi düşürür.
         // Pending çizgiler varken kaleme izin ver; araç değişimi ve zoom yine kilitli kalır.
         if (pointerId == -1 &&
@@ -454,6 +538,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         return out ?: list
     }
     private fun cancelGesture(e:MotionEvent) {
+        lassoPointer=-1; lassoPage=-1; lassoPath.clear(); dragFrom=null; dragDelta=0f to 0f
         strokeId?.let { live.cancelStroke(it,e); pending.remove(it) }
         pointerId=-1; strokeId=null; current=null; erasePreview=null; lastErase=null; stopFingerGesture(); palmGesture=false
         editor.busy=pending.isNotEmpty(); refresh()

@@ -132,7 +132,7 @@ class PageStore(private val directory:File) {
                 val id=s.readUTF(); val pageId=s.readUTF(); val version=s.readInt()
                 if(version>1) throw NewerSaveFormatException()
                 require(version==1 && pageId in pageIds)
-                val tool=Tool.valueOf(s.readUTF()); require(tool!=Tool.ERASER)
+                val tool=Tool.valueOf(s.readUTF()); require(tool==Tool.PEN || tool==Tool.HIGHLIGHTER)
                 val color=s.readInt(); val width=s.readFloat(); val epsilon=s.readFloat()
                 require(width.isFinite() && epsilon.isFinite() && epsilon>0 && width>=epsilon)
                 val n=s.readInt(); require(n in 1..1_000_000)

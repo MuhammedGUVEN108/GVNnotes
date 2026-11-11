@@ -6,7 +6,8 @@ import java.util.UUID
 fun newId(): String = UUID.randomUUID().toString()
 enum class SourceStatus { AVAILABLE, MISSING, UNKNOWN, TRASHED }
 enum class BackgroundType { BLANK, PDF, IMAGE }
-enum class Tool { PEN, HIGHLIGHTER, ERASER }
+/** LASSO yalnız seçim aracıdır; kayıtlı çizgilerde bulunmaz. */
+enum class Tool { PEN, HIGHLIGHTER, ERASER, LASSO }
 data class Folder(val id: String = newId(), val parentId: String?, val name: String, val relativePath: String)
 data class Note(val id: String = newId(), val folderId: String, val title: String)
 data class SourceEntry(val id: String = newId(), val uri: String, val relativePath: String,
