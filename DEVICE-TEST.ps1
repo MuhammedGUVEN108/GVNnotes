@@ -28,6 +28,7 @@ TestPhase 'two-way' 'com.gvn.notes.TwoWayDeviceTest'
 TestPhase 'pen-tools' 'com.gvn.notes.PenToolsDeviceTest'
 TestPhase 'lasso' 'com.gvn.notes.LassoDeviceTest'
 TestPhase 'templates' 'com.gvn.notes.TemplateDeviceTest'
+TestPhase 'finger-draw' 'com.gvn.notes.FingerDrawDeviceTest'
 TestPhase 'persistence-seed' 'com.gvn.notes.PersistenceRestartTest' 'seed'
 Adb @('shell','am','force-stop','com.gvn.notes.prototype') | Out-Null
 TestPhase 'persistence-reopen' 'com.gvn.notes.PersistenceRestartTest' 'verify'

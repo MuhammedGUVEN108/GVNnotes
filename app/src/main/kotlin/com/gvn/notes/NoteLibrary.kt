@@ -243,6 +243,18 @@ class LibraryState(val library:NoteLibrary,private val treeFor:(String)->SourceT
     var source by mutableStateOf(runCatching { sourceFile.readText().trim().ifEmpty { null } }.getOrNull()); private set
     /** Kaynak klasöre yazma izni var mı; yoksa iki yönlü işlemler reddedilir. */
     var writable by mutableStateOf(false); private set
+    // --- Uygulama ayarları ---
+    private val settingsFile=AppSettings.fileFor(library.syncIndexFile.parentFile!!.let { File(it,"notebooks") })
+    var settings by mutableStateOf(AppSettings.load(settingsFile)); private set
+    fun updateSettings(next:AppSettings) {
+        settings=next
+        viewModelScope.launch(Dispatchers.IO) { runCatching { next.save(settingsFile) } }
+    }
+    /** Kaynak klasör bağlantısını kaldırır; notlar ve eşitleme kaydı korunur, klasördeki dosyalara dokunulmaz. */
+    fun unlink() {
+        runCatching { sourceFile.delete() }
+        source=null; writable=false; syncMessage="Kaynak klasör bağlantısı kaldırıldı."
+    }
     var syncing by mutableStateOf(false); private set
     var syncMessage by mutableStateOf<String?>(null); private set
     /** Kaynak klasörde (boş olanlar dahil) görülen klasör yolları. */

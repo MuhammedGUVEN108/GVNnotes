@@ -1,28 +1,51 @@
-# Tab S9+ prototip kabul kontrolü
+# Tablet test oturumu planı — 0.9.0
 
-Bu liste test sonucu değildir. 10 Kasım 2026 başlangıç kontrolünde ADB cihaz listesi boştu; emülatör kurulumu yoktu.
+0.6.0 ile 0.9.0 arası tablet bağlı değilken kodlandı. Derleme, JVM birim testleri ve lint geçti; **cihaz testleri henüz çalıştırılmadı.** Bu plan, oturumda birlikte yapılacakları sırayla verir.
 
-## Kullanım
+## 0. Hazırlık (5 dk)
 
-Debug APK: dist/GVNnotes-0.1.0-prototype.apk. Mevcut GVNpen'den ayrı kurulur. Bu ilk sürümde PDF, resim, klasör ve diske kayıt bulunmaz. Deneme çizimleri süreç kapanınca kaybolabilir. Fare simgesi yalnız emülatör/masaüstü giriş denemesi içindir; varsayılan kapalıdır.
+1. Tableti USB ile bağla; `adb devices` içinde `TABLET-SERI-NO` görünmeli.
+2. Gerçek notların yedeği (güvenlik için, yalnız okuma):
+   `adb shell run-as com.gvn.notes.prototype tar -cf /sdcard/Download/gvnnotes-yedek.tar files/notebooks files/trash files/sync-index.json`
+3. Paket kimliği değişmedi (`com.gvn.notes.prototype`); kurulum mevcut notların üzerine güncelleme olarak yapılır.
 
-## Fiziksel kalem
+## 1. Otomatik cihaz testleri (~10 dk)
 
-1. Yavaş/hızlı çizgi, nokta ve el yazısı; Samsung Notes ile aynı koşullarda hissi karşılaştır.
-2. Basıncı değiştir: kalınlık değişimi; eğim verisi alımı ve kullanılan fırçanın görsel tepkisi ayrı değerlendirilir. Eğim mutlaka görünür sonuç verecek diye varsayılmaz.
-3. Avucu ekrana koy: yazı üretmemeli, yazarken zoom/pan olmamalı.
-4. İki parmakla zoom/pan; yeni çizgi kalem ucuyla hizalı mı?
-5. Kâğıt kenarından dışarı çiz: canlı ve bitmiş çizgi aynı sınırda kesilmeli. Yakınlaştırıp sayfayı kısmen ekran dışına taşıyarak tekrarla.
-6. Fosforlu çizgi bitince koyulaşma, boşluk veya sıçrama olmamalı.
-7. Silgiyle uzun çizginin ortasından hızlı geç; tüm çizgi silinmeli. Geri al çizgiyi geri getirmeli; ileri al tekrar silmeli.
-8. Sistem teması iptal edince yarım çizgi veya geçici silme tamamlanmış işlem sayılmamalı. Ayrı parmak iptali devam eden gerçek kalemi iptal etmemeli.
+```
+./build.ps1 -Offline
+gradle :app:assembleDebugAndroidTest   (build.ps1 sonrası; komut DOGRULAMA'daki ile aynı)
+./DEVICE-TEST.ps1
+./LIBRARY-TEST.ps1
+```
 
-## Arayüz ve yaşam döngüsü
+DEVICE-TEST.ps1 sırası: PageStore, Ink regresyonu, PDF, klasör eşitleme, not yönetimi, iki yönlü işlemler, **kalem araçları (0.6)**, **kement (0.7)**, **şablonlar (0.8)**, **parmakla çizim (0.9)**, kalıcılık (3 aşama). Testler yalnız `test-document`, `test-library` ve `test-*-src` klasörlerini kullanır; gerçek notlara dokunmaz.
 
-- Dikey/yatay görünüm; sistem çubukları, 130% yazı ölçeği, araç şeridinin kaydırılması.
-- TalkBack: araç adları, etkin araç ve etkin renk okunmalı.
-- Ekran dönünce bitmiş çizgiler ViewModel üzerinden RAM'de korunmalı; aktif çizgi güvenli iptal edilmeli.
-- Undo/redo geçmişi ve yeni çizgiden sonra redo'nun kapanması.
-- Uygulamayı süreç sonlandırarak açmak kalıcı kayıt testi değildir: Aşama 2 henüz yapılmadı.
+Başarısız olan test için: `logs/<test>.txt` incelenir, kök neden bulunur, düzeltme + aynı testin yeniden çalıştırılması.
 
-S Pen yan düğmesi/hover davranışı henüz eşlenmedi. GVNpen'in tüm araç ve ayarları bu prototipte yok.
+## 2. Elle deneme (S Pen ile, ~20 dk)
+
+| # | Ne | Beklenen |
+|---|----|----------|
+| 1 | Uygulama adı ve simgesi | "GVNnotes", petrol mavisi sayfa+kalem simgesi |
+| 2 | Not listesi açılışı (çok sayfalı PDF notları dahil) | Hızlı açılır; ikinci açılış daha hızlı (özet önbelleği) |
+| 3 | Ayarlar → Kaynak klasör → **Yeniden bağla** | Yazma izni alınır, kart kaybolur |
+| 4 | Klasöre taşı / yeni klasör / çöpe at / geri yükle | `Dosyalarım`da da aynı değişiklik; `.GVNnotes-çöp` |
+| 5 | Hızlı el yazısı, zoom/kaydırma arası yazma | "Çiziliyor"da takılma yok |
+| 6 | S Pen yan düğmesiyle silme | Basılıyken siler, bırakınca kalem |
+| 7 | Alan silgisi (silgiye tekrar dokun → kapat) | Yalnız süpürülen kısım silinir |
+| 8 | Akıllı şekil: kare/daire/çizgi çiz, uçta beklet | Düzgün şekle döner; bekletmezsen dönmez |
+| 9 | Kement: seç, sürükle, rengi uygula, çoğalt, sil, geri al | Hepsi tek adımda geri alınır |
+| 10 | Yeni not → Çizgili/Kareli/Noktalı; + ile sayfa ekle | Şablon devralınır; sıralayıcıdan değiştirilebilir |
+| 11 | PDF olarak dışa aktar → Dosyalarım'da aç | Zemin + yazılar + şablon görünür |
+| 12 | Ayarlar → Parmakla çizim aç/kapat | Açıkken parmak yazar, iki parmak kaydırır |
+| 13 | Avucu ekrana koyarak yazma | Avuç kaydırma/yazı üretmez |
+| 14 | Notu kapatıp açma | Son bırakılan sayfadan açılır |
+| 15 | Ayarlar → Hata kaydı | Çökme yoksa "Kaydedilmiş çökme yok" |
+
+## 3. Bilinen riskler (oturumda özellikle bak)
+
+- **Akıllı şekil eşiği** (uçta 0,55 sn, ~1,5 mm): gerçek S Pen'de çok hassas/çok zor tetikleniyorsa `InkPageView.SHAPE_HOLD_MS/RADIUS` ayarlanır.
+- **Avuç eşiği** (90 dp temas): parmakla çizim açıkken avuç yazı üretiyorsa ayarlanır.
+- **Alan silgisi hızı:** çok yoğun sayfada silgi gecikirse ölçülür (sınır kutusu ön elemesi var).
+- **Ink teslimi:** nadiren tamamlanmayan çizgi örneklerden yeniden kurulur; logcat'te `GVNnotes` etiketi sayılır.
+- **Kayıt biçimi 3:** 0.8.0'dan sonra notlar biçim 3 yazılır; daha eski APK'ya dönülürse bu notlar açılmaz (veri silinmez).

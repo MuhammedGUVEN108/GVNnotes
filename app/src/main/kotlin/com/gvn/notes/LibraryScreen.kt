@@ -76,6 +76,7 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
     var folder by rememberSaveable { mutableStateOf<String?>(null) }
     var menu by remember { mutableStateOf(false) }
     var showTrash by rememberSaveable { mutableStateOf(false) }
+    var showSettings by rememberSaveable { mutableStateOf(false) }
     var renamingKey by rememberSaveable { mutableStateOf<String?>(null) }
     var deletingKey by rememberSaveable { mutableStateOf<String?>(null) }
     var movingKey by rememberSaveable { mutableStateOf<String?>(null) }
@@ -86,8 +87,8 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
     val scope=rememberCoroutineScope()
     // Uygulama öne geldiğinde kaynak klasör yeniden taranır (anlık arka plan algılaması yoktur).
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { state.sync() }
-    BackHandler(enabled=folder!=null || drawer.isOpen || showTrash) {
-        if(drawer.isOpen) scope.launch { drawer.close() } else if(showTrash) showTrash=false else folder=folder?.let { upOf(it) }
+    BackHandler(enabled=folder!=null || drawer.isOpen || showTrash || showSettings) {
+        if(drawer.isOpen) scope.launch { drawer.close() } else if(showSettings) showSettings=false else if(showTrash) showTrash=false else folder=folder?.let { upOf(it) }
     }
     // Kısa işlem bildirimi birkaç saniye sonra kaybolur.
     LaunchedEffect(state.actionMessage) { if(state.actionMessage!=null) { kotlinx.coroutines.delay(3500); state.actionMessage=null } }
@@ -135,7 +136,7 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
         ModalDrawerSheet(Modifier.width(340.dp),drawerContainerColor=Color(0xfffafafa)) {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical=16.dp)) {
                 DrawerRow(Icons.Outlined.Description,"Tüm notlar",state.notes.size,current==null && !showTrash,0) { folder=null; showTrash=false; scope.launch { drawer.close() } }
-                DrawerRow(Icons.Outlined.Delete,"Çöp kutusu",state.trash.size,showTrash,0) { showTrash=true; scope.launch { drawer.close() } }
+                DrawerRow(Icons.Outlined.Delete,"Çöp kutusu",state.trash.size,showTrash,0) { showTrash=true; showSettings=false; scope.launch { drawer.close() } }
                 HorizontalDivider(Modifier.padding(horizontal=20.dp,vertical=8.dp),color=LibBorder)
                 DrawerRow(Icons.Outlined.Folder,"Klasörler",state.notes.count { it.folderPath.isEmpty() },current=="" && !showTrash,0) { folder=""; showTrash=false; scope.launch { drawer.close() } }
                 allFolders.forEach { p ->
@@ -152,7 +153,8 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
         }
     }) {
     Box(Modifier.fillMaxSize().background(Color(0xfffafafa)).testTag("library").safeDrawingPadding()) {
-        if(showTrash) TrashView(state,onBack={showTrash=false},onDelete={deletingKey=it}) else Column(Modifier.fillMaxSize()) {
+        if(showSettings) SettingsView(state,onBack={showSettings=false},onPickFolder={pickFolder.launch(SuggestedFolder)})
+        else if(showTrash) TrashView(state,onBack={showTrash=false},onDelete={deletingKey=it}) else Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().height(72.dp).padding(start=8.dp,end=12.dp),verticalAlignment=Alignment.CenterVertically) {
                 if(searching) {
                     IconButton(onClick={searching=false; query=""}) { Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Aramayı kapat",tint=LibInk) }
@@ -183,6 +185,8 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
                                 leadingIcon={Icon(Icons.Outlined.Image,null)})
                             DropdownMenuItem(text={Text(if(sortByName) "Tarihe göre sırala" else "Ada göre sırala")},onClick={menu=false; sortByName=!sortByName},
                                 leadingIcon={Icon(Icons.Outlined.Sort,null)})
+                            DropdownMenuItem(text={Text("Ayarlar")},onClick={menu=false; showSettings=true},
+                                leadingIcon={Icon(Icons.Outlined.Settings,null)},modifier=Modifier.testTag("menu-settings"))
                             DropdownMenuItem(text={Text("Notları yenile")},onClick={menu=false; state.refresh(); state.sync()},
                                 leadingIcon={Icon(Icons.Outlined.Refresh,null)})
                             DropdownMenuItem(text={Text(if(state.source==null) "Klasörü bağla" else "Kaynak klasörü değiştir")},
@@ -244,7 +248,7 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
             }
         }
         // Sağ altta yuvarlak yeni not düğmesi.
-        if(!showTrash) Surface(onClick={title=""; state.clearCreationError(); showNew=true},shape=CircleShape,color=Color.White,shadowElevation=4.dp,
+        if(!showTrash && !showSettings) Surface(onClick={title=""; pattern=state.settings.defaultPattern; state.clearCreationError(); showNew=true},shape=CircleShape,color=Color.White,shadowElevation=4.dp,
             modifier=Modifier.align(Alignment.BottomEnd).padding(28.dp).size(72.dp).testTag("new-note")
                 .semantics { contentDescription="Yeni not" }) {
             Box(contentAlignment=Alignment.Center) { Icon(Icons.Outlined.EditNote,null,tint=LibAccent,modifier=Modifier.size(34.dp)) }
@@ -421,5 +425,88 @@ private data class PreviewState(val bitmap:Bitmap?,val loaded:Boolean)
                 }) {}
             }
         }
+    }
+}
+
+/** Ayarlar: yazma, yeni not şablonu, kaynak klasör ve hakkında/hata kaydı. */
+@Composable private fun SettingsView(state:LibraryState,onBack:()->Unit,onPickFolder:()->Unit) {
+    val context=LocalContext.current
+    var confirmUnlink by remember { mutableStateOf(false) }
+    val version=remember { runCatching { context.packageManager.getPackageInfo(context.packageName,0).versionName }.getOrNull() ?: "?" }
+    val crash=remember { CrashLog.file(context.filesDir) }
+    var crashExists by remember { mutableStateOf(crash.isFile && crash.length()>0) }
+    Column(Modifier.fillMaxSize().testTag("settings")) {
+        Row(Modifier.fillMaxWidth().height(72.dp).padding(start=8.dp,end=12.dp),verticalAlignment=Alignment.CenterVertically) {
+            IconButton(onClick=onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Notlara dön",tint=LibInk) }
+            Text("Ayarlar",fontSize=26.sp,fontWeight=FontWeight.SemiBold,color=LibInk,modifier=Modifier.padding(start=8.dp))
+        }
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=32.dp,vertical=8.dp).widthIn(max=760.dp),
+            verticalArrangement=Arrangement.spacedBy(20.dp)) {
+            SettingsSection("Yazma") {
+                Row(Modifier.fillMaxWidth().clickable { state.updateSettings(state.settings.copy(fingerDraw=!state.settings.fingerDraw)) }
+                    .padding(vertical=8.dp).testTag("setting-finger"),verticalAlignment=Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f).padding(end=16.dp)) {
+                        Text("Parmakla çizim",fontWeight=FontWeight.Medium,color=LibInk)
+                        Text("Açıkken tek parmak da yazar; iki parmak her zaman kaydırır ve yakınlaştırır. Kapalıyken yalnız S Pen yazar (önerilen).",
+                            style=MaterialTheme.typography.bodySmall,color=LibMuted)
+                    }
+                    Switch(checked=state.settings.fingerDraw,onCheckedChange={ state.updateSettings(state.settings.copy(fingerDraw=it)) })
+                }
+                Text("Kalem, renk, kalınlık, silgi ve akıllı şekil ayarları notun içindeki araç şeridinden yapılır; seçili araca tekrar dokun.",
+                    style=MaterialTheme.typography.bodySmall,color=LibMuted)
+            }
+            SettingsSection("Yeni not") {
+                Text("Varsayılan sayfa",style=MaterialTheme.typography.bodyMedium,color=LibInk)
+                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                    PagePattern.entries.forEach { p ->
+                        FilterChip(selected=state.settings.defaultPattern==p.code,onClick={ state.updateSettings(state.settings.copy(defaultPattern=p.code)) },label={Text(p.label)})
+                    }
+                }
+            }
+            SettingsSection("Kaynak klasör") {
+                Text(when {
+                    state.source==null -> "Bağlı değil. Documents/GVNnotes klasörünü bağlarsan oradaki PDF ve resimler otomatik not olur."
+                    state.writable -> "Bağlı · okuma ve yazma izni var. Taşıma, yeni klasör ve çöp klasöre de yansır."
+                    else -> "Bağlı · yalnız okuma izni var. Klasöre yansıyan işlemler için yeniden bağla."
+                },style=MaterialTheme.typography.bodyMedium,color=LibInk)
+                state.syncMessage?.let { Text("Son eşitleme: $it",style=MaterialTheme.typography.bodySmall,color=LibMuted) }
+                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                    Button(onClick=onPickFolder,colors=ButtonDefaults.buttonColors(containerColor=LibAccent)) {
+                        Text(if(state.source==null) "Klasörü bağla" else if(state.writable) "Klasörü değiştir" else "Yeniden bağla")
+                    }
+                    if(state.source!=null) {
+                        OutlinedButton(onClick={state.sync()},enabled=!state.syncing) { Text("Şimdi eşitle") }
+                        TextButton(onClick={confirmUnlink=true}) { Text("Bağlantıyı kaldır",color=Color(0xffb3261e)) }
+                    }
+                }
+            }
+            SettingsSection("Hakkında") {
+                Text("GVNnotes $version",style=MaterialTheme.typography.bodyMedium,color=LibInk)
+                Text("Notlar yalnız bu tablette, uygulamanın kendi alanında saklanır; internet kullanılmaz. Uygulamayı kaldırmak notları siler: önemli notları PDF olarak dışa aktar.",
+                    style=MaterialTheme.typography.bodySmall,color=LibMuted)
+                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick={
+                        val text=runCatching { crash.readText() }.getOrDefault("").ifEmpty { "Hata kaydı boş." }
+                        context.startActivity(android.content.Intent.createChooser(android.content.Intent(android.content.Intent.ACTION_SEND)
+                            .setType("text/plain").putExtra(android.content.Intent.EXTRA_SUBJECT,"GVNnotes $version hata kaydı")
+                            .putExtra(android.content.Intent.EXTRA_TEXT,text),"Hata kaydını paylaş"))
+                    },enabled=crashExists) { Text("Hata kaydını paylaş") }
+                    TextButton(onClick={ crash.delete(); crashExists=false },enabled=crashExists) { Text("Temizle") }
+                }
+                if(!crashExists) Text("Kaydedilmiş çökme yok.",style=MaterialTheme.typography.bodySmall,color=LibMuted)
+            }
+        }
+    }
+    if(confirmUnlink) AlertDialog(onDismissRequest={confirmUnlink=false},title={Text("Bağlantı kaldırılsın mı?")},
+        text={Text("Notlar ve yazılar kalır; klasördeki dosyalara dokunulmaz. Klasör yeniden bağlanana kadar eşitleme yapılmaz.")},
+        confirmButton={TextButton(onClick={state.unlink(); confirmUnlink=false}){Text("Kaldır")}},
+        dismissButton={TextButton(onClick={confirmUnlink=false}){Text("Vazgeç")}})
+}
+
+@Composable private fun SettingsSection(title:String,content:@Composable ColumnScope.()->Unit) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White).border(1.dp,LibBorder,RoundedCornerShape(16.dp)).padding(20.dp),
+        verticalArrangement=Arrangement.spacedBy(10.dp)) {
+        Text(title,fontWeight=FontWeight.SemiBold,color=LibAccent)
+        content()
     }
 }

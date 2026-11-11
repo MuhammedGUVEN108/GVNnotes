@@ -1,5 +1,16 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.9.0 — Yayına hazırlık (cihazda henüz denenmedi), 11 Kasım 2026
+
+- **Ayarlar** (liste ⋮ → Ayarlar): Parmakla çizim (açıkken tek parmak yazar; yazarken ikinci parmak değerse yarım çizgi iptal edilip kaydırmaya geçilir; avuç eşiği korunur), yeni notların varsayılan şablonu, kaynak klasör durumu (okuma/yazma izni) ile bağla/yeniden bağla/değiştir/şimdi eşitle/bağlantıyı kaldır, sürüm ve veri saklama notu. Ayarlar `files/settings.json`.
+- **Hata kaydı:** yakalanmayan istisnalar `files/crash-log.txt`'ye eklenir (en çok ~48 KB geçmiş). Ayarlar'da paylaş/temizle.
+- **Kimlik:** uygulama adı "GVNnotes", özgün uyarlanabilir simge (petrol zemin, sayfa + kalem; tek renkli simge desteği). versionName `0.9.0`, versionCode 14. Paket kimliği verileri korumak için değişmedi.
+- **Belgeler:** `docs/KULLANIM.md` (kullanım kılavuzu), `docs/TABLET-TESTI.md` (birlikte yapılacak test oturumu planı ve bilinen riskler), README güncellendi.
+
+Doğrulama: `build.ps1 -Offline` BUILD SUCCESSFUL, JVM testleri geçti, lint 0 hata / 11 uyarı. `FingerDrawDeviceTest` yazıldı. **0.6.0–0.9.0 cihaz testleri tablette çalıştırılmadı.**
+
+APK: `dist/GVNnotes-0.9.0.apk`, SHA256 `4a42f03338c931f3f812850e742cd1727e7ae8bff1eeeca21eaf2f12a85c670c`.
+
 ## 0.8.0 — Sayfa şablonları (cihazda henüz denenmedi), 11 Kasım 2026
 
 - Boş sayfa şablonları: Düz, Çizgili (sol kenar çizgisi ile), Kareli, Noktalı; aralık 38 birim ≈ 8 mm. Ekranda, küçük resimlerde ve dışa aktarılan PDF'te çizilir; çizgiler her yakınlaştırmada 1 px.

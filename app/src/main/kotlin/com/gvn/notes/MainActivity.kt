@@ -50,6 +50,7 @@ import com.gvn.notes.core.Tool
 class MainActivity:ComponentActivity() {
     override fun onCreate(savedInstanceState:Bundle?) {
         super.onCreate(savedInstanceState); enableEdgeToEdge()
+        CrashLog.install(filesDir,runCatching { packageManager.getPackageInfo(packageName,0).versionName }.getOrNull() ?: "?")
         // Cihaz testleri kullanıcı notunu değiştirmeyen ayrı, yalnız debug'da seçilebilen klasör kullanır.
         val debuggable=(applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE)!=0
         val testDocument=(applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE)!=0 &&

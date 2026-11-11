@@ -12,16 +12,21 @@ Proje merkezi: `D:/Sanal Desktop/GVNnotes`.
 
 ## Mevcut durum
 
-Kotlin + Compose + uygulama içi Ink View prototipi oluşturuldu. Boş sayfada kalem, fosforlu, tüm çizgi silgisi, geri alma/ileri alma ve iki parmak zoom/kaydırma mevcut. **0.1.2 kalıcı kayıt kullanıcı tarafından onaylandı. 0.1.3 notlar ana ekranı, gerçek küçük önizlemeler, ad vererek yeni bağımsız not oluşturma, not açma ve güvenli geri dönüş ekler.** Kullanıcının eski İlk sayfam kaydı yerinde korunur. Yeni arayüzün kullanıcı denemesi bekleniyor.
+**0.9.0 — ilk kullanılabilir sürüm adayı.** PDF/resim/boş sayfa notları, çok sayfa, sayfa sıralayıcı ve şablonlar; Samsung Notes düzeninde arayüz; S Pen kalem/fosforlu, tüm çizgi ve alan silgisi, S Pen yan düğmesi, akıllı şekil, kement seçimi; otomatik kayıt; `Documents/GVNnotes` iki yönlü klasör eşitlemesi; çöp kutusu; PDF olarak dışa aktarma; ayarlar ve hata kaydı.
+
+Tablette denenenler: 0.5.0'a kadar (tam cihaz test seti geçti; kullanıcı 0.2.0 ve 0.2.1'i onayladı). **0.6.0–0.9.0 cihazda henüz denenmedi**; derleme, JVM testleri ve lint geçti, cihaz testleri yazıldı. [Tablet test oturumu planı](docs/TABLET-TESTI.md) · [Kullanım kılavuzu](docs/KULLANIM.md)
 
 [Samsung Notes inceleme raporu](research/samsung-notes-4.3.831/RAPOR.md)
 
 ## Sonraki adım
 
-0.4.1: uygulama içinden klasör oluşturma ve notu klasöre taşımanın kaynak klasöre yansıması (iki yönlü), çöpe atılan kaynak PDFnin .GVNnotes-çöp klasörüne taşınması, resimden not.
+Kullanıcıyla tablette 0.9.0 test oturumu (DEVICE-TEST.ps1 + elle deneme listesi), bulunan hataların düzeltilmesi ve 1.0.0.
 
 ## Belgeler
 
+- [Kullanım kılavuzu](docs/KULLANIM.md)
+- [Tablet test oturumu planı](docs/TABLET-TESTI.md)
+- [Doğrulama geçmişi](docs/DOGRULAMA.md)
 - [Düzeltilmiş tasarım ve açık kararlar](docs/TASARIM.md)
 - [GVNpen kaynak incelemesi](docs/GVNPEN-INCELEME.md)
 - [Kodun neyi neden yaptığı](docs/KOD-REHBERI.md)
@@ -31,6 +36,6 @@ Kotlin + Compose + uygulama içi Ink View prototipi oluşturuldu. Boş sayfada k
 
 `./build.ps1` birim testleri, debug APK ve Android lint çalıştırır. Mevcut JDK21/SDK35 ve yerel Gradle8.11.1 kullanılır. İlk çalışmada resmî Maven depolarından bağımlılıklar indirilebilir. Sonraki çalışmada `./build.ps1 -Offline` kullanılabilir. Android Studio bu klasörü Gradle projesi olarak açabilir.
 
-Güncel çıktı: `dist/GVNnotes-0.4.0-prototype.apk`: sayfa silme/sıralama, PDF dışa aktarma, çöp kutusu, Documents/GVNnotes klasör eşitlemesi ve klasör ağacı, Samsung Notes düzeninde arayüz, PDF notları, çok sayfa; [ayrıntı](docs/DOGRULAMA.md).
+Güncel çıktı: `dist/GVNnotes-0.9.0.apk` (SHA256 `4a42f03338c931f3f812850e742cd1727e7ae8bff1eeeca21eaf2f12a85c670c`). Debug imzalı, yerel kurulum içindir; paket kimliği `com.gvn.notes.prototype` mevcut notları korumak için değiştirilmedi.
 
 0.1.1: Tamamlanan çizgilerin Canvas sayfa dönüşümü düzeltildi; yukarı sıçrama ve görünen yazıyla silgi konumunun ayrılması aynı kök nedene bağlıydı. Gerçek tablet üzerinde sentetik stylus olayı + ekran pikseli kullanan regresyon testi eklendi. Test sonucu docs/DOGRULAMA.md içinde.

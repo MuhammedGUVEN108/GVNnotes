@@ -377,8 +377,12 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     private fun isPen(e:MotionEvent,index:Int):Boolean = when(e.getToolType(index)) {
         MotionEvent.TOOL_TYPE_STYLUS,MotionEvent.TOOL_TYPE_ERASER -> true
         MotionEvent.TOOL_TYPE_MOUSE -> editor.mouseInput
-        else -> false // Avuç ve parmak hiçbir zaman mürekkep üretmez.
+        // Parmakla çizim yalnız ayarda açıksa, tek parmakla ve avuç büyüklüğünde olmayan temasta.
+        MotionEvent.TOOL_TYPE_FINGER -> editor.fingerDraw && e.pointerCount==1 && e.getTouchMajor(index)<=PALM_DP*density
+        else -> false
     }
+    /** Etkin çizgi parmakla mı başladı (ikinci parmak gelince iptal edilip kaydırmaya geçilir). */
+    private var fingerStroke=false
     @SuppressLint("ClickableViewAccessibility") // This surface handles handwriting/pan gestures, not click actions; tools are accessible Compose buttons.
     override fun onTouchEvent(event:MotionEvent):Boolean {
         if(!editor.ready || (editor.navigationPending && pointerId<0)) return true // Yükleme/çıkış sırasında yeni çizim başlamaz.
@@ -391,6 +395,12 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         if (action==MotionEvent.ACTION_CANCEL || canceledPointer) {
             cancelGesture(event); return true
         }
+        // Parmakla yazarken ikinci parmak değerse: yarım çizgi iptal, hareket kaydırma/yakınlaştırmaya döner.
+        if(fingerStroke && pointerId>=0 && action==MotionEvent.ACTION_POINTER_DOWN && event.getToolType(ai)==MotionEvent.TOOL_TYPE_FINGER) {
+            strokeId?.let { live.cancelStroke(it,event); pending.remove(it) }
+            erasePreview=null; pointerId=-1; strokeId=null; current=null; lastErase=null; fingerStroke=false
+            editor.busy=pending.isNotEmpty(); refresh()
+        }
         if(editor.tool==Tool.LASSO && lassoTouch(event)) return true
         // Önceki çizginin asenkron teslimini beklemek hızlı el yazısında sonraki harfi düşürür.
         // Pending çizgiler varken kaleme izin ver; araç değişimi ve zoom yine kilitli kalır.
@@ -402,6 +412,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
             val page=editor.pages[pageIndex]
             requestUnbufferedDispatch(event)
             pointerId=event.getPointerId(ai); editor.busy=true; fingerFocus=null; stopFingerGesture()
+            fingerStroke=event.getToolType(ai)==MotionEvent.TOOL_TYPE_FINGER
             // Yan düğme eşlemesi henüz ürün kararı değil; bu prototipte sadece araç seçicisi.
             // S Pen yan düğmesi basılıyken (veya kalemin silgi ucu) geçici silgi; araç seçimi değişmez.
             val sideButton=event.buttonState and (MotionEvent.BUTTON_STYLUS_PRIMARY or MotionEvent.BUTTON_SECONDARY) != 0

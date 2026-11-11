@@ -35,6 +35,8 @@ class EditorState(val directory:File) : ViewModel() {
     var eraserSize by mutableFloatStateOf(12f)
     /** Akıllı şekil: çizip uçta bekletince çizgi/üçgen/dikdörtgen/daireye çevir. */
     var smartShape by mutableStateOf(true)
+    /** Uygulama ayarı: parmakla çizim (not açılırken settings.json'dan okunur). */
+    var fingerDraw by mutableStateOf(runCatching { AppSettings.load(AppSettings.fileFor(directory.parentFile ?: directory)).fingerDraw }.getOrDefault(false))
     var busy by mutableStateOf(false)
     var navigationPending by mutableStateOf(false)
     var viewport by mutableStateOf(Viewport())
