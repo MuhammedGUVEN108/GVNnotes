@@ -11,6 +11,9 @@ import kotlinx.coroutines.channels.Channel
 
 data class RenderedStroke(val data: PageStroke, val ink: Stroke)
 
+/** Araç şeridindeki sabit renkler; bunların dışındaki seçimler "özel renk" olarak hatırlanır. */
+val BASE_COLORS=listOf(0xff18222e.toInt(),0xff1f6fd1.toInt(),0xffd33f49.toInt(),0xff2e9e5b.toInt(),0xff8a4fd8.toInt())
+
 class EditorState(val directory:File) : ViewModel() {
     var folder = Folder(parentId=null,name="Notlar",relativePath=""); private set
     var note = Note(folderId=folder.id,title="İlk sayfam"); private set
@@ -26,6 +29,12 @@ class EditorState(val directory:File) : ViewModel() {
     var color by mutableIntStateOf(0xff18222e.toInt())
     var size by mutableFloatStateOf(3f)
     var mouseInput by mutableStateOf(false)
+    /** Silgi: true = dokunulan çizginin tamamı (varsayılan, GVNpen ile aynı), false = yalnız süpürülen alan. */
+    var eraserWhole by mutableStateOf(true)
+    /** Silgi yarıçapı (sayfa birimi; 1000 birim = sayfa genişliği). */
+    var eraserSize by mutableFloatStateOf(12f)
+    /** Akıllı şekil: çizip uçta bekletince çizgi/üçgen/dikdörtgen/daireye çevir. */
+    var smartShape by mutableStateOf(true)
     var busy by mutableStateOf(false)
     var navigationPending by mutableStateOf(false)
     var viewport by mutableStateOf(Viewport())
@@ -39,7 +48,29 @@ class EditorState(val directory:File) : ViewModel() {
     var editVersion by mutableLongStateOf(0); private set
     private val store=PageStore(directory)
     private val writes=Channel<PageSnapshot>(Channel.CONFLATED)
+    /** Kalem ayarları (araç, renk, kalınlık, özel renkler) tüm notlar için ortaktır ve hatırlanır. */
+    private val penFile get()=File(directory.parentFile ?: directory,"pen.txt")
+    /** Kullanıcının paletten eklediği renkler (en yeni başta, en çok 6). */
+    var customColors by mutableStateOf<List<Int>>(emptyList()); private set
+    fun useColor(value:Int) {
+        color=value
+        if(value !in BASE_COLORS) customColors=(listOf(value)+customColors.filter { it!=value }).take(6)
+        savePen()
+    }
+    fun savePen() {
+        runCatching { penFile.writeText(listOf(tool.name,color,size,customColors.joinToString(","),eraserWhole,eraserSize,smartShape).joinToString(";")) }
+    }
+    private fun loadPen() = runCatching {
+        val parts=penFile.readText().trim().split(';')
+        tool=Tool.valueOf(parts[0]).takeIf { it!=Tool.ERASER } ?: Tool.PEN
+        color=parts[1].toInt(); size=parts[2].toFloat().coerceIn(.5f,24f)
+        customColors=parts.getOrNull(3)?.split(',')?.filter { it.isNotBlank() }?.map { it.toInt() } ?: emptyList()
+        parts.getOrNull(4)?.toBooleanStrictOrNull()?.let { eraserWhole=it }
+        parts.getOrNull(5)?.toFloatOrNull()?.let { eraserSize=it.coerceIn(2f,80f) }
+        parts.getOrNull(6)?.toBooleanStrictOrNull()?.let { smartShape=it }
+    }
     init {
+        loadPen()
         open()
         viewModelScope.launch(Dispatchers.IO) {
             for(snapshot in writes) {
@@ -79,6 +110,19 @@ class EditorState(val directory:File) : ViewModel() {
     }
     fun retry() { if(ready) { saveStatus="Kaydediliyor…"; writes.trySend(snapshot()) } else open() }
     private fun snapshot()=PageSnapshot(editVersion,folder,note,pages,history.items.toList(),source)
+    /**
+     * [index] numaralı sayfanın arkasına boş sayfa ekler (Samsung Notes'taki "+" gibi). Boyut o sayfanınkiyle
+     * aynıdır; PDF sayfasının arkasına eklenen sayfa düz kâğıttır.
+     */
+    fun insertBlankPageAfter(index:Int):Int {
+        if(!ready || busy || pages.size>=PageStore.MAX_PAGES || index !in pages.indices) return -1
+        val base=pages[index]
+        val blank=Page(noteId=note.id,order=0,width=base.width,height=base.height)
+        val list=pages.toMutableList(); list.add(index+1,blank)
+        pages=list.mapIndexed { i,p -> p.copy(order=i) }
+        changed()
+        return index+1
+    }
     /** Notun sonuna boş sayfa ekler. Çizgi geçmişinden bağımsızdır; geri alma sayfayı silmez. */
     fun addBlankPage() {
         if(!ready || busy || pages.size>=PageStore.MAX_PAGES) return
@@ -139,6 +183,7 @@ class EditorState(val directory:File) : ViewModel() {
     var initialPage=runCatching { viewFile.readText().trim().toInt() }.getOrDefault(0)
     override fun onCleared() {
         runCatching { if(directory.isDirectory) viewFile.writeText(currentPage.toString()) }
+        savePen()
         writes.close(); pdf?.close(); super.onCleared()
     }
 }

@@ -1,5 +1,23 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.6.0 — Kalem araçları ve hız (cihazda henüz denenmedi), 11 Kasım 2026
+
+Kullanıcı tablet bağlı değilken 0.9.0'a kadar soru sormadan kodlanmasını, cihaz testlerinin birlikte yapılmasını istedi; kalem konusunda kendi GVNpen projesinin (`D:/Sanal Desktop/tablet kalem uygulaması`) kullanılabileceğini söyledi. Bu, önceki "GVNpen kodu taşınmaz" kararını kalem davranışları için günceller; çizim motoru Jetpack Ink olarak kalır.
+
+- **GVNpen'den taşınan geometri** (`core/PenGeometry.kt`): süpürülen kapsül silgisi (tam sınırdan kesim, fazla/eksik silme yok) ve akıllı şekil (çizgi, üçgen, döndürülmüş dikdörtgen, daire; bükük kareler kabul, ovaller dikdörtgen olmaz). GVNpen EraseTests/GeometryTests kontrolleri `PenGeometryTest` olarak JVM'de çalışır (400 rastgele silgi senaryosu dahil): **5 test geçti**.
+- **Silgi:** varsayılan "dokunulan çizgiyi tamamen sil" (GVNpen ile aynı); silgiye tekrar dokununca alan silgisine geçiş ve boyut. Alan silgisi parçaları kalem örneklerinden yeniden kurulur; sınır kutusuyla ön eleme yapılır.
+- **S Pen yan düğmesi:** basılıyken geçici silgi, araç değişmez.
+- **Akıllı şekil:** kalem çizgisini uçta ~0,55 sn bekletince düzgün şekle çevrilir (tek geri alma adımı); kalem ayarından kapatılabilir.
+- **Renk ve kalınlık:** GVNpen paleti + ek tonlarla 24 renklik seçici; son 6 özel renk şeritte. Seçili kalınlığa tekrar dokununca 0,5–16 ince ayar. Araç/renk/kalınlık/silgi/akıllı şekil ayarları tüm notlar için hatırlanır (`notebooks/pen.txt`).
+- **Sayfa:** üstteki "+" mevcut sayfanın arkasına ekler; sıralayıcı menüsünde "Arkasına boş sayfa ekle".
+- **Hız:** not listesi, kayıt dosyaları değişmediyse not başına `card.json` özetinden okunur (çizgiler çözülmez).
+
+Doğrulama: `build.ps1 -Offline` BUILD SUCCESSFUL, JVM 13 test geçti, lint 0 hata / 15 uyarı. Cihaz testi `PenToolsDeviceTest` yazıldı ve DEVICE-TEST.ps1'e eklendi; **tablette çalıştırılmadı.**
+
+## 0.5.0 — İki yönlü klasör işlemleri, resimden not (tablette kısmen denendi), 11 Kasım 2026
+
+Klasör oluşturma/not taşıma/çöpe atma kaynak klasöre yansır (yazma izni gerekir; mevcut bağlantıda yazma izni yoksa "Yeniden bağla" kartı). Ad çakışmasında işlem reddedilir; kalıcı silme kullanıcı dosyasını silmez. Resimden not (EXIF yönü, çoklu resim tek not), eşitleme resimleri de alır. Ada/tarihe göre sıralama, klasör adında arama, not son sayfadan açılır. TwoWayDeviceTest tablette geçti (başlatma sırasındaki bir çökme hatasını yakaladı, düzeltildi); gerçek SAF üzerinde SafWriteDeviceTest ve arayüzden taşıma denendi. Tam test seti geçti.
+
 ## 0.4.0 — Sayfa yönetimi, PDF dışa aktarma, çöp kutusu, 11 Kasım 2026
 
 - **Sayfa yönetimi:** Sayfa sıralayıcıda her küçük resmin "⋮" menüsü: Yukarı taşı, Aşağı taşı, Sayfayı sil (onaylı). Yazılar ve PDF zemini sayfayla birlikte taşınır. Silme sayfanın yazılarını da siler ve geri alma geçmişini sıfırlar; son sayfa silinemez.

@@ -97,7 +97,10 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     }
     private data class Pending(val tool: Tool,val color: Int,val size: Float,val pageId: String,
         val left: Float,val top: Float,val startTime: Long,val brush: Brush?=null,
-        val samples: MutableList<Sample> = mutableListOf())
+        val samples: MutableList<Sample> = mutableListOf()) {
+        /** Akıllı şekil: kalem uçta bekletildiyse çizginin yerine geçecek kenarlar. */
+        var shape: List<List<PenGeometry.P>>? = null
+    }
     private val scaleGesture = ScaleGestureDetector(context, object: ScaleGestureDetector.SimpleOnScaleGestureListener() {
         override fun onScale(detector: ScaleGestureDetector): Boolean {
             if (editor.busy || palmGesture) return false
@@ -155,8 +158,13 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         var next=editor.history.items
         strokes.forEach { (id, ink) ->
             pending.remove(id)?.let { p ->
-                next += RenderedStroke(PageStroke(pageId=p.pageId,tool=p.tool,
-                    color=p.color,width=p.size,samples=p.samples.toList()),ink)
+                val shape=p.shape
+                next += if(shape!=null && p.brush!=null) {
+                    // Akıllı şekil: serbest çizginin yerine düzgün kenarlar (tek geri alma adımı).
+                    shape.map { edge -> val samples=shapeSamples(edge)
+                        RenderedStroke(PageStroke(pageId=p.pageId,tool=p.tool,color=p.color,width=p.size,samples=samples),inkFromSamples(p.brush,samples)) }
+                } else listOf(RenderedStroke(PageStroke(pageId=p.pageId,tool=p.tool,
+                    color=p.color,width=p.size,samples=p.samples.toList()),ink))
                 editor.replace(next) // Ink birden çok çizgiyi beraber teslim etse de her çizgi ayrı geri alınır.
             }
         }
@@ -187,7 +195,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     private fun rebuildStuck() {
         val stuck=pending.toMap()
         android.util.Log.w("GVNnotes","Ink ${stuck.size} çizgiyi tamamlamadı; örneklerden yeniden kuruluyor.")
-        val rebuilt=stuck.mapNotNull { (id,p) -> runCatching { id to Stroke(checkNotNull(p.brush),inputsOf(p)) }.getOrNull() }.toMap()
+        val rebuilt=stuck.mapNotNull { (id,p) -> runCatching { id to inkFromSamples(checkNotNull(p.brush),p.samples) }.getOrNull() }.toMap()
         val old=live
         live=newLiveView()
         removeView(old); addView(live,LayoutParams(-1,-1))
@@ -195,21 +203,6 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         pending.clear() // Kurulamayan (örneksiz) çizgi kalmışsa kilit yaratmasın.
         editor.busy=pointerId!=-1
         refresh()
-    }
-    private fun inputsOf(p: Pending): MutableStrokeInputBatch {
-        val batch=MutableStrokeInputBatch()
-        var last: Sample?=null
-        for (s in p.samples) {
-            val prev=last
-            if (prev!=null && (s.elapsedMillis<prev.elapsedMillis || (s.x==prev.x && s.y==prev.y))) continue
-            val orientation=if (s.orientationRadians<0) s.orientationRadians+(2*Math.PI).toFloat() else s.orientationRadians
-            runCatching {
-                batch.add(InputToolType.STYLUS,s.x,s.y,s.elapsedMillis,pressure=s.pressure.coerceIn(0f,1f),
-                    tiltRadians=s.tiltRadians.coerceIn(0f,(Math.PI/2).toFloat()),
-                    orientationRadians=orientation.coerceIn(0f,(2*Math.PI).toFloat()-1e-4f))
-            }.onSuccess { last=s }
-        }
-        return batch
     }
     private fun claimFinished() = adopt(live.getFinishedStrokes().filterKeys { it in pending })
 
@@ -325,7 +318,9 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
             requestUnbufferedDispatch(event)
             pointerId=event.getPointerId(ai); editor.busy=true; fingerFocus=null; stopFingerGesture()
             // Yan düğme eşlemesi henüz ürün kararı değil; bu prototipte sadece araç seçicisi.
-            val tool=if(event.getToolType(ai)==MotionEvent.TOOL_TYPE_ERASER) Tool.ERASER else editor.tool
+            // S Pen yan düğmesi basılıyken (veya kalemin silgi ucu) geçici silgi; araç seçimi değişmez.
+            val sideButton=event.buttonState and (MotionEvent.BUTTON_STYLUS_PRIMARY or MotionEvent.BUTTON_SECONDARY) != 0
+            val tool=if(event.getToolType(ai)==MotionEvent.TOOL_TYPE_ERASER || sideButton) Tool.ERASER else editor.tool
             if(tool==Tool.ERASER && pending.isNotEmpty()) claimFinished() // Silmeden önce bitmiş mürekkebi sayfaya al.
             if(tool==Tool.ERASER && pending.isNotEmpty()) {
                 pointerId=-1; editor.busy=true; scheduleWatchdog(); return true // Yarım çizgi üzerinde silme yarışı oluşturma.
@@ -357,7 +352,15 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
                 if(current?.tool==Tool.ERASER) {
                     editor.replace(erasePreview ?: editor.history.items)
                     erasePreview=null
-                } else strokeId?.let { live.finishStroke(event,pointerId,it) }
+                } else {
+                    current?.let { p ->
+                        if(editor.smartShape && p.tool!=Tool.ERASER) {
+                            val points=p.samples.map { it.toP() }
+                            if(PenGeometry.heldAtEnd(points,SHAPE_HOLD_RADIUS,SHAPE_HOLD_MS)) p.shape=PenGeometry.fitShape(points)
+                        }
+                    }
+                    strokeId?.let { live.finishStroke(event,pointerId,it) }
+                }
                 pointerId=-1; strokeId=null; current=null; lastErase=null
                 editor.busy=pending.isNotEmpty(); refresh()
                 if(pending.isNotEmpty()) scheduleWatchdog()
@@ -420,18 +423,35 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
             if(p.samples.lastOrNull()!=sample) p.samples+=sample
             if(p.tool==Tool.ERASER) {
                 val from=lastErase ?: doc
-                erasePreview=(erasePreview ?: editor.history.items).filterNot { hit(it,from,doc) }
+                erasePreview=eraseAlong(erasePreview ?: editor.history.items,from,doc)
                 lastErase=doc
             }
         }
         if(p.tool==Tool.ERASER) refresh()
     }
-    /** Silgi yolu belge koordinatındadır; çizginin kendi sayfasının yerel koordinatına çevrilerek sınanır. */
-    private fun hit(stroke: RenderedStroke, from: Pair<Float,Float>, to: Pair<Float,Float>): Boolean {
-        val i=editor.pages.indexOfFirst { it.id==stroke.data.pageId }
-        if (i < 0) return false
-        val dx=lefts[i]; val dy=tops[i]
-        return hitStroke(stroke.data,from.first-dx to from.second-dy,to.first-dx to to.second-dy,editor.size*3)
+    /**
+     * Silgi yolu belge koordinatındadır; her çizgi kendi sayfasının yerel koordinatında sınanır.
+     * Tüm çizgi modunda dokunulan çizgi silinir; alan modunda yalnız silginin süpürdüğü kısım kesilir
+     * (GVNpen'den taşınan süpürülen kapsül algoritması). Hiçbir şey değişmezse aynı liste döner.
+     */
+    private fun eraseAlong(list: List<RenderedStroke>, from: Pair<Float,Float>, to: Pair<Float,Float>): List<RenderedStroke> {
+        val radius=editor.eraserSize; val whole=editor.eraserWhole
+        val pageIndex=editor.pages.withIndex().associate { (i,p) -> p.id to i }
+        var out: ArrayList<RenderedStroke>?=null
+        list.forEachIndexed { k, rs ->
+            val i=pageIndex[rs.data.pageId]
+            val result=if(i==null) null else {
+                val dx=lefts[i]; val dy=tops[i]
+                val a=PenGeometry.P(from.first-dx,from.second-dy); val b=PenGeometry.P(to.first-dx,to.second-dy)
+                val reach=radius+rs.data.width/2; val box=rs.data.bounds()
+                if(box.left-reach>maxOf(a.x,b.x) || box.right+reach<minOf(a.x,b.x) || box.top-reach>maxOf(a.y,b.y) || box.bottom+reach<minOf(a.y,b.y)) null
+                else PenGeometry.eraseStroke(rs.data.samples.map { it.toP() },rs.data.width,a,b,radius,whole)
+            }
+            if(result==null) { out?.add(rs); return@forEachIndexed }
+            if(out==null) out=ArrayList<RenderedStroke>(list.size).apply { addAll(list.subList(0,k)) }
+            result.forEach { piece -> runCatching { out!!.add(rs.withSamples(samplesOf(piece,rs.data.samples))) } }
+        }
+        return out ?: list
     }
     private fun cancelGesture(e:MotionEvent) {
         strokeId?.let { live.cancelStroke(it,e); pending.remove(it) }
@@ -453,5 +473,8 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         const val GAP=32f
         /** Bundan geniş temas avuç sayılır ve kaydırma yapmaz. */
         const val PALM_DP=90f
+        /** Akıllı şekil: kalem uçta bu süre/yarıçap içinde bekletilirse şekle çevrilir (sayfa birimi ≈ 0,2 mm). */
+        const val SHAPE_HOLD_MS=550L
+        const val SHAPE_HOLD_RADIUS=7f
     }
 }

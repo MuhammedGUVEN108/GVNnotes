@@ -33,15 +33,38 @@ class NoteLibrary(private val root:File) {
         val directories=checkNotNull(root.listFiles()) { "Not klasörü okunamadı." }
         return directories.filter { it.isDirectory && runCatching { directory(it.name) }.isSuccess }.mapNotNull { dir ->
             try {
+                val slots=listOf("document-a.gvn","document-b.gvn").map { File(dir,it) }
+                val modified=slots.maxOf { it.lastModified() }
+                // Kayıt dosyaları değişmediyse özetten oku: tüm çizgileri çözmeden liste hızla açılır.
+                val stamp=slots.joinToString("|") { "${it.lastModified()}:${it.length()}" }
+                cachedCard(dir,stamp,modified)?.let { return@mapNotNull it }
                 val snapshot=PageStore(dir).open().snapshot ?: return@mapNotNull null
-                val modified=listOf("document-a.gvn","document-b.gvn").maxOf { File(dir,it).lastModified() }
                 val preview=runCatching { thumbnail(dir,snapshot) }.getOrNull()
                 NoteCard(dir.name,snapshot.note.title,modified,snapshot.strokes.size,snapshot.revision,preview,
                     pageCount=snapshot.pages.size,isPdf=snapshot.source!=null,folderPath=snapshot.folder.relativePath)
+                    .also { card -> writeCard(dir,stamp,card) }
             } catch(e:Exception) {
                 NoteCard(dir.name,"Not açılamadı",dir.lastModified(),0,0,null,true)
             }
         }.sortedByDescending { it.modified }
+    }
+    /** Liste özeti: kayıt dosyalarının zaman/boyut damgası eşleşirse geçerlidir; bozuksa yok sayılır. */
+    private fun cachedCard(dir:File,stamp:String,modified:Long):NoteCard? = runCatching {
+        val o=org.json.JSONObject(File(dir,"card.json").readText())
+        if(o.getInt("v")!=1 || o.getString("stamp")!=stamp) return@runCatching null
+        val revision=o.getLong("revision")
+        val image=File(dir,"preview.png"); val marker=File(dir,"preview-revision.txt")
+        val preview=if(image.isFile && marker.isFile && marker.readText()==revision.toString()) image else return@runCatching null
+        NoteCard(dir.name,o.getString("title"),modified,o.getInt("strokes"),revision,preview,
+            pageCount=o.getInt("pages"),isPdf=o.getBoolean("pdf"),folderPath=o.getString("folder"))
+    }.getOrNull()
+    private fun writeCard(dir:File,stamp:String,card:NoteCard) {
+        runCatching {
+            val o=org.json.JSONObject().put("v",1).put("stamp",stamp).put("title",card.title).put("revision",card.revision)
+                .put("strokes",card.strokeCount).put("pages",card.pageCount).put("pdf",card.isPdf).put("folder",card.folderPath)
+            val file=AtomicFile(File(dir,"card.json")); val out=file.startWrite()
+            try { out.write(o.toString().toByteArray()); file.finishWrite(out) } catch(e:Exception) { file.failWrite(out); throw e }
+        }
     }
     fun create(title:String):String {
         val name=title.trim()

@@ -25,6 +25,7 @@ TestPhase 'pdf-note' 'com.gvn.notes.PdfNoteDeviceTest'
 TestPhase 'folder-sync' 'com.gvn.notes.FolderSyncDeviceTest'
 TestPhase 'note-management' 'com.gvn.notes.NoteManagementDeviceTest'
 TestPhase 'two-way' 'com.gvn.notes.TwoWayDeviceTest'
+TestPhase 'pen-tools' 'com.gvn.notes.PenToolsDeviceTest'
 TestPhase 'persistence-seed' 'com.gvn.notes.PersistenceRestartTest' 'seed'
 Adb @('shell','am','force-stop','com.gvn.notes.prototype') | Out-Null
 TestPhase 'persistence-reopen' 'com.gvn.notes.PersistenceRestartTest' 'verify'
