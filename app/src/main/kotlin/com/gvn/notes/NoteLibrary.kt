@@ -109,6 +109,28 @@ class NoteLibrary(private val root:File) {
         } catch(e:Exception) { dir.deleteRecursively(); throw e } // Yalnız bu çağrıda oluşturulan not.
     }
 
+    /** Eşitlenen kaynağı not yapar: PDF doğrudan, resim önce tek sayfalık PDF'e çevrilerek. */
+    fun createNoteFromSource(temp:File,hash:String,title:String,folderPath:String,fileName:String):String {
+        if(!isImageName(fileName)) return createPdfNote(temp,hash,title,folderPath)
+        val pdf=File.createTempFile("img-",".pdf",incoming)
+        try { imagesToPdf(listOf(temp),pdf); return createPdfNote(pdf,hash,title,folderPath) } finally { pdf.delete() }
+    }
+    /**
+     * Seçilen resimleri tek not yapar (her resim bir sayfa, seçim sırasıyla). İçerik kimliği
+     * resimlerin parmak izlerinden türetilir; özgün resimlere dokunulmaz.
+     */
+    fun importImages(title:String,folderPath:String,inputs:List<()->java.io.InputStream>):String {
+        require(inputs.isNotEmpty() && inputs.size<=PageStore.MAX_PAGES)
+        val received=ArrayList<Pair<File,String>>()
+        val pdf=File.createTempFile("img-",".pdf",incoming.apply { mkdirs() })
+        try {
+            inputs.forEach { received+=receive(it) }
+            imagesToPdf(received.map { it.first },pdf)
+            val hash=java.security.MessageDigest.getInstance("SHA-256").digest(received.joinToString(",") { it.second }.toByteArray())
+                .joinToString("") { "%02x".format(it) }
+            return createPdfNote(pdf,hash,title,folderPath)
+        } finally { received.forEach { it.first.delete() }; pdf.delete() }
+    }
     /** Elle seçilen PDF'yi kök klasörde not yapar. */
     fun importPdf(title:String,input:()->java.io.InputStream):String {
         val (temp,hash)=receive(input)
@@ -195,6 +217,8 @@ class LibraryState(val library:NoteLibrary,private val treeFor:(String)->SourceT
     private val sourceFile=File(library.syncIndexFile.parentFile,"sync-source.txt")
     /** Bağlı kaynak klasör (SAF ağaç URI'si); bağlı değilse null. */
     var source by mutableStateOf(runCatching { sourceFile.readText().trim().ifEmpty { null } }.getOrNull()); private set
+    /** Kaynak klasöre yazma izni var mı; yoksa iki yönlü işlemler reddedilir. */
+    var writable by mutableStateOf(false); private set
     var syncing by mutableStateOf(false); private set
     var syncMessage by mutableStateOf<String?>(null); private set
     /** Kaynak klasörde (boş olanlar dahil) görülen klasör yolları. */
@@ -230,6 +254,7 @@ class LibraryState(val library:NoteLibrary,private val treeFor:(String)->SourceT
         }
     }
     private fun loadSyncState() {
+        writable=runCatching { tree()?.writable==true }.getOrDefault(false)
         val index=runCatching { SyncIndex(library.syncIndexFile).load() }.getOrNull() ?: return
         folders=index.folders
         sourceStates=index.entries.associate { it.key to it.state }
@@ -262,24 +287,87 @@ class LibraryState(val library:NoteLibrary,private val treeFor:(String)->SourceT
     var trash by mutableStateOf<List<NoteCard>>(emptyList()); private set
     var actionMessage by mutableStateOf<String?>(null)
     /** Not dosyası işlemleri eşitlemeyle aynı kilitte, arka planda yürür; ardından liste yenilenir. */
-    private fun noteAction(done:String,failed:String,action:()->Unit) {
+    private fun noteAction(done:String,failed:String,action:()->String?) {
         viewModelScope.launch {
-            actionMessage=try { syncLock.withLock { withContext(Dispatchers.IO) { action() } }; done }
+            actionMessage=try { syncLock.withLock { withContext(Dispatchers.IO) { action() } } ?: done }
+            catch(e:NameTakenException) { "Hedefte aynı adda bir öge var; işlem yapılmadı." }
+            catch(e:NoWriteException) { "Kaynak klasöre yazma izni yok. Klasörü yeniden bağlayın." }
             catch(e:Exception) { if(e is CancellationException) throw e; failed }
             loadSyncState(); refresh()
         }
     }
+    private class NoWriteException:IllegalStateException()
+    /** Bağlı kaynak klasör (yoksa null). */
+    private fun tree():SourceTree?=source?.let { runCatching { treeFor(it) }.getOrNull() }
+    private fun writableTree():SourceTree { val t=tree() ?: throw NoWriteException(); if(!t.writable) throw NoWriteException(); return t }
+    /** Klasörden gelen ve kaynağı yerinde olan notun eşitleme kaydı. */
+    private fun liveEntry(key:String)=index.entry(key)?.takeIf { it.state==SourceState.AVAILABLE && it.documentId!=null && !it.inTrash }
     private val index get()=SyncIndex(library.syncIndexFile)
+    /**
+     * Notu çöpe taşır. Klasörden gelen notun kaynak dosyası, yazma izni varsa kaynak klasördeki
+     * .GVNnotes-çöp klasörüne taşınır (iki yönlü); izin yoksa dosya yerinde kalır ama yeniden içe aktarılmaz.
+     */
     fun moveToTrash(key:String)=noteAction("Not çöp kutusuna taşındı.","Not çöpe taşınamadı.") {
+        val entry=liveEntry(key); val t=tree()
+        var message:String?=null
+        if(entry!=null && t!=null && t.writable) {
+            val trashed=t.moveToTrash(entry.documentId!!,entry.path,entry.name)
+            index.update(key) { it.copy(documentId=trashed,inTrash=true) }
+            message="Not ve kaynak dosyası çöpe taşındı."
+        }
         library.moveToTrash(key); index.setState(key,SourceState.TRASHED)
+        message
     }
+    /** Notu geri yükler; kaynak dosyası .GVNnotes-çöp'teyse eski klasörüne özgün adıyla geri getirilir. */
     fun restore(key:String)=noteAction("Not geri yüklendi.","Not geri yüklenemedi.") {
         library.restoreFromTrash(key)
-        // Kaynak hâlâ klasördeyse sonraki taramada AVAILABLE kalır; değilse MISSING olarak işaretlenir.
-        index.setState(key,SourceState.AVAILABLE)
+        val entry=index.entry(key); val t=tree()
+        var message:String?=null
+        if(entry!=null && entry.inTrash && entry.documentId!=null && t!=null && t.writable) {
+            try {
+                val back=t.restoreFromTrash(entry.documentId,entry.path,entry.name)
+                index.update(key) { it.copy(documentId=back,inTrash=false,state=SourceState.AVAILABLE) }
+            } catch(e:NameTakenException) {
+                index.setState(key,SourceState.MISSING)
+                message="Not geri yüklendi; klasörde aynı adlı dosya olduğu için kaynak çöpte kaldı."
+            }
+        } else index.setState(key,if(entry?.inTrash==true) SourceState.MISSING else SourceState.AVAILABLE)
+        message
     }
-    fun deleteForever(key:String)=noteAction("Not kalıcı olarak silindi.","Not silinemedi.") { library.deleteFromTrash(key) }
-    fun rename(key:String,title:String)=noteAction("Not adı değiştirildi.","Not adı değiştirilemedi.") { library.rename(key,title) }
+    /** Notu kalıcı siler. Kaynak dosya silinmez; .GVNnotes-çöp klasöründe kalır (kullanıcı dosyası). */
+    fun deleteForever(key:String)=noteAction("Not kalıcı olarak silindi.","Not silinemedi.") { library.deleteFromTrash(key); null }
+    fun rename(key:String,title:String)=noteAction("Not adı değiştirildi.","Not adı değiştirilemedi.") { library.rename(key,title); null }
+    /**
+     * Notu başka klasöre taşır. Klasörden gelen notun kaynak dosyası da kaynak klasörde taşınır (kaynak kazanır;
+     * yalnız uygulamada taşımak sonraki eşitlemede geri alınırdı). Hedefte aynı ad varsa reddedilir.
+     */
+    fun moveNote(key:String,target:String)=noteAction("Not taşındı.","Not taşınamadı.") {
+        val entry=liveEntry(key)
+        if(entry!=null && entry.path!=target) {
+            val moved=writableTree().move(entry.documentId!!,entry.path,target,entry.name)
+            index.update(key) { it.copy(documentId=moved,path=target) }
+        }
+        library.moveNote(key,target,oldTitle="\u0000",newTitle="")
+        null
+    }
+    /** Klasör oluşturur: kaynak klasör bağlıysa orada (iki yönlü), değilse yalnız uygulamada. */
+    fun createFolder(parent:String,name:String)=noteAction("Klasör oluşturuldu.","Klasör oluşturulamadı.") {
+        val clean=name.trim()
+        require(clean.isNotEmpty() && clean.length<=80 && !clean.startsWith(".") && clean.none { it in "/\\:*?\"<>|" })
+        if(source!=null) writableTree().createFolder(parent,clean)
+        index.addFolder(if(parent.isEmpty()) clean else "$parent/$clean")
+        null
+    }
+    /** Seçilen resimleri tek not yapar (her resim bir sayfa). */
+    fun importImages(title:String,folderPath:String,inputs:List<()->java.io.InputStream>) {
+        if(importing) return
+        importing=true; importError=null
+        viewModelScope.launch {
+            try { selectedKey=withContext(Dispatchers.IO) { library.importImages(title,folderPath,inputs) } }
+            catch(e:Exception) { if(e is CancellationException) throw e; importError="Resim açılamadı. Dosya bozuk ya da desteklenmeyen biçimde olabilir." }
+            finally { importing=false }
+        }
+    }
     fun open(key:String) {
         library.directory(key)
         if(syncing) pendingOpen=key else selectedKey=key // Eşitleme bitince açılır.

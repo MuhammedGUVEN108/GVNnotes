@@ -134,5 +134,11 @@ class EditorState(val directory:File) : ViewModel() {
     fun replace(strokes: List<RenderedStroke>) { if(ready && strokes!=history.items) { history.replace(strokes); changed() } }
     fun undo() { if (ready && !busy && history.canUndo) { history.undo(); changed() } }
     fun redo() { if (ready && !busy && history.canRedo) { history.redo(); changed() } }
-    override fun onCleared() { writes.close(); pdf?.close(); super.onCleared() }
+    /** Not en son hangi sayfada bırakıldıysa oradan açılır (yalnız görünüm bilgisi; not kaydından ayrı). */
+    private val viewFile get()=File(directory,"view.txt")
+    var initialPage=runCatching { viewFile.readText().trim().toInt() }.getOrDefault(0)
+    override fun onCleared() {
+        runCatching { if(directory.isDirectory) viewFile.writeText(currentPage.toString()) }
+        writes.close(); pdf?.close(); super.onCleared()
+    }
 }

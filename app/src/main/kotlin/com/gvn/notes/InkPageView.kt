@@ -215,6 +215,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
 
     fun refresh() {
         layoutPages()
+        fitIfNeeded(width,height)
         // Canlı yüzey her zaman tüm alanı kaplar: zoom/kaydırmada boyutu değişirse Ink teslimi duraklı kalabiliyor.
         // Masa alanında ve sayfa aralarında ıslak mürekkep görünmesin diye kâğıt dışı maskeyle gizlenir.
         if(width>0 && height>0) {
@@ -249,7 +250,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         val keepTop = editor.pages.size > 1 || editor.pages.first().background != BackgroundType.BLANK
         val page = editor.currentPage
         editor.fitted = false
-        onSizeChanged(width, height, width, height)
+        fitIfNeeded(width, height); refresh()
         if (keepTop) scrollToPage(page)
     }
     /** Belge en az kenar payı kadar görünür kalsın; küçükse tamamen ekranda kalsın. */
@@ -264,22 +265,30 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     }
     override fun onSizeChanged(w:Int,h:Int,oldw:Int,oldh:Int) {
         super.onSizeChanged(w,h,oldw,oldh)
-        if (!editor.fitted && w>0 && h>0) {
-            layoutPages()
-            val margin=20*density
-            val first=editor.pages.first()
-            editor.viewport = if (editor.pages.size == 1 && first.background == BackgroundType.BLANK) {
-                // Tek boş sayfa: sayfanın tamamı ekrana sığar (önceki sürümlerle aynı görünüm).
-                val s=min((w-margin*2)/first.width,(h-margin*2)/first.height).coerceAtLeast(.1f)
-                Viewport(s,(w-first.width*s)/2,(h-first.height*s)/2)
-            } else {
-                // Çok sayfa/PDF: sayfa genişliği ekrana sığar, okumaya üstten başlanır.
-                val s=((w-margin*2)/docWidth).coerceIn(.1f,8f)
-                Viewport(s,(w-docWidth*s)/2,margin)
-            }
-            editor.fitted=true
-        }
         refresh()
+    }
+    /**
+     * İlk sığdırma: not diskten yüklendikten sonra yapılır (yüklenmeden önce geçici boş sayfaya göre
+     * sığdırılırsa PDF notu yanlış ölçekle açılır ve son sayfa bilgisi erken tüketilir).
+     */
+    private fun fitIfNeeded(w:Int,h:Int) {
+        if (editor.fitted || !editor.ready || w<=0 || h<=0) return
+        layoutPages()
+        val margin=20*density
+        val first=editor.pages.first()
+        editor.viewport = if (editor.pages.size == 1 && first.background == BackgroundType.BLANK) {
+            // Tek boş sayfa: sayfanın tamamı ekrana sığar (önceki sürümlerle aynı görünüm).
+            val s=min((w-margin*2)/first.width,(h-margin*2)/first.height).coerceAtLeast(.1f)
+            Viewport(s,(w-first.width*s)/2,(h-first.height*s)/2)
+        } else {
+            // Çok sayfa/PDF: sayfa genişliği ekrana sığar, okumaya üstten başlanır.
+            val s=((w-margin*2)/docWidth).coerceIn(.1f,8f)
+            Viewport(s,(w-docWidth*s)/2,margin)
+        }
+        editor.fitted=true
+        // Son bırakılan sayfaya git; sayfa sayısı değiştiyse sınırla.
+        val last=editor.initialPage; editor.initialPage=0
+        if(last>0) post { scrollToPage(last.coerceAtMost(editor.pages.lastIndex)) }
     }
     override fun computeScroll() {
         if (scroller.computeScrollOffset()) {

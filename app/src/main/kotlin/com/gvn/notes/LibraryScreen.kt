@@ -77,6 +77,9 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
     var showTrash by rememberSaveable { mutableStateOf(false) }
     var renamingKey by rememberSaveable { mutableStateOf<String?>(null) }
     var deletingKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var movingKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var newFolder by rememberSaveable { mutableStateOf(false) }
+    var sortByName by rememberSaveable { mutableStateOf(false) }
     val context=LocalContext.current
     val drawer=rememberDrawerState(DrawerValue.Closed)
     val scope=rememberCoroutineScope()
@@ -101,8 +104,19 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
     // Kaynak klasör seçici: izin kalıcı alınır, sonraki açılışlarda yeniden sorulmaz.
     val pickFolder=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if(uri!=null) {
-            runCatching { context.contentResolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            // Okuma + yazma: taşıma, klasör oluşturma ve çöp kaynak klasöre yansısın diye.
+            runCatching { context.contentResolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION) }
+                .onFailure { runCatching { context.contentResolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION) } }
             state.link(uri.toString())
+        }
+    }
+    // Birden çok resim seçilebilir; seçim sırasıyla tek notun sayfaları olur.
+    val pickImages=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if(uris.isNotEmpty()) {
+            val name=runCatching {
+                context.contentResolver.query(uris.first(),arrayOf(OpenableColumns.DISPLAY_NAME),null,null,null)?.use { c -> if(c.moveToFirst()) c.getString(0) else null }
+            }.getOrNull()?.let { titleOf(it) } ?: "Resim notu"
+            state.importImages(name,folder ?: "",uris.map { u -> { checkNotNull(context.contentResolver.openInputStream(u)) { "Resim okunamadı." } } })
         }
     }
     val allFolders=remember(state.folders,state.notes) {
@@ -113,7 +127,8 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
     val current=folder
     val childFolders=allFolders.filter { parentOf(it)==(current ?: "") }
     val inFolder=if(current==null) state.notes else state.notes.filter { it.folderPath==current }
-    val visible=if(query.isBlank()) inFolder else state.notes.filter { it.title.contains(query.trim(),ignoreCase=true) }
+    val found=if(query.isBlank()) inFolder else state.notes.filter { it.title.contains(query.trim(),ignoreCase=true) || it.folderPath.contains(query.trim(),ignoreCase=true) }
+    val visible=if(sortByName) found.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.title }) else found
 
     ModalNavigationDrawer(drawerState=drawer,drawerContent={
         ModalDrawerSheet(Modifier.width(340.dp),drawerContainerColor=Color(0xfffafafa)) {
@@ -161,6 +176,12 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
                     Box {
                         IconButton(onClick={menu=true}) { Icon(Icons.Outlined.MoreVert,"Diğer seçenekler",tint=LibInk) }
                         DropdownMenu(expanded=menu,onDismissRequest={menu=false}) {
+                            DropdownMenuItem(text={Text("Yeni klasör")},onClick={menu=false; newFolder=true},
+                                leadingIcon={Icon(Icons.Outlined.CreateNewFolder,null)},modifier=Modifier.testTag("menu-new-folder"))
+                            DropdownMenuItem(text={Text("Resimden not")},enabled=!state.importing,onClick={menu=false; pickImages.launch(arrayOf("image/jpeg","image/png","image/webp"))},
+                                leadingIcon={Icon(Icons.Outlined.Image,null)})
+                            DropdownMenuItem(text={Text(if(sortByName) "Tarihe göre sırala" else "Ada göre sırala")},onClick={menu=false; sortByName=!sortByName},
+                                leadingIcon={Icon(Icons.Outlined.Sort,null)})
                             DropdownMenuItem(text={Text("Notları yenile")},onClick={menu=false; state.refresh(); state.sync()},
                                 leadingIcon={Icon(Icons.Outlined.Refresh,null)})
                             DropdownMenuItem(text={Text(if(state.source==null) "Klasörü bağla" else "Kaynak klasörü değiştir")},
@@ -182,6 +203,11 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
                     }
                 }
                 else -> LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(start=24.dp,end=24.dp,top=8.dp,bottom=120.dp)) {
+                    if(state.source!=null && !state.writable && current==null && query.isBlank()) item {
+                        LinkCard(title="Kaynak klasöre yazma izni yok",
+                            body="Taşıma, yeni klasör ve çöp işlemlerinin Documents/GVNnotes klasörüne de yansıması için klasörü bir kez yeniden bağla.",
+                            action="Yeniden bağla") { pickFolder.launch(SuggestedFolder) }
+                    }
                     if(state.source==null && current==null && query.isBlank()) item {
                         LinkCard { pickFolder.launch(SuggestedFolder) }
                     }
@@ -201,7 +227,7 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
                     }
                     items(visible,key={it.key}) { note ->
                         NoteRow(note,state.sourceStates[note.key],showFolder=current==null,
-                            onRename={renamingKey=note.key},onTrash={state.moveToTrash(note.key)}) { state.open(note.key) }
+                            onRename={renamingKey=note.key},onMove={movingKey=note.key},onTrash={state.moveToTrash(note.key)}) { state.open(note.key) }
                     }
                 }
             }
@@ -233,6 +259,38 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
                 confirmButton={TextButton(onClick={state.rename(key,name); renamingKey=null},enabled=name.isNotBlank(),modifier=Modifier.testTag("rename-confirm")){Text("Kaydet")}},
                 dismissButton={TextButton(onClick={renamingKey=null}){Text("Vazgeç")}})
         }
+    }
+    movingKey?.let { key ->
+        val note=state.notes.firstOrNull { it.key==key }
+        if(note==null) movingKey=null else AlertDialog(onDismissRequest={movingKey=null},title={Text("\"${note.title}\" nereye taşınsın?")},
+            text={
+                Column(Modifier.heightIn(max=420.dp).verticalScroll(rememberScrollState())) {
+                    (listOf("") + allFolders).forEach { p ->
+                        val here=p==note.folderPath
+                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable(enabled=!here) { state.moveNote(key,p); movingKey=null }
+                            .padding(start=(8+(if(p.isEmpty()) 0 else p.count { it=='/' }*20)).dp,top=12.dp,bottom=12.dp,end=8.dp).testTag("move-to-${if(p.isEmpty()) "root" else p}"),
+                            verticalAlignment=Alignment.CenterVertically) {
+                            Icon(if(p.isEmpty()) Icons.Outlined.Home else Icons.Outlined.Folder,null,tint=if(here) LibMuted else LibAccent)
+                            Text(if(p.isEmpty()) "Klasör dışı (kök)" else nameOf(p),Modifier.padding(start=12.dp).weight(1f),color=if(here) LibMuted else LibInk)
+                            if(here) Text("şu an burada",style=MaterialTheme.typography.bodySmall,color=LibMuted)
+                        }
+                    }
+                }
+            },
+            confirmButton={},dismissButton={TextButton(onClick={movingKey=null}){Text("Vazgeç")}})
+    }
+    if(newFolder) {
+        var name by remember { mutableStateOf("") }
+        val parent=folder ?: ""
+        AlertDialog(onDismissRequest={newFolder=false},title={Text("Yeni klasör")},
+            text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                Text(if(parent.isEmpty()) "Konum: en üst düzey" else "Konum: $parent",style=MaterialTheme.typography.bodySmall,color=LibMuted)
+                OutlinedTextField(value=name,onValueChange={ if(it.length<=80) name=it },singleLine=true,label={Text("Klasör adı")},
+                    modifier=Modifier.fillMaxWidth().testTag("folder-name"))
+            }},
+            confirmButton={TextButton(onClick={state.createFolder(parent,name); newFolder=false},
+                enabled=name.isNotBlank() && !name.trim().startsWith(".") && name.none { it in "/\\:*?\"<>|" },modifier=Modifier.testTag("folder-create")){Text("Oluştur")}},
+            dismissButton={TextButton(onClick={newFolder=false}){Text("Vazgeç")}})
     }
     deletingKey?.let { key ->
         val note=state.trash.firstOrNull { it.key==key }
@@ -279,15 +337,16 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
     }
 }
 
-@Composable private fun LinkCard(onLink:()->Unit) {
+@Composable private fun LinkCard(title:String="Documents/GVNnotes klasörünü bağla",
+    body:String="Bu klasöre koyduğun PDF ve resimler alt klasörleriyle birlikte otomatik not olur.",action:String="Bağla",onLink:()->Unit) {
     Row(Modifier.fillMaxWidth().padding(vertical=8.dp).clip(RoundedCornerShape(16.dp)).background(LibSoft).padding(20.dp),
         verticalAlignment=Alignment.CenterVertically) {
         Icon(Icons.Outlined.FolderSpecial,null,tint=LibAccent,modifier=Modifier.size(32.dp))
         Column(Modifier.weight(1f).padding(horizontal=16.dp)) {
-            Text("Documents/GVNnotes klasörünü bağla",fontWeight=FontWeight.SemiBold,color=LibInk)
-            Text("Bu klasöre koyduğun PDF'ler alt klasörleriyle birlikte otomatik not olur.",color=LibMuted,style=MaterialTheme.typography.bodyMedium)
+            Text(title,fontWeight=FontWeight.SemiBold,color=LibInk)
+            Text(body,color=LibMuted,style=MaterialTheme.typography.bodyMedium)
         }
-        Button(onClick=onLink,colors=ButtonDefaults.buttonColors(containerColor=LibAccent),modifier=Modifier.testTag("link-folder")) { Text("Bağla") }
+        Button(onClick=onLink,colors=ButtonDefaults.buttonColors(containerColor=LibAccent),modifier=Modifier.testTag("link-folder")) { Text(action) }
     }
 }
 
@@ -296,7 +355,7 @@ private val timeFormat=SimpleDateFormat("HH:mm",Locale("tr"))
 private fun shortDate(time:Long)=if(DateUtils.isToday(time)) timeFormat.format(time) else dayFormat.format(time)
 
 private data class PreviewState(val bitmap:Bitmap?,val loaded:Boolean)
-@Composable private fun NoteRow(note:NoteCard,source:SourceState?,showFolder:Boolean,onRename:(()->Unit)?=null,onTrash:(()->Unit)?=null,
+@Composable private fun NoteRow(note:NoteCard,source:SourceState?,showFolder:Boolean,onRename:(()->Unit)?=null,onMove:(()->Unit)?=null,onTrash:(()->Unit)?=null,
     trailing:(@Composable ()->Unit)?=null,onClick:()->Unit) {
     val preview by produceState(PreviewState(null,false),note.key,note.revision,note.preview?.path) {
         value=PreviewState(null,false)
@@ -327,6 +386,8 @@ private data class PreviewState(val bitmap:Bitmap?,val loaded:Boolean)
             IconButton(onClick={open=true},modifier=Modifier.testTag("note-menu-${note.title}")) { Icon(Icons.Outlined.MoreVert,"${note.title} seçenekleri",tint=LibMuted) }
             DropdownMenu(expanded=open,onDismissRequest={open=false}) {
                 onRename?.let { DropdownMenuItem(text={Text("Yeniden adlandır")},onClick={open=false; it()},leadingIcon={Icon(Icons.Outlined.Edit,null)}) }
+                onMove?.let { DropdownMenuItem(text={Text("Klasöre taşı")},onClick={open=false; it()},leadingIcon={Icon(Icons.Outlined.DriveFileMove,null)},
+                    modifier=Modifier.testTag("menu-move")) }
                 onTrash?.let { DropdownMenuItem(text={Text("Çöp kutusuna taşı")},onClick={open=false; it()},leadingIcon={Icon(Icons.Outlined.Delete,null)},
                     modifier=Modifier.testTag("menu-trash")) }
             }
