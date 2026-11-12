@@ -100,7 +100,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     private val finished = object : View(context) {
         override fun onDraw(canvas: Canvas) {
             layoutPages()
-            canvas.drawColor(0xffe9eaec.toInt())
+            canvas.drawColor(0xffe3e9f1.toInt()) // Petrol Ada masası
             val strokes = byPage(working ?: editor.history.items)
             val pages = editor.pages
             for (i in pages.indices) {
@@ -552,8 +552,8 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     private val lassoPath=ArrayList<PenGeometry.P>()
     private var dragFrom:Pair<Float,Float>?=null
     private var dragDelta=0f to 0f
-    private val dashPaint=Paint(Paint.ANTI_ALIAS_FLAG).apply { style=Paint.Style.STROKE; color=0xff186c84.toInt() }
-    private val selectionFill=Paint().apply { style=Paint.Style.FILL; color=0x14186c84 }
+    private val dashPaint=Paint(Paint.ANTI_ALIAS_FLAG).apply { style=Paint.Style.STROKE; color=0xff4f57b0.toInt() }
+    private val selectionFill=Paint().apply { style=Paint.Style.FILL; color=0x144f57b0 }
     private fun selectionBox():Pair<String,RectF>? {
         val chosen=editor.history.items.filter { it.data.id in editor.selection }
         if(chosen.isEmpty()) return null

@@ -2,6 +2,14 @@
 name: GVNnotes
 description: "GVNpen arayüz kimliğini referans alan yerel kalem prototipi"
 colors:
+  desk: "#E3E9F1"
+  island-surface: "#F9FBFF"
+  ink: "#1F2D42"
+  muted: "#58687F"
+  accent-indigo: "#4F57B0"
+  accent-soft: "#E6E8FA"
+  line: "#CAD3E3"
+  petrol-folder: "#186C84"
   rail-midnight: "#18222E"
   tool-active: "#186C84"
   accent-cyan: "#4FC4DD"
@@ -39,6 +47,8 @@ components:
     backgroundColor: "{colors.paper}"
 ---
 # Design System: GVNnotes
+
+> **0.11.0 (12 Kasım 2026): "Petrol Ada" uygulama arayüzü.** Kütüphane, düzenleyici çerçevesi, ayarlar ve yeni not bu dili kullanır: açık mavi-gri masa (desk), yüzen yumuşak gölgeli adalar (island-surface, 24 dp köşe), indigo seçim ve birincil eylem, petrol mavisi klasör/eşitleme kimliği. Kaynak: `app/src/main/kotlin/com/gvn/notes/Theme.kt` ve `D:/Sanal Desktop/GVNnotes Arayüz Sheetleri/6-petrol-ada.html`. GVNpen araç şeridi ve ayar ekranı kendi renkleriyle (rail-midnight, tool-active, accent-cyan) aynen kalır.
 
 ## Overview
 

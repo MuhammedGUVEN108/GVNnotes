@@ -1,5 +1,20 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.11.0 — "Petrol Ada" arayüzü, 12 Kasım 2026
+
+Kullanıcı arayüzleri beğenmedi; altı tasarım yönü arasından **6-Petrol Ada**'yı seçti (`D:/Sanal Desktop/GVNnotes Arayüz Sheetleri/6-petrol-ada.html`): Derin Petrol'ün kalıcı klasör ağacı + Ada'nın yüzen panelleri. Yazma tarafı (GVNpen şeridi, ayar ekranı, çizim motoru) değişmedi; şerit zaten yüzen ve sürüklenebilir bir ada.
+
+- **Tema** (Theme.kt): açık mavi-gri masa #E3E9F1, yüzey #F9FBFF, indigo seçim/birincil eylem #4F57B0, petrol #186C84 klasör ve eşitleme rengi. Yazma yüzeyinin masa rengi ve kement rengi buna uyarlandı.
+- **Kütüphane:** solda kalıcı, yüzen klasör ağacı adası (Tüm notlar, Klasörler, iç içe daraltılabilir klasörler ve sayılar, Çöp kutusu, eşitleme kartı, Ayarlar, yeni klasör düğmesi). Dar ekranda (<840 dp) ağaç çekmeceye döner. Sağda "Yeni not" düğmesi, PDF/resim içe aktarma, klasör kısayol kartları ve önizlemeli not kartları (Tüm notlar'da klasör etiketi).
+- **Düzenleyici:** başlıkta konum çipi ("Tıp Fakültesi › Fizyoloji"); dokununca **Klasör adası** açılır: aynı klasördeki notlara geçiş (önce kayıt biter), "Klasöre git", "Bu klasörde yeni". Sağ üstte yakınlaştırma/sığdır/tam ekran/dışa aktar adası; sayfa sıralayıcı sağda kapatılabilir ada; altta kayıt durumu ve sayfa sayacı (+ sayfa) adaları. "Kaydedildi" yazısının şerit altında kalması sorunu bu düzenle kalktı (yazı artık ayrı bir ada).
+- **Ayarlar:** sağda kategori adası (Yazma, Kalem (GVNpen), Yeni not, Kaynak klasör, Hakkında), solda seçili bölümün kartları. "Kalem (GVNpen)" GVNpen ayar ekranını açar.
+- **Yeni not:** büyük pencere: ad, klasör ağacından konum seçimi (yeni: not doğrudan seçilen klasörde oluşur), dört şablon önizlemesi.
+- Cihaz testleri yeni düzene uyarlandı (geniş ekranda klasör ağacı hep açık, çekmece düğmesi yalnız dar ekranda).
+
+Doğrulama: core + app JVM testleri ve lint geçti; cihaz testleri derleniyor. **Tablet bağlı değildi: cihaz testleri çalıştırılmadı, arayüz cihazda görülmedi.**
+
+APK: `dist/GVNnotes-0.11.0.apk`, SHA256 `ce9836173dcec356ac44663dbf73337ac77d234760dcb5d21f3928eacbd179bc`.
+
 ## 0.10.0 — Yazma tarafı GVNpen ile aynı, 12 Kasım 2026
 
 Kullanıcı yazma tarafını beğenmedi: "GVNpen'in tüm özellikleri olmalı ve yazma, geçişler, ikonlar aynı olmalı." Bu, 10 Kasım'daki "GVNpen motoru taşınmaz" kararını yazma tarafı için kaldırır. Kütüphane/klasör tarafı Samsung Notes düzeninde kalır.

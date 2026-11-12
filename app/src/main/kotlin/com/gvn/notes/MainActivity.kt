@@ -42,6 +42,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import java.io.File
@@ -75,15 +77,25 @@ class MainActivity:ComponentActivity() {
             override fun <T:ViewModel> create(modelClass:Class<T>):T =
                 EditorState(if(testDocument)File(filesDir,"test-document") else library.directory(key)) as T
         })[EditorState::class.java]
-        setContent { MaterialTheme(colorScheme=lightColorScheme(
-            primary=Color(0xff186c84),secondary=Color(0xff4fc4dd),surface=Color(0xfffafafa),
-            surfaceContainerLow=Color(0xfff1f3f4)
-        )) {
+        setContent { MaterialTheme(colorScheme=AdaColors) {
             if(testDocument) EditorScreen(editor("test"))
             else {
                 val selected=libraryState.selectedKey
                 if(selected==null) LibraryScreen(libraryState)
-                else key(selected) { EditorDestination(editor(selected)) { libraryState.close(); stores.clear(selected) } }
+                else key(selected) {
+                    // Klasör adası: notun klasörü ve aynı klasördeki diğer notlar.
+                    val path=libraryState.notes.firstOrNull { it.key==selected }?.folderPath
+                    val siblings=libraryState.notes.filter { it.folderPath==(path ?: "") }
+                    EditorDestination(editor(selected),FolderContext(selected,path,siblings)) { after ->
+                        libraryState.close(); stores.clear(selected)
+                        when(after) {
+                            is AfterClose.Open -> libraryState.open(after.key)
+                            is AfterClose.Folder -> libraryState.requestedFolder=after.path
+                            is AfterClose.NewIn -> libraryState.requestedNewIn=after.path
+                            null -> {}
+                        }
+                    }
+                }
             }
         } }
     }
@@ -100,33 +112,44 @@ class EditorStores:ViewModel() {
     override fun onCleared() { stores.values.forEach { it.clear() }; stores.clear() }
 }
 
-@Composable private fun EditorDestination(editor:EditorState,onClose:()->Unit) {
+/** Düzenleyicinin bulunduğu klasör: başlıktaki konum çipi ve Klasör adası için. [path] null = bilinmiyor. */
+class FolderContext(val key:String,val path:String?,val notes:List<NoteCard>)
+/** Not kapandıktan (kayıt bittikten) sonra yapılacak gezinme. */
+sealed interface AfterClose {
+    data class Open(val key:String):AfterClose
+    data class Folder(val path:String):AfterClose
+    data class NewIn(val path:String):AfterClose
+}
+
+@Composable private fun EditorDestination(editor:EditorState,folder:FolderContext,onClose:(AfterClose?)->Unit) {
     var closing by rememberSaveable { mutableStateOf(false) }
+    var after by remember { mutableStateOf<AfterClose?>(null) }
     BackHandler { closing=true }
     LaunchedEffect(closing) { editor.navigationPending=closing }
     DisposableEffect(editor) { onDispose { editor.navigationPending=false } }
     LaunchedEffect(closing,editor.busy,editor.ready,editor.savedVersion,editor.editVersion,editor.problem) {
         if(closing && !editor.busy &&
-            ((editor.ready && editor.savedVersion==editor.editVersion) || (!editor.ready && editor.problem!=null))) onClose()
+            ((editor.ready && editor.savedVersion==editor.editVersion) || (!editor.ready && editor.problem!=null))) onClose(after)
     }
-    EditorScreen(editor,onBack={closing=true},closing=closing)
+    EditorScreen(editor,onBack={after=null; closing=true},closing=closing,folder=folder,onNavigate={ after=it; closing=true })
     if(closing && editor.ready && editor.problem!=null) {
         AlertDialog(onDismissRequest={closing=false},title={Text("Not henüz kaydedilemedi")},
             text={Text("Değişiklikleri korumak için kaydı yeniden deneyin veya notta kalın.")},
             confirmButton={TextButton(onClick={editor.retry()}){Text("Tekrar dene")}},
-            dismissButton={TextButton(onClick={closing=false}){Text("Notta kal")}})
+            dismissButton={TextButton(onClick={closing=false; after=null}){Text("Notta kal")}})
     }
 }
 
 
-/** Samsung Notes düzenini referans alan, GVNnotes'a ait renk ve simgelerle editör. */
-private val Ink=Color(0xff1f2328)
-private val Muted=Color(0xff5f6368)
-private val Accent=Color(0xff186c84)
-private val AccentSoft=Color(0xffdcecf1)
-private val Divider=Color(0xffe3e5e8)
+/** "Petrol Ada" düzenleyici çerçevesi; yazma yüzeyi ve araç şeridi GVNpen ile aynıdır. */
+private val Ink=Ada.Ink
+private val Muted=Ada.Muted
+private val Accent=Ada.Accent
+private val AccentSoft=Ada.Soft
+private val Divider=Ada.Line
 
-@Composable private fun EditorScreen(editor:EditorState,onBack:(()->Unit)?=null,closing:Boolean=false) {
+@Composable private fun EditorScreen(editor:EditorState,onBack:(()->Unit)?=null,closing:Boolean=false,
+    folder:FolderContext?=null,onNavigate:(AfterClose)->Unit={}) {
     val revision=editor.revision
     val canEdit=editor.ready && !editor.busy && !closing
     var pageView by remember { mutableStateOf<InkPageView?>(null) }
@@ -140,6 +163,7 @@ private val Divider=Color(0xffe3e5e8)
     var fullscreen by rememberSaveable { mutableStateOf(false) }
     var renaming by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
+    var folderIsland by remember { mutableStateOf(false) }
     val view=LocalView.current
     fun openPenSettings() { penSettings.launch(android.content.Intent(view.context,com.gvn.notes.pen.PenSettingsActivity::class.java)) }
     val context=androidx.compose.ui.platform.LocalContext.current
@@ -159,16 +183,18 @@ private val Divider=Color(0xffe3e5e8)
     DisposableEffect(Unit) { onDispose {
         (view.context as? Activity)?.window?.let { WindowCompat.getInsetsController(it,view).show(WindowInsetsCompat.Type.systemBars()) }
     } }
-    Column(Modifier.fillMaxSize().testTag("editor").background(Color(0xfffafafa))
+    Column(Modifier.fillMaxSize().testTag("editor").background(Ada.Surface)
         .then(if(fullscreen) Modifier else Modifier.safeDrawingPadding())) {
         if(!fullscreen) {
-            Row(Modifier.fillMaxWidth().height(64.dp).padding(horizontal=8.dp),verticalAlignment=Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().height(68.dp).padding(horizontal=8.dp),verticalAlignment=Alignment.CenterVertically) {
                 if(onBack!=null) IconButton(onClick=onBack,enabled=!closing,modifier=Modifier.testTag("back-to-notes")) {
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Notlara dön",tint=Ink)
                 }
                 Text(if(revision>=0) editor.note.title else "",style=MaterialTheme.typography.titleLarge,color=Ink,maxLines=1,
-                    overflow=TextOverflow.Ellipsis,
-                    modifier=Modifier.weight(1f).padding(start=8.dp).clickable(enabled=canEdit,onClickLabel="Başlığı değiştir") { renaming=true })
+                    overflow=TextOverflow.Ellipsis,fontWeight=FontWeight.SemiBold,
+                    modifier=Modifier.weight(1f,fill=false).padding(start=8.dp).clickable(enabled=canEdit,onClickLabel="Başlığı değiştir") { renaming=true })
+                if(folder?.path!=null) FolderChip(folder.path,folderIsland,enabled=!closing) { folderIsland=!folderIsland }
+                Spacer(Modifier.weight(1f))
                 TopAction(Icons.Outlined.Gesture,"Kement seçimi",editor.lassoMode,editor.ready) {
                     editor.lassoMode=!editor.lassoMode; editor.clearSelection(); pageView?.refresh() }
                 TopAction(Icons.Outlined.ViewSidebar,"Sayfa sıralayıcı",sorter,editor.ready) { sorter=!sorter }
@@ -176,10 +202,10 @@ private val Divider=Color(0xffe3e5e8)
                     val added=editor.insertBlankPageAfter(editor.currentPage)
                     if(added>=0) pageView?.let { v -> v.post { v.refresh(); v.scrollToPage(added) } }
                 }
-                TopAction(Icons.Outlined.Fullscreen,"Tam ekran",false,editor.ready) { fullscreen=true }
                 Box {
-                    TopAction(Icons.Outlined.MoreVert,"Diğer seçenekler",false,true) { menu=true }
+                    TopAction(Icons.Outlined.MoreHoriz,"Diğer seçenekler",false,true) { menu=true }
                     DropdownMenu(expanded=menu,onDismissRequest={menu=false}) {
+                        DropdownMenuItem(text={Text("Tam ekran")},enabled=editor.ready,onClick={menu=false; fullscreen=true},leadingIcon={Icon(Icons.Outlined.Fullscreen,null)})
                         DropdownMenuItem(text={Text("Başlığı değiştir")},enabled=canEdit,onClick={menu=false; renaming=true})
                         DropdownMenuItem(text={Text("PDF olarak dışa aktar")},enabled=editor.ready&&editor.exporting==null,
                             onClick={menu=false; exportTo.launch("${editor.note.title}.pdf")},leadingIcon={Icon(Icons.Outlined.IosShare,null)})
@@ -191,7 +217,6 @@ private val Divider=Color(0xffe3e5e8)
             HorizontalDivider(color=Divider)
         }
         Row(Modifier.weight(1f)) {
-            if(sorter && !fullscreen) PageSorter(editor,revision,canEdit) { i -> pageView?.scrollToPage(i) }
             Box(Modifier.weight(1f).fillMaxHeight()) {
                 // Yazma yüzeyi + üstünde kayan GVNpen araç şeridi.
                 AndroidView(factory={ ctx ->
@@ -215,24 +240,37 @@ private val Divider=Color(0xffe3e5e8)
                     android.widget.FrameLayout(ctx).apply { addView(ink,-1,-1); addView(bar,-1,-1) }
                 },modifier=Modifier.fillMaxSize(),
                     update={ if(revision>=0) { pageView?.refresh(); toolbar?.refreshHistory() } })
-                // Tuval üstü göstergeler: sağ üstte yakınlaştırma, sağ altta sayfa sayacı.
-                Row(Modifier.align(Alignment.TopEnd).padding(12.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                    if(fullscreen) Pill {
-                        IconButton(onClick={fullscreen=false},modifier=Modifier.size(40.dp)) { Icon(Icons.Outlined.FullscreenExit,"Tam ekrandan çık",tint=Ink) }
-                    }
-                    Pill {
-                        Text("${(editor.viewport.scale*100).toInt()}%",color=Ink,style=MaterialTheme.typography.labelLarge,modifier=Modifier.padding(start=14.dp))
-                        IconButton(onClick={ pageView?.fit() },enabled=canEdit,modifier=Modifier.size(40.dp)) { Icon(Icons.Outlined.FitScreen,"Ekrana sığdır",tint=Ink) }
-                    }
+                // Sağ üstte eylem adası: yakınlaştırma, sığdır, tam ekran, dışa aktar.
+                Pill(Modifier.align(Alignment.TopEnd).padding(top=14.dp,end=16.dp)) {
+                    Text("${(editor.viewport.scale*100).toInt()}%",color=Ink,style=MaterialTheme.typography.labelLarge,modifier=Modifier.padding(start=18.dp,end=4.dp))
+                    IconButton(onClick={ pageView?.fit() },enabled=canEdit,modifier=Modifier.size(48.dp)) { Icon(Icons.Outlined.FitScreen,"Ekrana sığdır",tint=Ink) }
+                    if(fullscreen) IconButton(onClick={fullscreen=false},modifier=Modifier.size(48.dp)) { Icon(Icons.Outlined.FullscreenExit,"Tam ekrandan çık",tint=Ink) }
+                    else IconButton(onClick={fullscreen=true},enabled=editor.ready,modifier=Modifier.size(48.dp)) { Icon(Icons.Outlined.Fullscreen,"Tam ekran",tint=Ink) }
+                    IconButton(onClick={ exportTo.launch("${editor.note.title}.pdf") },enabled=editor.ready&&editor.exporting==null,modifier=Modifier.size(48.dp)) {
+                        Icon(Icons.Outlined.IosShare,"PDF olarak dışa aktar",tint=Ink) }
+                    Spacer(Modifier.width(4.dp))
                 }
-                Text("${editor.currentPage+1}/${editor.pages.size}",color=Muted,style=MaterialTheme.typography.labelLarge,
-                    modifier=Modifier.align(Alignment.BottomEnd).padding(16.dp).testTag("page-indicator")
-                        .semantics { contentDescription="Sayfa ${editor.currentPage+1} / ${editor.pages.size}" })
+                // Sayfa sıralayıcı adası: sağda, kapatılabilir.
+                if(sorter && !fullscreen) Island(Modifier.align(Alignment.TopEnd).padding(top=80.dp,end=16.dp,bottom=80.dp).width(212.dp).fillMaxHeight()) {
+                    PageSorter(editor,revision,canEdit,onClose={sorter=false}) { i -> pageView?.scrollToPage(i) }
+                }
+                // Alt adalar: solda kayıt durumu, ortada sayfa sayacı.
                 val status=if(closing) "Notlara dönülüyor…" else if(editor.busy) "Çiziliyor…" else editor.saveStatus
-                Text(status,color=Muted,style=MaterialTheme.typography.bodySmall,modifier=Modifier.align(Alignment.BottomStart).padding(16.dp))
+                if(status.isNotEmpty()) Pill(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
+                    Icon(Icons.Outlined.CloudDone,null,tint=Accent,modifier=Modifier.padding(start=14.dp).size(16.dp))
+                    Text(status,color=Muted,style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(start=8.dp,end=16.dp,top=10.dp,bottom=10.dp))
+                }
+                Pill(Modifier.align(Alignment.BottomCenter).padding(bottom=16.dp)) {
+                    Text("Sayfa ${editor.currentPage+1} / ${editor.pages.size}",color=Ink,style=MaterialTheme.typography.labelLarge,
+                        modifier=Modifier.padding(start=18.dp,end=6.dp).testTag("page-indicator")
+                            .semantics { contentDescription="Sayfa ${editor.currentPage+1} / ${editor.pages.size}" })
+                    IconButton(onClick={ val added=editor.insertBlankPageAfter(editor.currentPage)
+                        if(added>=0) pageView?.let { v -> v.post { v.refresh(); v.scrollToPage(added) } } },enabled=canEdit,modifier=Modifier.size(44.dp)) {
+                        Icon(Icons.Outlined.Add,"Arkasına boş sayfa ekle",tint=Ink) }
+                }
                 // Kement seçimi araç çubuğu.
-                if(editor.selection.isNotEmpty()) Surface(Modifier.align(Alignment.TopCenter).padding(top=12.dp).testTag("selection-bar"),
-                    shape=RoundedCornerShape(24.dp),color=Color.White,shadowElevation=3.dp) {
+                if(editor.selection.isNotEmpty()) Surface(Modifier.align(Alignment.TopCenter).padding(top=14.dp).testTag("selection-bar"),
+                    shape=RoundedCornerShape(24.dp),color=Ada.Surface,shadowElevation=6.dp) {
                     Row(Modifier.padding(horizontal=8.dp),verticalAlignment=Alignment.CenterVertically) {
                         Text("${editor.selection.size} çizgi",color=Ink,style=MaterialTheme.typography.labelLarge,modifier=Modifier.padding(horizontal=10.dp))
                         TextButton(onClick={editor.deleteSelection()},enabled=canEdit,modifier=Modifier.testTag("selection-delete")) { Icon(Icons.Outlined.Delete,null); Spacer(Modifier.width(6.dp)); Text("Sil") }
@@ -243,8 +281,8 @@ private val Divider=Color(0xffe3e5e8)
                     }
                 }
                 (editor.exporting ?: editor.exportResult)?.let { message ->
-                    Surface(Modifier.align(Alignment.BottomCenter).padding(bottom=16.dp),shape=RoundedCornerShape(24.dp),
-                        color=Color.White,shadowElevation=3.dp) {
+                    Surface(Modifier.align(Alignment.BottomCenter).padding(bottom=76.dp),shape=RoundedCornerShape(24.dp),
+                        color=Ada.Surface,shadowElevation=6.dp) {
                         Row(Modifier.padding(start=18.dp,end=6.dp),verticalAlignment=Alignment.CenterVertically) {
                             if(editor.exporting!=null) CircularProgressIndicator(Modifier.size(18.dp),strokeWidth=2.dp,color=Accent)
                             Text(message,color=Ink,style=MaterialTheme.typography.bodyMedium,modifier=Modifier.padding(horizontal=10.dp,vertical=12.dp).testTag("export-status"))
@@ -264,6 +302,7 @@ private val Divider=Color(0xffe3e5e8)
             }
         }
     }
+    if(folderIsland && folder?.path!=null) FolderIsland(folder,onDismiss={folderIsland=false}) { folderIsland=false; onNavigate(it) }
     if(renaming) {
         var title by remember { mutableStateOf(editor.note.title) }
         AlertDialog(onDismissRequest={renaming=false},title={Text("Başlık")},
@@ -280,11 +319,77 @@ private val Divider=Color(0xffe3e5e8)
     }
 }
 
-@Composable private fun Pill(content:@Composable RowScope.()->Unit) {
-    Surface(shape=RoundedCornerShape(24.dp),color=Color.White.copy(alpha=.94f),shadowElevation=2.dp) {
+@Composable private fun Pill(modifier:Modifier=Modifier,content:@Composable RowScope.()->Unit) {
+    Surface(modifier,shape=RoundedCornerShape(28.dp),color=Ada.Surface.copy(alpha=.97f),shadowElevation=6.dp) {
         Row(verticalAlignment=Alignment.CenterVertically,content=content)
     }
 }
+
+/** Başlıktaki konum çipi: "Tıp Fakültesi › Fizyoloji". Dokununca Klasör adası açılır. */
+@Composable private fun FolderChip(path:String,open:Boolean,enabled:Boolean,onClick:()->Unit) {
+    Surface(onClick=onClick,enabled=enabled,shape=RoundedCornerShape(24.dp),color=Ada.Soft,
+        border=if(open) BorderStroke(2.dp,Accent) else null,
+        modifier=Modifier.padding(start=16.dp).height(44.dp).widthIn(max=420.dp).testTag("folder-chip")
+            .semantics { contentDescription="Konum: ${if(path.isEmpty()) "Klasör dışı" else path.replace("/"," › ")}. Klasör adasını aç" }) {
+        Row(Modifier.padding(start=14.dp,end=12.dp),verticalAlignment=Alignment.CenterVertically) {
+            Icon(Icons.Outlined.Folder,null,tint=Ada.Petrol,modifier=Modifier.size(20.dp))
+            Text(if(path.isEmpty()) "Klasör dışı" else path.replace("/","  ›  "),color=Accent,style=MaterialTheme.typography.labelLarge,
+                maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(start=10.dp,end=6.dp).weight(1f,fill=false))
+            Icon(if(open) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,null,tint=Accent,modifier=Modifier.size(20.dp))
+        }
+    }
+}
+
+/** Klasör adası: aynı klasördeki notlar arasında geçiş, klasöre dönüş ve o klasörde yeni not. */
+@Composable private fun FolderIsland(folder:FolderContext,onDismiss:()->Unit,onNavigate:(AfterClose)->Unit) {
+    val path=folder.path ?: return
+    Box(Modifier.fillMaxSize().background(Ada.Ink.copy(alpha=.10f)).clickable(interactionSource=null,indication=null,onClick=onDismiss)) {
+        Island(Modifier.safeDrawingPadding().padding(start=200.dp,top=72.dp,bottom=24.dp).width(420.dp).heightIn(max=680.dp)
+            .clickable(interactionSource=null,indication=null) {}.testTag("folder-island"),elevation=12.dp) {
+            Column(Modifier.padding(vertical=16.dp)) {
+                if(path.contains('/')) Row(Modifier.padding(start=20.dp),verticalAlignment=Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.SubdirectoryArrowRight,null,tint=Muted,modifier=Modifier.size(16.dp))
+                    Text(path.substringBeforeLast('/').replace("/"," › "),color=Muted,style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(start=6.dp))
+                }
+                Row(Modifier.padding(start=20.dp,end=20.dp,top=6.dp,bottom=10.dp),verticalAlignment=Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.Folder,null,tint=Ada.Petrol,modifier=Modifier.size(28.dp))
+                    Text(if(path.isEmpty()) "Klasör dışı" else path.substringAfterLast('/'),fontSize=24.sp,
+                        fontWeight=FontWeight.SemiBold,color=Ink,maxLines=1,overflow=TextOverflow.Ellipsis,
+                        modifier=Modifier.weight(1f).padding(start=10.dp))
+                    Text("${folder.notes.size} not",color=Muted,style=MaterialTheme.typography.bodySmall)
+                }
+                LazyColumn(Modifier.weight(1f,fill=false),contentPadding=PaddingValues(horizontal=12.dp)) {
+                    items(folder.notes.size,key={ folder.notes[it].key }) { i ->
+                        val note=folder.notes[i]; val here=note.key==folder.key
+                        val thumb by produceState<Bitmap?>(null,note.key,note.revision) {
+                            value=withContext(Dispatchers.IO) { note.preview?.let { android.graphics.BitmapFactory.decodeFile(it.path) } }
+                        }
+                        Row(Modifier.fillMaxWidth().heightIn(min=64.dp).clip(Ada.RowShape).background(if(here) AccentSoft else Color.Transparent)
+                            .clickable(enabled=!here) { onNavigate(AfterClose.Open(note.key)) }.padding(horizontal=12.dp,vertical=8.dp)
+                            .semantics { contentDescription=note.title+if(here) ", açık" else "" },verticalAlignment=Alignment.CenterVertically) {
+                            Box(Modifier.size(40.dp,52.dp).border(1.dp,Divider,RoundedCornerShape(6.dp)).background(Color.White,RoundedCornerShape(6.dp)).padding(2.dp)) {
+                                thumb?.let { Image(it.asImageBitmap(),null,Modifier.fillMaxSize()) }
+                            }
+                            Column(Modifier.weight(1f).padding(start=14.dp)) {
+                                Text(note.title,color=Ink,maxLines=1,overflow=TextOverflow.Ellipsis,
+                                    fontWeight=if(here) FontWeight.SemiBold else FontWeight.Normal)
+                                Text(metaOf(note),color=Muted,style=MaterialTheme.typography.bodySmall,maxLines=1)
+                            }
+                            if(here) Text("Açık",color=Accent,style=MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+                Row(Modifier.fillMaxWidth().padding(start=20.dp,end=20.dp,top=14.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+                    OutlinedButton(onClick={ onNavigate(AfterClose.Folder(path)) },modifier=Modifier.height(48.dp).testTag("go-to-folder")) {
+                        Icon(Icons.Outlined.FolderOpen,null,modifier=Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text("Klasöre git") }
+                    Button(onClick={ onNavigate(AfterClose.NewIn(path)) },modifier=Modifier.height(48.dp).testTag("new-in-folder")) {
+                        Icon(Icons.Outlined.Add,null,modifier=Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text("Bu klasörde yeni") }
+                }
+            }
+        }
+    }
+}
+
 
 @Composable private fun ToolButton(icon:ImageVector,label:String,selected:Boolean,enabled:Boolean,onClick:()->Unit) {
     IconButton(onClick=onClick,enabled=enabled,modifier=Modifier.size(48.dp)
@@ -295,7 +400,7 @@ private val Divider=Color(0xffe3e5e8)
 }
 
 /** Sol panel: numaralı sayfa küçük resimleri; dokununca o sayfaya gider, + kutucuğu boş sayfa ekler. */
-@Composable private fun PageSorter(editor:EditorState,revision:Int,canEdit:Boolean,onOpen:(Int)->Unit) {
+@Composable private fun PageSorter(editor:EditorState,revision:Int,canEdit:Boolean,onClose:()->Unit,onOpen:(Int)->Unit) {
     val strokes=editor.history.items
     var deleting by remember { mutableStateOf<Int?>(null) }
     deleting?.let { i ->
@@ -304,10 +409,13 @@ private val Divider=Color(0xffe3e5e8)
             confirmButton={TextButton(onClick={editor.deletePage(i); deleting=null},modifier=Modifier.testTag("confirm-delete-page")){Text("Sil")}},
             dismissButton={TextButton(onClick={deleting=null}){Text("Vazgeç")}})
     }
-    Column(Modifier.width(220.dp).fillMaxHeight().background(Color(0xfff4f5f6)).testTag("page-sorter")) {
-        Text("${editor.currentPage+1}/${editor.pages.size}",style=MaterialTheme.typography.titleMedium,color=Ink,
-            modifier=Modifier.padding(start=20.dp,top=16.dp,bottom=8.dp))
-        LazyColumn(contentPadding=PaddingValues(start=24.dp,end=24.dp,bottom=24.dp),
+    Column(Modifier.fillMaxSize().testTag("page-sorter")) {
+        Row(Modifier.fillMaxWidth().padding(start=20.dp,end=6.dp,top=6.dp),verticalAlignment=Alignment.CenterVertically) {
+            Text("Sayfalar",style=MaterialTheme.typography.titleSmall,color=Ink,modifier=Modifier.weight(1f))
+            Text("${editor.pages.size}",style=MaterialTheme.typography.bodySmall,color=Muted)
+            IconButton(onClick=onClose,modifier=Modifier.size(48.dp)) { Icon(Icons.Outlined.Close,"Sayfa sıralayıcıyı kapat",tint=Muted) }
+        }
+        LazyColumn(contentPadding=PaddingValues(start=28.dp,end=28.dp,bottom=20.dp),
             verticalArrangement=Arrangement.spacedBy(16.dp)) {
             items(editor.pages.size,key={ editor.pages[it].id }) { i ->
                 val page=editor.pages[i]
@@ -319,8 +427,8 @@ private val Divider=Color(0xffe3e5e8)
                 val current=i==editor.currentPage
                 Column(horizontalAlignment=Alignment.CenterHorizontally,modifier=Modifier.fillMaxWidth()) {
                     Box(Modifier.fillMaxWidth().aspectRatio(page.width/page.height)
-                        .border(if(current) 2.dp else 1.dp,if(current) Accent else Divider,RoundedCornerShape(4.dp))
-                        .background(Color.White).clickable { onOpen(i) }
+                        .border(if(current) 2.dp else 1.dp,if(current) Accent else Divider,RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(8.dp)).background(Color.White).clickable { onOpen(i) }
                         .semantics { contentDescription="Sayfa ${i+1}"; selected=current }) {
                         thumb?.let { Image(it.asImageBitmap(),null,Modifier.fillMaxSize().padding(2.dp)) }
                         // Sayfa işlemleri: taşı / sil.
@@ -349,8 +457,8 @@ private val Divider=Color(0xffe3e5e8)
                 }
             }
             item {
-                Box(Modifier.fillMaxWidth().aspectRatio(1f/1.414f).background(Color.White,RoundedCornerShape(4.dp))
-                    .border(1.dp,Divider,RoundedCornerShape(4.dp)).clickable(enabled=canEdit) {
+                Box(Modifier.fillMaxWidth().aspectRatio(1f/1.414f).background(Ada.Desk,RoundedCornerShape(8.dp))
+                    .border(1.dp,Divider,RoundedCornerShape(8.dp)).clip(RoundedCornerShape(8.dp)).clickable(enabled=canEdit) {
                         editor.addBlankPage(); onOpen(editor.pages.lastIndex)
                     },contentAlignment=Alignment.Center) {
                     Icon(Icons.Outlined.Add,"Sona boş sayfa ekle",tint=Muted,modifier=Modifier.size(32.dp))
@@ -358,7 +466,6 @@ private val Divider=Color(0xffe3e5e8)
             }
         }
     }
-    Box(Modifier.width(1.dp).fillMaxHeight().background(Divider))
 }
 
 // Kendi basit silgi geometrimiz; Samsung/GVNpen görsel kaynağı içermez.

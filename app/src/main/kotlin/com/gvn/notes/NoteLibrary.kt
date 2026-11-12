@@ -65,12 +65,12 @@ class NoteLibrary(private val root:File) {
             try { out.write(o.toString().toByteArray()); file.finishWrite(out) } catch(e:Exception) { file.failWrite(out); throw e }
         }
     }
-    fun create(title:String,pattern:Int=0):String {
+    fun create(title:String,pattern:Int=0,folderPath:String=""):String {
         val name=title.trim()
         require(name.isNotEmpty() && name.length<=100) { "Not adı 1–100 karakter olmalı." }
         val key=UUID.randomUUID().toString(); val dir=directory(key)
         check(!dir.exists() && dir.mkdirs()) { "Yeni not klasörü oluşturulamadı." }
-        val folder=Folder(parentId=null,name="Notlar",relativePath="")
+        val folder=folderOf(folderPath)
         val note=Note(folderId=folder.id,title=name)
         val page=Page(noteId=note.id,order=0,pattern=pattern)
         try { PageStore(dir).save(PageSnapshot(1,folder,note,page,emptyList())) }
@@ -425,12 +425,16 @@ class LibraryState(val library:NoteLibrary,private val treeFor:(String)->SourceT
             } finally { importing=false }
         }
     }
-    fun create(title:String,pattern:Int=0,onSuccess:()->Unit) {
+    /** Düzenleyiciden kütüphaneye dönüşte açılacak klasör (Klasör adası → "Klasöre git"). */
+    var requestedFolder by mutableStateOf<String?>(null)
+    /** Düzenleyiciden dönüşte bu klasörde yeni not penceresi açılır (Klasör adası → "Bu klasörde yeni"). */
+    var requestedNewIn by mutableStateOf<String?>(null)
+    fun create(title:String,pattern:Int=0,folderPath:String="",onSuccess:()->Unit) {
         if(creating)return
         creating=true; creationError=null
         viewModelScope.launch {
             try {
-                val key=withContext(Dispatchers.IO) { library.create(title,pattern) }
+                val key=withContext(Dispatchers.IO) { library.create(title,pattern,folderPath) }
                 selectedKey=key; onSuccess()
             } catch(e:Exception) {
                 if(e is CancellationException)throw e

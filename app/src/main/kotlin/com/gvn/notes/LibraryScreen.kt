@@ -16,6 +16,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -23,6 +26,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.NoteAdd
+import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -32,15 +37,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.Dispatchers
@@ -49,28 +58,28 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-private val LibInk=Color(0xff1f2328)
-private val LibMuted=Color(0xff6b7075)
-private val LibAccent=Color(0xff186c84)
-private val LibBorder=Color(0xffe3e5e8)
-private val LibSoft=Color(0xffdcecf1)
-
 /** Tabletteki önerilen kaynak klasör: Documents/GVNnotes (kullanıcı kararı, 11 Kasım 2026). */
 private val SuggestedFolder=DocumentsContract.buildDocumentUri("com.android.externalstorage.documents","primary:Documents/GVNnotes")
 
-private fun parentOf(path:String)=path.substringBeforeLast('/',"")
+internal fun parentOf(path:String)=path.substringBeforeLast('/',"")
 /** Bir üst görünüm: alt klasörden üst klasöre, en üst klasörden ve "Klasörler"den "Tüm notlar"a. */
 private fun upOf(path:String):String?=if(path.contains('/')) parentOf(path) else null
-private fun nameOf(path:String)=path.substringAfterLast('/')
+internal fun nameOf(path:String)=path.substringAfterLast('/')
+
+/** Kaynak klasördeki ve notlardaki tüm klasör yolları (üst klasörler dahil), sıralı. */
+internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { it.folderPath }.filter { it.isNotEmpty() })
+    .flatMap { p -> generateSequence(p) { parentOf(it).ifEmpty { null } }.toList() }.toSortedSet().toList()
 
 /**
- * Not listesi: Samsung Notes'taki düzen referans alınır. [folder] null = Tüm notlar,
+ * Kütüphane ("Petrol Ada"): solda kalıcı, yüzen klasör ağacı adası; sağda not kartları. [folder] null = Tüm notlar,
  * "" = Klasörler kökü, "A/B" = alt klasör. Klasörler kaynak klasörden (Documents/GVNnotes) gelir.
+ * Dar ekranda klasör ağacı çekmece olarak açılır.
  */
 @Composable fun LibraryScreen(state:LibraryState) {
     var showNew by rememberSaveable { mutableStateOf(false) }
     var title by rememberSaveable { mutableStateOf("") }
     var pattern by rememberSaveable { mutableStateOf(0) }
+    var newIn by rememberSaveable { mutableStateOf("") }
     var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     var folder by rememberSaveable { mutableStateOf<String?>(null) }
@@ -82,9 +91,18 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
     var movingKey by rememberSaveable { mutableStateOf<String?>(null) }
     var newFolder by rememberSaveable { mutableStateOf(false) }
     var sortByName by rememberSaveable { mutableStateOf(false) }
+    val collapsed=remember { mutableStateListOf<String>() }
     val context=LocalContext.current
     val drawer=rememberDrawerState(DrawerValue.Closed)
     val scope=rememberCoroutineScope()
+    fun openNew(location:String) { title=""; pattern=state.settings.defaultPattern; newIn=location; state.clearCreationError(); showNew=true }
+    // Düzenleyicideki Klasör adasından gelen istekler: klasöre git / o klasörde yeni not.
+    LaunchedEffect(state.requestedFolder) {
+        state.requestedFolder?.let { folder=it; showTrash=false; showSettings=false; searching=false; query=""; state.requestedFolder=null }
+    }
+    LaunchedEffect(state.requestedNewIn) {
+        state.requestedNewIn?.let { folder=it; showTrash=false; showSettings=false; openNew(it); state.requestedNewIn=null }
+    }
     // Uygulama öne geldiğinde kaynak klasör yeniden taranır (anlık arka plan algılaması yoktur).
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { state.sync() }
     BackHandler(enabled=folder!=null || drawer.isOpen || showTrash || showSettings) {
@@ -121,10 +139,7 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
             state.importImages(name,folder ?: "",uris.map { u -> { checkNotNull(context.contentResolver.openInputStream(u)) { "Resim okunamadı." } } })
         }
     }
-    val allFolders=remember(state.folders,state.notes) {
-        (state.folders+state.notes.map { it.folderPath }.filter { it.isNotEmpty() })
-            .flatMap { p -> generateSequence(p) { parentOf(it).ifEmpty { null } }.toList() }.toSortedSet().toList()
-    }
+    val allFolders=remember(state.folders,state.notes) { allFoldersOf(state) }
     fun countUnder(path:String)=state.notes.count { it.folderPath==path || it.folderPath.startsWith("$path/") }
     val current=folder
     val childFolders=allFolders.filter { parentOf(it)==(current ?: "") }
@@ -132,128 +147,131 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
     val found=if(query.isBlank()) inFolder else state.notes.filter { it.title.contains(query.trim(),ignoreCase=true) || it.folderPath.contains(query.trim(),ignoreCase=true) }
     val visible=if(sortByName) found.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.title }) else found
 
-    ModalNavigationDrawer(drawerState=drawer,drawerContent={
-        ModalDrawerSheet(Modifier.width(340.dp),drawerContainerColor=Color(0xfffafafa)) {
-            Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical=16.dp)) {
-                DrawerRow(Icons.Outlined.Description,"Tüm notlar",state.notes.size,current==null && !showTrash,0) { folder=null; showTrash=false; scope.launch { drawer.close() } }
-                DrawerRow(Icons.Outlined.Delete,"Çöp kutusu",state.trash.size,showTrash,0) { showTrash=true; showSettings=false; scope.launch { drawer.close() } }
-                HorizontalDivider(Modifier.padding(horizontal=20.dp,vertical=8.dp),color=LibBorder)
-                DrawerRow(Icons.Outlined.Folder,"Klasörler",state.notes.count { it.folderPath.isEmpty() },current=="" && !showTrash,0) { folder=""; showTrash=false; scope.launch { drawer.close() } }
-                allFolders.forEach { p ->
-                    DrawerRow(Icons.Outlined.FolderOpen,nameOf(p),countUnder(p),current==p && !showTrash,p.count { it=='/' }+1) { folder=p; showTrash=false; scope.launch { drawer.close() } }
-                }
-                HorizontalDivider(Modifier.padding(horizontal=20.dp,vertical=8.dp),color=LibBorder)
-                Text(if(state.source==null) "Kaynak klasör bağlı değil" else "Kaynak klasör: Documents/GVNnotes",
-                    style=MaterialTheme.typography.bodySmall,color=LibMuted,modifier=Modifier.padding(horizontal=24.dp,vertical=4.dp))
-                Row(Modifier.padding(horizontal=16.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                    if(state.source!=null) TextButton(onClick={state.sync()},enabled=!state.syncing) { Text("Şimdi eşitle") }
-                    TextButton(onClick={pickFolder.launch(SuggestedFolder)}) { Text(if(state.source==null) "Klasörü bağla" else "Klasörü değiştir") }
-                }
-            }
+    BoxWithConstraints(Modifier.fillMaxSize().background(Ada.Desk).testTag("library").safeDrawingPadding()) {
+        val wide=maxWidth>=840.dp
+        val tree:@Composable ()->Unit={
+            FolderTree(state,allFolders,collapsed,current,showTrash,showSettings,::countUnder,
+                onSelect={ p -> folder=p; showTrash=false; showSettings=false; searching=false; query=""; scope.launch { drawer.close() } },
+                onTrash={ showTrash=true; showSettings=false; scope.launch { drawer.close() } },
+                onSettings={ showSettings=true; showTrash=false; scope.launch { drawer.close() } },
+                onNewFolder={ newFolder=true },
+                onLink={ pickFolder.launch(SuggestedFolder) })
         }
-    }) {
-    Box(Modifier.fillMaxSize().background(Color(0xfffafafa)).testTag("library").safeDrawingPadding()) {
-        if(showSettings) SettingsView(state,onBack={showSettings=false},onPickFolder={pickFolder.launch(SuggestedFolder)})
-        else if(showTrash) TrashView(state,onBack={showTrash=false},onDelete={deletingKey=it}) else Column(Modifier.fillMaxSize()) {
-            Row(Modifier.fillMaxWidth().height(72.dp).padding(start=8.dp,end=12.dp),verticalAlignment=Alignment.CenterVertically) {
-                if(searching) {
-                    IconButton(onClick={searching=false; query=""}) { Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Aramayı kapat",tint=LibInk) }
-                    OutlinedTextField(value=query,onValueChange={query=it},singleLine=true,placeholder={Text("Notlarda ara")},
-                        modifier=Modifier.weight(1f).testTag("search-field"),shape=RoundedCornerShape(24.dp))
-                } else {
-                    if(current==null) IconButton(onClick={scope.launch { drawer.open() }},modifier=Modifier.testTag("drawer")) { Icon(Icons.Outlined.Menu,"Gezinme menüsü",tint=LibInk) }
-                    else IconButton(onClick={folder=upOf(current)}) { Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Üst klasör",tint=LibInk) }
-                    Column(Modifier.weight(1f).padding(start=8.dp)) {
-                        Text(when(current) { null->"Tüm notlar"; ""->"Klasörler"; else->nameOf(current) },
-                            fontSize=26.sp,fontWeight=FontWeight.SemiBold,color=LibInk,maxLines=1,overflow=TextOverflow.Ellipsis,
-                            modifier=Modifier.testTag("library-title"))
-                        Text(listOfNotNull("${inFolder.size} not",state.syncMessage).joinToString(" · "),
-                            style=MaterialTheme.typography.bodyMedium,color=LibMuted,maxLines=1,overflow=TextOverflow.Ellipsis,
-                            modifier=Modifier.testTag("sync-status"))
+        ModalNavigationDrawer(drawerState=drawer,gesturesEnabled=!wide && drawer.isOpen,drawerContent={
+            if(!wide) ModalDrawerSheet(Modifier.width(320.dp),drawerContainerColor=Ada.Surface) { tree() }
+        }) {
+        Row(Modifier.fillMaxSize()) {
+            if(wide) Island(Modifier.padding(start=16.dp,top=16.dp,bottom=16.dp).width(288.dp).fillMaxHeight().testTag("folder-tree")) { tree() }
+            Box(Modifier.weight(1f).fillMaxHeight()) {
+                if(showSettings) SettingsView(state,onBack={showSettings=false},onPickFolder={pickFolder.launch(SuggestedFolder)})
+                else if(showTrash) TrashView(state,onBack={showTrash=false},onDelete={deletingKey=it}) else Column(Modifier.fillMaxSize()) {
+                    Row(Modifier.fillMaxWidth().height(84.dp).padding(start=12.dp,end=20.dp),verticalAlignment=Alignment.CenterVertically) {
+                        if(searching) {
+                            IconButton(onClick={searching=false; query=""}) { Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Aramayı kapat",tint=Ada.Ink) }
+                            OutlinedTextField(value=query,onValueChange={query=it},singleLine=true,placeholder={Text("Notlarda ara")},
+                                modifier=Modifier.weight(1f).testTag("search-field"),shape=RoundedCornerShape(24.dp),
+                                colors=OutlinedTextFieldDefaults.colors(unfocusedContainerColor=Ada.Surface,focusedContainerColor=Ada.Surface))
+                        } else {
+                            if(current!=null) IconButton(onClick={folder=upOf(current)}) { Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Üst klasör",tint=Ada.Ink) }
+                            else if(!wide) IconButton(onClick={scope.launch { drawer.open() }},modifier=Modifier.testTag("drawer")) { Icon(Icons.Outlined.Menu,"Klasör ağacı",tint=Ada.Ink) }
+                            Column(Modifier.weight(1f).padding(start=if(current==null && wide) 12.dp else 8.dp)) {
+                                Text(when(current) { null->"Tüm notlar"; ""->"Klasörler"; else->nameOf(current) },
+                                    fontSize=28.sp,fontWeight=FontWeight.SemiBold,color=Ada.Ink,maxLines=1,overflow=TextOverflow.Ellipsis,
+                                    modifier=Modifier.testTag("library-title"))
+                                Text(listOfNotNull(if(current!=null && current.contains('/')) parentOf(current).replace("/"," › ") else null,
+                                        "${inFolder.size} not",state.syncMessage).joinToString(" · "),
+                                    style=MaterialTheme.typography.bodyMedium,color=Ada.Muted,maxLines=1,overflow=TextOverflow.Ellipsis,
+                                    modifier=Modifier.testTag("sync-status"))
+                            }
+                            IconButton(onClick={searching=true}) { Icon(Icons.Outlined.Search,"Ara",tint=Ada.Ink) }
+                            Box {
+                                IconButton(onClick={menu=true}) { Icon(Icons.Outlined.MoreHoriz,"Diğer seçenekler",tint=Ada.Ink) }
+                                DropdownMenu(expanded=menu,onDismissRequest={menu=false}) {
+                                    DropdownMenuItem(text={Text("Yeni klasör")},onClick={menu=false; newFolder=true},
+                                        leadingIcon={Icon(Icons.Outlined.CreateNewFolder,null)},modifier=Modifier.testTag("menu-new-folder"))
+                                    DropdownMenuItem(text={Text(if(sortByName) "Tarihe göre sırala" else "Ada göre sırala")},onClick={menu=false; sortByName=!sortByName},
+                                        leadingIcon={Icon(Icons.AutoMirrored.Outlined.Sort,null)})
+                                    DropdownMenuItem(text={Text("Ayarlar")},onClick={menu=false; showSettings=true},
+                                        leadingIcon={Icon(Icons.Outlined.Settings,null)},modifier=Modifier.testTag("menu-settings"))
+                                    DropdownMenuItem(text={Text("Notları yenile")},onClick={menu=false; state.refresh(); state.sync()},
+                                        leadingIcon={Icon(Icons.Outlined.Refresh,null)})
+                                    DropdownMenuItem(text={Text(if(state.source==null) "Klasörü bağla" else "Kaynak klasörü değiştir")},
+                                        onClick={menu=false; pickFolder.launch(SuggestedFolder)},leadingIcon={Icon(Icons.Outlined.FolderSpecial,null)})
+                                }
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            Button(onClick={ openNew(current ?: "") },modifier=Modifier.height(48.dp).testTag("new-note"),
+                                contentPadding=PaddingValues(start=16.dp,end=22.dp)) {
+                                Icon(Icons.Outlined.Add,null); Spacer(Modifier.width(8.dp)); Text("Yeni not",fontWeight=FontWeight.SemiBold)
+                            }
+                        }
                     }
-                    IconButton(onClick={ if(!state.importing) { state.clearImportError(); pickPdf.launch(arrayOf("application/pdf")) } },
-                        enabled=!state.importing,modifier=Modifier.testTag("import-pdf")) {
-                        Icon(Icons.Outlined.PictureAsPdf,"PDF'yi içe aktar",tint=LibInk)
-                    }
-                    IconButton(onClick={searching=true}) { Icon(Icons.Outlined.Search,"Ara",tint=LibInk) }
-                    Box {
-                        IconButton(onClick={menu=true}) { Icon(Icons.Outlined.MoreVert,"Diğer seçenekler",tint=LibInk) }
-                        DropdownMenu(expanded=menu,onDismissRequest={menu=false}) {
-                            DropdownMenuItem(text={Text("Yeni klasör")},onClick={menu=false; newFolder=true},
-                                leadingIcon={Icon(Icons.Outlined.CreateNewFolder,null)},modifier=Modifier.testTag("menu-new-folder"))
-                            DropdownMenuItem(text={Text("Resimden not")},enabled=!state.importing,onClick={menu=false; pickImages.launch(arrayOf("image/jpeg","image/png","image/webp"))},
-                                leadingIcon={Icon(Icons.Outlined.Image,null)})
-                            DropdownMenuItem(text={Text(if(sortByName) "Tarihe göre sırala" else "Ada göre sırala")},onClick={menu=false; sortByName=!sortByName},
-                                leadingIcon={Icon(Icons.Outlined.Sort,null)})
-                            DropdownMenuItem(text={Text("Ayarlar")},onClick={menu=false; showSettings=true},
-                                leadingIcon={Icon(Icons.Outlined.Settings,null)},modifier=Modifier.testTag("menu-settings"))
-                            DropdownMenuItem(text={Text("Notları yenile")},onClick={menu=false; state.refresh(); state.sync()},
-                                leadingIcon={Icon(Icons.Outlined.Refresh,null)})
-                            DropdownMenuItem(text={Text(if(state.source==null) "Klasörü bağla" else "Kaynak klasörü değiştir")},
-                                onClick={menu=false; pickFolder.launch(SuggestedFolder)},leadingIcon={Icon(Icons.Outlined.CreateNewFolder,null)})
+                    if(state.syncing) LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal=24.dp).height(2.dp),color=Ada.Petrol,trackColor=Color.Transparent)
+                    when {
+                        state.loading && state.notes.isEmpty() -> Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) {
+                            Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(16.dp)) {
+                                CircularProgressIndicator(color=Ada.Accent); Text("Notlar açılıyor…",color=Ada.Muted)
+                            }
+                        }
+                        state.error!=null -> Box(Modifier.fillMaxSize().padding(24.dp),contentAlignment=Alignment.Center) {
+                            Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(16.dp)) {
+                                Text(state.error!!); Button(onClick={state.refresh()}){Text("Yeniden dene")}
+                            }
+                        }
+                        else -> LazyVerticalGrid(GridCells.Adaptive(212.dp),Modifier.fillMaxSize(),
+                            contentPadding=PaddingValues(start=24.dp,end=24.dp,top=4.dp,bottom=48.dp),
+                            horizontalArrangement=Arrangement.spacedBy(22.dp),verticalArrangement=Arrangement.spacedBy(22.dp)) {
+                            val full:(androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope)->GridItemSpan={ GridItemSpan(it.maxLineSpan) }
+                            if(query.isBlank()) item(span=full) {
+                                Row(horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                                    ActionPill(Icons.Outlined.PictureAsPdf,"PDF içe aktar",!state.importing,Modifier.testTag("import-pdf")) {
+                                        state.clearImportError(); pickPdf.launch(arrayOf("application/pdf")) }
+                                    ActionPill(Icons.Outlined.Image,"Resimden not",!state.importing) { pickImages.launch(arrayOf("image/jpeg","image/png","image/webp")) }
+                                }
+                            }
+                            if(state.source!=null && !state.writable && current==null && query.isBlank()) item(span=full) {
+                                LinkCard(title="Kaynak klasöre yazma izni yok",
+                                    body="Taşıma, yeni klasör ve çöp işlemlerinin Documents/GVNnotes klasörüne de yansıması için klasörü bir kez yeniden bağla.",
+                                    action="Yeniden bağla") { pickFolder.launch(SuggestedFolder) }
+                            }
+                            if(state.source==null && current==null && query.isBlank()) item(span=full) {
+                                LinkCard { pickFolder.launch(SuggestedFolder) }
+                            }
+                            if(query.isBlank() && childFolders.isNotEmpty()) item(span=full) {
+                                LazyRow(horizontalArrangement=Arrangement.spacedBy(14.dp),contentPadding=PaddingValues(vertical=6.dp)) {
+                                    items(childFolders,key={it}) { p -> FolderTile(nameOf(p),countUnder(p),allFolders.count { parentOf(it)==p }) { folder=p } }
+                                }
+                            }
+                            if(visible.isEmpty()) item(span=full) {
+                                Box(Modifier.fillMaxWidth().padding(top=64.dp),contentAlignment=Alignment.Center) {
+                                    Text(when {
+                                        query.isNotBlank() -> "Eşleşen not yok"
+                                        state.notes.isEmpty() -> "İlk notunu oluştur ya da bir PDF içe aktar."
+                                        else -> "Bu klasörde not yok"
+                                    },color=Ada.Muted)
+                                }
+                            }
+                            items(visible.size,key={ visible[it].key }) { i ->
+                                val note=visible[i]
+                                NoteTile(note,state.sourceStates[note.key],showFolder=current==null || query.isNotBlank(),
+                                    onRename={renamingKey=note.key},onMove={movingKey=note.key},onTrash={state.moveToTrash(note.key)}) { state.open(note.key) }
+                            }
                         }
                     }
                 }
-            }
-            if(state.syncing) LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp),color=LibAccent,trackColor=Color.Transparent)
-            when {
-                state.loading && state.notes.isEmpty() -> Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) {
-                    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(16.dp)) {
-                        CircularProgressIndicator(color=LibAccent); Text("Notlar açılıyor…",color=LibMuted)
+                if(state.importing) Surface(Modifier.align(Alignment.BottomCenter).padding(bottom=32.dp),shape=RoundedCornerShape(24.dp),shadowElevation=4.dp,color=Ada.Surface) {
+                    Row(Modifier.padding(horizontal=20.dp,vertical=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                        CircularProgressIndicator(Modifier.size(20.dp),strokeWidth=2.dp,color=Ada.Accent); Text("İçe aktarılıyor…",color=Ada.Ink)
                     }
                 }
-                state.error!=null -> Box(Modifier.fillMaxSize().padding(24.dp),contentAlignment=Alignment.Center) {
-                    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(16.dp)) {
-                        Text(state.error!!); Button(onClick={state.refresh()}){Text("Yeniden dene")}
-                    }
-                }
-                else -> LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(start=24.dp,end=24.dp,top=8.dp,bottom=120.dp)) {
-                    if(state.source!=null && !state.writable && current==null && query.isBlank()) item {
-                        LinkCard(title="Kaynak klasöre yazma izni yok",
-                            body="Taşıma, yeni klasör ve çöp işlemlerinin Documents/GVNnotes klasörüne de yansıması için klasörü bir kez yeniden bağla.",
-                            action="Yeniden bağla") { pickFolder.launch(SuggestedFolder) }
-                    }
-                    if(state.source==null && current==null && query.isBlank()) item {
-                        LinkCard { pickFolder.launch(SuggestedFolder) }
-                    }
-                    if(query.isBlank() && childFolders.isNotEmpty()) item {
-                        LazyRow(horizontalArrangement=Arrangement.spacedBy(16.dp),contentPadding=PaddingValues(vertical=12.dp)) {
-                            items(childFolders,key={it}) { p -> FolderTile(nameOf(p),countUnder(p)) { folder=p } }
-                        }
-                    }
-                    if(visible.isEmpty()) item {
-                        Box(Modifier.fillMaxWidth().padding(top=64.dp),contentAlignment=Alignment.Center) {
-                            Text(when {
-                                query.isNotBlank() -> "Eşleşen not yok"
-                                state.notes.isEmpty() -> "İlk notunu oluştur ya da bir PDF içe aktar."
-                                else -> "Bu klasörde not yok"
-                            },color=LibMuted)
-                        }
-                    }
-                    items(visible,key={it.key}) { note ->
-                        NoteRow(note,state.sourceStates[note.key],showFolder=current==null,
-                            onRename={renamingKey=note.key},onMove={movingKey=note.key},onTrash={state.moveToTrash(note.key)}) { state.open(note.key) }
+                state.actionMessage?.let { message ->
+                    Surface(Modifier.align(Alignment.BottomCenter).padding(bottom=36.dp),shape=RoundedCornerShape(24.dp),shadowElevation=4.dp,color=Ada.Ink) {
+                        Text(message,color=Color.White,modifier=Modifier.padding(horizontal=22.dp,vertical=14.dp).testTag("action-message"))
                     }
                 }
             }
         }
-        if(state.importing) Surface(Modifier.align(Alignment.BottomCenter).padding(bottom=32.dp),shape=RoundedCornerShape(24.dp),shadowElevation=3.dp,color=Color.White) {
-            Row(Modifier.padding(horizontal=20.dp,vertical=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-                CircularProgressIndicator(Modifier.size(20.dp),strokeWidth=2.dp,color=LibAccent); Text("PDF açılıyor…")
-            }
         }
-        state.actionMessage?.let { message ->
-            Surface(Modifier.align(Alignment.BottomCenter).padding(bottom=36.dp),shape=RoundedCornerShape(24.dp),shadowElevation=3.dp,color=LibInk) {
-                Text(message,color=Color.White,modifier=Modifier.padding(horizontal=22.dp,vertical=14.dp).testTag("action-message"))
-            }
-        }
-        // Sağ altta yuvarlak yeni not düğmesi.
-        if(!showTrash && !showSettings) Surface(onClick={title=""; pattern=state.settings.defaultPattern; state.clearCreationError(); showNew=true},shape=CircleShape,color=Color.White,shadowElevation=4.dp,
-            modifier=Modifier.align(Alignment.BottomEnd).padding(28.dp).size(72.dp).testTag("new-note")
-                .semantics { contentDescription="Yeni not" }) {
-            Box(contentAlignment=Alignment.Center) { Icon(Icons.Outlined.EditNote,null,tint=LibAccent,modifier=Modifier.size(34.dp)) }
-        }
-    }
     }
     renamingKey?.let { key ->
         val note=state.notes.firstOrNull { it.key==key }
@@ -272,12 +290,12 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
                 Column(Modifier.heightIn(max=420.dp).verticalScroll(rememberScrollState())) {
                     (listOf("") + allFolders).forEach { p ->
                         val here=p==note.folderPath
-                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable(enabled=!here) { state.moveNote(key,p); movingKey=null }
+                        Row(Modifier.fillMaxWidth().clip(Ada.RowShape).clickable(enabled=!here) { state.moveNote(key,p); movingKey=null }
                             .padding(start=(8+(if(p.isEmpty()) 0 else p.count { it=='/' }*20)).dp,top=12.dp,bottom=12.dp,end=8.dp).testTag("move-to-${if(p.isEmpty()) "root" else p}"),
                             verticalAlignment=Alignment.CenterVertically) {
-                            Icon(if(p.isEmpty()) Icons.Outlined.Home else Icons.Outlined.Folder,null,tint=if(here) LibMuted else LibAccent)
-                            Text(if(p.isEmpty()) "Klasör dışı (kök)" else nameOf(p),Modifier.padding(start=12.dp).weight(1f),color=if(here) LibMuted else LibInk)
-                            if(here) Text("şu an burada",style=MaterialTheme.typography.bodySmall,color=LibMuted)
+                            Icon(if(p.isEmpty()) Icons.Outlined.Home else Icons.Outlined.Folder,null,tint=if(here) Ada.Muted else Ada.Petrol)
+                            Text(if(p.isEmpty()) "Klasör dışı (kök)" else nameOf(p),Modifier.padding(start=12.dp).weight(1f),color=if(here) Ada.Muted else Ada.Ink)
+                            if(here) Text("şu an burada",style=MaterialTheme.typography.bodySmall,color=Ada.Muted)
                         }
                     }
                 }
@@ -289,7 +307,7 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
         val parent=folder ?: ""
         AlertDialog(onDismissRequest={newFolder=false},title={Text("Yeni klasör")},
             text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                Text(if(parent.isEmpty()) "Konum: en üst düzey" else "Konum: $parent",style=MaterialTheme.typography.bodySmall,color=LibMuted)
+                Text(if(parent.isEmpty()) "Konum: en üst düzey" else "Konum: ${parent.replace("/"," › ")}",style=MaterialTheme.typography.bodySmall,color=Ada.Muted)
                 OutlinedTextField(value=name,onValueChange={ if(it.length<=80) name=it },singleLine=true,label={Text("Klasör adı")},
                     modifier=Modifier.fillMaxWidth().testTag("folder-name"))
             }},
@@ -301,107 +319,204 @@ private fun nameOf(path:String)=path.substringAfterLast('/')
         val note=state.trash.firstOrNull { it.key==key }
         AlertDialog(onDismissRequest={deletingKey=null},title={Text("Kalıcı olarak silinsin mi?")},
             text={Text("\"${note?.title ?: "Not"}\" ve üzerindeki tüm yazılar kalıcı olarak silinir. Bu işlem geri alınamaz.")},
-            confirmButton={TextButton(onClick={state.deleteForever(key); deletingKey=null},modifier=Modifier.testTag("confirm-delete-forever")){Text("Kalıcı sil",color=Color(0xffb3261e))}},
+            confirmButton={TextButton(onClick={state.deleteForever(key); deletingKey=null},modifier=Modifier.testTag("confirm-delete-forever")){Text("Kalıcı sil",color=Ada.Danger)}},
             dismissButton={TextButton(onClick={deletingKey=null}){Text("Vazgeç")}})
     }
     state.importError?.let { message ->
-        AlertDialog(onDismissRequest={state.clearImportError()},title={Text("PDF içe aktarılamadı")},text={Text(message)},
+        AlertDialog(onDismissRequest={state.clearImportError()},title={Text("İçe aktarılamadı")},text={Text(message)},
             confirmButton={TextButton(onClick={state.clearImportError()}){Text("Tamam")}})
     }
-    if(showNew) AlertDialog(onDismissRequest={if(!state.creating)showNew=false},title={Text("Yeni not")},
-        text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(value=title,onValueChange={if(it.length<=100)title=it},singleLine=true,
-                label={Text("Not adı")},enabled=!state.creating,modifier=Modifier.fillMaxWidth().testTag("note-title"))
-            Text("Sayfa",style=MaterialTheme.typography.labelLarge,color=LibMuted)
-            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                PagePattern.entries.forEach { p ->
-                    FilterChip(selected=pattern==p.code,onClick={pattern=p.code},label={Text(p.label)},modifier=Modifier.testTag("pattern-${p.code}"))
-                }
-            }
-            state.creationError?.let { Text(it,color=MaterialTheme.colorScheme.error,style=MaterialTheme.typography.bodySmall) }
-        }},confirmButton={TextButton(onClick={state.create(title,pattern){showNew=false}},enabled=title.isNotBlank()&&!state.creating,
-            modifier=Modifier.testTag("create-note")) {Text(if(state.creating)"Oluşturuluyor…" else "Oluştur")}},
-        dismissButton={TextButton(onClick={showNew=false},enabled=!state.creating){Text("Vazgeç")}})
-}
-
-@Composable private fun DrawerRow(icon:androidx.compose.ui.graphics.vector.ImageVector,label:String,count:Int,selected:Boolean,depth:Int,onClick:()->Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal=12.dp).clip(RoundedCornerShape(14.dp))
-        .background(if(selected) LibSoft else Color.Transparent).clickable(onClick=onClick)
-        .padding(start=(12+depth*20).dp,end=16.dp,top=14.dp,bottom=14.dp).semantics { contentDescription="$label, $count not" },
-        verticalAlignment=Alignment.CenterVertically) {
-        Icon(icon,null,tint=if(selected) LibAccent else LibInk)
-        Text(label,Modifier.weight(1f).padding(start=16.dp),fontSize=18.sp,color=LibInk,maxLines=1,overflow=TextOverflow.Ellipsis,
-            fontWeight=if(selected) FontWeight.SemiBold else FontWeight.Normal)
-        Text("$count",color=LibMuted,style=MaterialTheme.typography.bodyMedium)
+    if(showNew) NewNoteDialog(state,allFolders,title,{title=it},pattern,{pattern=it},newIn,{newIn=it},onDismiss={ if(!state.creating) showNew=false }) {
+        state.create(title,pattern,newIn) { showNew=false }
     }
 }
 
-@Composable private fun FolderTile(name:String,count:Int,onClick:()->Unit) {
-    Column(Modifier.width(132.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xfff1f3f4)).clickable(onClick=onClick)
-        .padding(14.dp).semantics { contentDescription="Klasör, $name, $count not" }.testTag("folder-$name"),
-        verticalArrangement=Arrangement.spacedBy(10.dp)) {
-        Row(verticalAlignment=Alignment.CenterVertically) {
-            Icon(Icons.Outlined.Folder,null,tint=LibAccent)
-            Spacer(Modifier.weight(1f)); Text("$count",color=LibMuted,style=MaterialTheme.typography.labelMedium)
+/** Klasör ağacı adası: Tüm notlar, iç içe klasörler (daraltılabilir), Çöp kutusu, eşitleme kartı ve Ayarlar. */
+@Composable private fun FolderTree(state:LibraryState,allFolders:List<String>,collapsed:MutableList<String>,current:String?,
+    showTrash:Boolean,showSettings:Boolean,countUnder:(String)->Int,onSelect:(String?)->Unit,onTrash:()->Unit,onSettings:()->Unit,
+    onNewFolder:()->Unit,onLink:()->Unit) {
+    val home=!showTrash && !showSettings
+    Column(Modifier.fillMaxSize().padding(vertical=12.dp)) {
+        Row(Modifier.fillMaxWidth().height(56.dp).padding(start=22.dp,end=12.dp),verticalAlignment=Alignment.CenterVertically) {
+            Text("GVNnotes",fontSize=22.sp,fontWeight=FontWeight.Bold,color=Ada.Ink,modifier=Modifier.weight(1f))
+            IconButton(onClick=onNewFolder,modifier=Modifier.size(44.dp).background(Ada.Soft,CircleShape).testTag("tree-new-folder")) {
+                Icon(Icons.Outlined.CreateNewFolder,"Yeni klasör",tint=Ada.Accent)
+            }
         }
-        Text(name,color=LibInk,fontWeight=FontWeight.Medium,maxLines=2,overflow=TextOverflow.Ellipsis)
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top=8.dp)) {
+            TreeRow(Icons.Outlined.GridView,"Tüm notlar",state.notes.size,home && current==null,0,Ada.Accent) { onSelect(null) }
+            TreeRow(Icons.Outlined.Folder,"Klasörler",state.notes.count { it.folderPath.isEmpty() },home && current=="",0) { onSelect("") }
+            allFolders.filter { p -> generateSequence(parentOf(p)) { parentOf(it) }.takeWhile { it.isNotEmpty() }.none { it in collapsed } }.forEach { p ->
+                val hasChildren=allFolders.any { parentOf(it)==p }
+                TreeRow(if(current==p && home) Icons.Outlined.FolderOpen else Icons.Outlined.Folder,nameOf(p),countUnder(p),home && current==p,p.count { it=='/' }+1,
+                    expanded=if(hasChildren) p !in collapsed else null,onToggle={ if(p in collapsed) collapsed.remove(p) else collapsed.add(p) }) { onSelect(p) }
+            }
+            HorizontalDivider(Modifier.padding(horizontal=24.dp,vertical=8.dp),color=Ada.Line)
+            TreeRow(Icons.Outlined.Delete,"Çöp kutusu",state.trash.size,showTrash,0,Ada.Muted,onClick=onTrash)
+        }
+        // Eşitleme kartı: bağlı değilse bağlar, bağlıysa şimdi eşitler.
+        Row(Modifier.padding(horizontal=14.dp,vertical=8.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Ada.Desk)
+            .clickable { if(state.source==null) onLink() else state.sync() }.padding(horizontal=14.dp,vertical=12.dp).testTag("sync-card"),
+            verticalAlignment=Alignment.CenterVertically) {
+            if(state.syncing) CircularProgressIndicator(Modifier.size(22.dp),strokeWidth=2.dp,color=Ada.Petrol)
+            else Icon(if(state.source==null) Icons.Outlined.FolderSpecial else Icons.Outlined.Sync,null,tint=Ada.Petrol)
+            Column(Modifier.padding(start=12.dp)) {
+                Text(if(state.source==null) "Kaynak klasör bağlı değil" else "Documents/GVNnotes",fontSize=13.sp,fontWeight=FontWeight.SemiBold,color=Ada.Ink)
+                Text(state.syncMessage ?: if(state.source==null) "Bağlamak için dokun" else "Eşitlemek için dokun",
+                    fontSize=12.sp,color=Ada.Muted,maxLines=2,overflow=TextOverflow.Ellipsis)
+            }
+        }
+        TreeRow(Icons.Outlined.Settings,"Ayarlar",null,showSettings,0,Ada.Muted,tag="tree-settings",onClick=onSettings)
+    }
+}
+
+@Composable private fun TreeRow(icon:ImageVector,label:String,count:Int?,selected:Boolean,depth:Int,tint:Color=Ada.Petrol,
+    expanded:Boolean?=null,onToggle:()->Unit={},tag:String?=null,onClick:()->Unit) {
+    Row(Modifier.fillMaxWidth().padding(horizontal=12.dp).heightIn(min=48.dp).clip(Ada.RowShape)
+        .background(if(selected) Ada.Soft else Color.Transparent).clickable(onClick=onClick)
+        .semantics { contentDescription=if(count==null) label else "$label, $count not"; this.selected=selected }
+        .then(if(tag!=null) Modifier.testTag(tag) else Modifier)
+        .padding(start=(4+depth*18).dp,end=14.dp),
+        verticalAlignment=Alignment.CenterVertically) {
+        Box(Modifier.size(36.dp).then(if(expanded!=null) Modifier.clip(CircleShape).clickable(onClick=onToggle) else Modifier),contentAlignment=Alignment.Center) {
+            if(expanded!=null) Icon(if(expanded) Icons.Outlined.ExpandMore else Icons.Outlined.ChevronRight,
+                if(expanded) "$label daralt" else "$label genişlet",tint=Ada.Muted,modifier=Modifier.size(20.dp))
+        }
+        Icon(icon,null,tint=if(selected) Ada.Accent else tint,modifier=Modifier.size(22.dp))
+        Text(label,Modifier.weight(1f).padding(start=12.dp),fontSize=15.sp,color=Ada.Ink,maxLines=1,overflow=TextOverflow.Ellipsis,
+            fontWeight=if(selected) FontWeight.SemiBold else FontWeight.Normal)
+        if(count!=null) Text("$count",color=Ada.Muted,fontSize=12.sp)
+    }
+}
+
+@Composable private fun ActionPill(icon:ImageVector,label:String,enabled:Boolean,modifier:Modifier=Modifier,onClick:()->Unit) {
+    Surface(onClick=onClick,enabled=enabled,shape=RoundedCornerShape(24.dp),color=Ada.Surface,shadowElevation=2.dp,modifier=modifier.height(48.dp)) {
+        Row(Modifier.padding(start=16.dp,end=20.dp),verticalAlignment=Alignment.CenterVertically) {
+            Icon(icon,null,tint=if(enabled) Ada.Ink else Ada.Disabled,modifier=Modifier.size(22.dp))
+            Text(label,Modifier.padding(start=10.dp),color=if(enabled) Ada.Ink else Ada.Disabled,fontWeight=FontWeight.Medium,fontSize=15.sp)
+        }
+    }
+}
+
+@Composable private fun FolderTile(name:String,count:Int,subfolders:Int,onClick:()->Unit) {
+    Surface(onClick=onClick,shape=RoundedCornerShape(20.dp),color=Ada.Surface,shadowElevation=3.dp,
+        modifier=Modifier.width(232.dp).semantics { contentDescription="Klasör, $name, $count not" }.testTag("folder-$name")) {
+        Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
+            Box(Modifier.size(44.dp).background(Ada.Desk,RoundedCornerShape(14.dp)),contentAlignment=Alignment.Center) {
+                Icon(Icons.Outlined.Folder,null,tint=Ada.Petrol)
+            }
+            Column(Modifier.padding(start=12.dp)) {
+                Text(name,color=Ada.Ink,fontWeight=FontWeight.SemiBold,fontSize=15.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+                Text(listOfNotNull("$count not",if(subfolders>0) "$subfolders klasör" else null).joinToString(" · "),color=Ada.Muted,fontSize=12.sp)
+            }
+        }
     }
 }
 
 @Composable private fun LinkCard(title:String="Documents/GVNnotes klasörünü bağla",
     body:String="Bu klasöre koyduğun PDF ve resimler alt klasörleriyle birlikte otomatik not olur.",action:String="Bağla",onLink:()->Unit) {
-    Row(Modifier.fillMaxWidth().padding(vertical=8.dp).clip(RoundedCornerShape(16.dp)).background(LibSoft).padding(20.dp),
-        verticalAlignment=Alignment.CenterVertically) {
-        Icon(Icons.Outlined.FolderSpecial,null,tint=LibAccent,modifier=Modifier.size(32.dp))
-        Column(Modifier.weight(1f).padding(horizontal=16.dp)) {
-            Text(title,fontWeight=FontWeight.SemiBold,color=LibInk)
-            Text(body,color=LibMuted,style=MaterialTheme.typography.bodyMedium)
+    Island(Modifier.fillMaxWidth(),elevation=2.dp) {
+        Row(Modifier.padding(20.dp),verticalAlignment=Alignment.CenterVertically) {
+            Box(Modifier.size(48.dp).background(Ada.Desk,RoundedCornerShape(16.dp)),contentAlignment=Alignment.Center) {
+                Icon(Icons.Outlined.FolderSpecial,null,tint=Ada.Petrol,modifier=Modifier.size(28.dp))
+            }
+            Column(Modifier.weight(1f).padding(horizontal=16.dp)) {
+                Text(title,fontWeight=FontWeight.SemiBold,color=Ada.Ink)
+                Text(body,color=Ada.Muted,style=MaterialTheme.typography.bodyMedium)
+            }
+            Button(onClick=onLink,modifier=Modifier.testTag("link-folder")) { Text(action) }
         }
-        Button(onClick=onLink,colors=ButtonDefaults.buttonColors(containerColor=LibAccent),modifier=Modifier.testTag("link-folder")) { Text(action) }
     }
 }
 
 private val dayFormat=SimpleDateFormat("d MMM",Locale("tr"))
 private val timeFormat=SimpleDateFormat("HH:mm",Locale("tr"))
-private fun shortDate(time:Long)=if(DateUtils.isToday(time)) timeFormat.format(time) else dayFormat.format(time)
+internal fun shortDate(time:Long)=if(DateUtils.isToday(time)) timeFormat.format(time) else dayFormat.format(time)
+internal fun metaOf(note:NoteCard)=if(note.unreadable) "Kayıt açılamadı · açıp yeniden deneyin"
+    else listOfNotNull(shortDate(note.modified),"${note.pageCount} sayfa",if(note.isPdf) "PDF" else null).joinToString(" · ")
 
 private data class PreviewState(val bitmap:Bitmap?,val loaded:Boolean)
-@Composable private fun NoteRow(note:NoteCard,source:SourceState?,showFolder:Boolean,onRename:(()->Unit)?=null,onMove:(()->Unit)?=null,onTrash:(()->Unit)?=null,
-    trailing:(@Composable ()->Unit)?=null,onClick:()->Unit) {
+@Composable private fun rememberPreview(note:NoteCard):PreviewState {
     val preview by produceState(PreviewState(null,false),note.key,note.revision,note.preview?.path) {
         value=PreviewState(null,false)
         value=PreviewState(withContext(Dispatchers.IO) { note.preview?.let { BitmapFactory.decodeFile(it.path) } },true)
     }
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick=onClick).padding(vertical=10.dp).testTag("note-${note.key}"),
-        verticalAlignment=Alignment.CenterVertically) {
-        Box(Modifier.size(96.dp).border(1.dp,LibBorder,RoundedCornerShape(14.dp)).background(Color.White,RoundedCornerShape(14.dp)).padding(6.dp),
-            contentAlignment=Alignment.Center) {
-            preview.bitmap?.let { Image(it.asImageBitmap(),contentDescription=null,modifier=Modifier.fillMaxSize().testTag("preview-${note.key}"),contentScale=ContentScale.Fit) }
-                ?: Icon(Icons.Outlined.Description,null,tint=LibBorder)
+    return preview
+}
+
+@Composable private fun SourceWarning(source:SourceState?) {
+    when(source) {
+        SourceState.MISSING -> Text("Kaynak PDF klasörde bulunamadı · yazılar korunuyor",style=MaterialTheme.typography.bodySmall,color=Ada.Danger)
+        SourceState.REPLACED -> Text("Kaynak PDF değişti · yeni sürüm ayrı not",style=MaterialTheme.typography.bodySmall,color=Color(0xff8a5a00))
+        else -> {}
+    }
+}
+
+@Composable private fun NoteMenu(note:NoteCard,onRename:(()->Unit)?,onMove:(()->Unit)?,onTrash:(()->Unit)?) {
+    Box {
+        var open by remember { mutableStateOf(false) }
+        IconButton(onClick={open=true},modifier=Modifier.testTag("note-menu-${note.title}")) { Icon(Icons.Outlined.MoreHoriz,"${note.title} seçenekleri",tint=Ada.Muted) }
+        DropdownMenu(expanded=open,onDismissRequest={open=false}) {
+            onRename?.let { DropdownMenuItem(text={Text("Yeniden adlandır")},onClick={open=false; it()},leadingIcon={Icon(Icons.Outlined.Edit,null)}) }
+            onMove?.let { DropdownMenuItem(text={Text("Klasöre taşı")},onClick={open=false; it()},leadingIcon={Icon(Icons.Outlined.DriveFileMove,null)},
+                modifier=Modifier.testTag("menu-move")) }
+            onTrash?.let { DropdownMenuItem(text={Text("Çöp kutusuna taşı")},onClick={open=false; it()},leadingIcon={Icon(Icons.Outlined.Delete,null)},
+                modifier=Modifier.testTag("menu-trash")) }
         }
-        Column(Modifier.padding(start=20.dp).weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
-            Text(note.title,fontSize=20.sp,color=LibInk,maxLines=1,overflow=TextOverflow.Ellipsis)
-            Text(if(note.unreadable) "Kayıt açılamadı · açıp yeniden deneyin"
-                else listOfNotNull(shortDate(note.modified),"${note.pageCount} sayfa",if(note.isPdf) "PDF" else null,
-                    if(showFolder && note.folderPath.isNotEmpty()) note.folderPath else null).joinToString(" · "),
-                style=MaterialTheme.typography.bodyMedium,color=LibMuted,maxLines=1,overflow=TextOverflow.Ellipsis)
-            when(source) {
-                SourceState.MISSING -> Text("Kaynak PDF klasörde bulunamadı · yazılar korunuyor",style=MaterialTheme.typography.bodySmall,color=Color(0xffb3261e))
-                SourceState.REPLACED -> Text("Kaynak PDF değişti · yeni sürüm ayrı not",style=MaterialTheme.typography.bodySmall,color=Color(0xff8a5a00))
-                else -> {}
+    }
+}
+
+/** Not kartı: yüzen önizleme, başlık, tarih/sayfa ve (Tüm notlar'da) klasör etiketi. */
+@Composable private fun NoteTile(note:NoteCard,source:SourceState?,showFolder:Boolean,onRename:()->Unit,onMove:()->Unit,onTrash:()->Unit,onClick:()->Unit) {
+    val preview=rememberPreview(note)
+    Column(Modifier.clip(RoundedCornerShape(20.dp)).clickable(onClick=onClick).testTag("note-${note.key}")) {
+        Island(Modifier.fillMaxWidth().aspectRatio(1.3f),shape=RoundedCornerShape(22.dp),elevation=3.dp) {
+            Box(Modifier.padding(10.dp),contentAlignment=Alignment.Center) {
+                preview.bitmap?.let { Image(it.asImageBitmap(),contentDescription=null,modifier=Modifier.fillMaxSize().testTag("preview-${note.key}"),contentScale=ContentScale.Fit) }
+                    ?: Icon(Icons.Outlined.Description,null,tint=Ada.Line,modifier=Modifier.size(40.dp))
             }
         }
-        trailing?.invoke()
-        if(onRename!=null || onTrash!=null) Box {
-            var open by remember { mutableStateOf(false) }
-            IconButton(onClick={open=true},modifier=Modifier.testTag("note-menu-${note.title}")) { Icon(Icons.Outlined.MoreVert,"${note.title} seçenekleri",tint=LibMuted) }
-            DropdownMenu(expanded=open,onDismissRequest={open=false}) {
-                onRename?.let { DropdownMenuItem(text={Text("Yeniden adlandır")},onClick={open=false; it()},leadingIcon={Icon(Icons.Outlined.Edit,null)}) }
-                onMove?.let { DropdownMenuItem(text={Text("Klasöre taşı")},onClick={open=false; it()},leadingIcon={Icon(Icons.Outlined.DriveFileMove,null)},
-                    modifier=Modifier.testTag("menu-move")) }
-                onTrash?.let { DropdownMenuItem(text={Text("Çöp kutusuna taşı")},onClick={open=false; it()},leadingIcon={Icon(Icons.Outlined.Delete,null)},
-                    modifier=Modifier.testTag("menu-trash")) }
+        Row(Modifier.padding(start=4.dp,top=8.dp),verticalAlignment=Alignment.Top) {
+            Column(Modifier.weight(1f).padding(top=4.dp),verticalArrangement=Arrangement.spacedBy(2.dp)) {
+                Text(note.title,fontSize=16.sp,fontWeight=FontWeight.SemiBold,color=Ada.Ink,maxLines=1,overflow=TextOverflow.Ellipsis)
+                Text(metaOf(note),fontSize=13.sp,color=Ada.Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
+                if(showFolder && note.folderPath.isNotEmpty()) Row(verticalAlignment=Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.Folder,null,tint=Ada.Petrol,modifier=Modifier.size(14.dp))
+                    Text(note.folderPath.replace("/"," › "),Modifier.padding(start=5.dp),fontSize=12.sp,color=Ada.Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
+                }
+                SourceWarning(source)
             }
+            NoteMenu(note,onRename,onMove,onTrash)
+        }
+    }
+}
+
+/** Liste satırı (çöp kutusu): küçük önizleme, başlık, bilgi ve sağda eylemler. */
+@Composable private fun NoteRow(note:NoteCard,trailing:@Composable ()->Unit) {
+    val preview=rememberPreview(note)
+    Island(Modifier.fillMaxWidth().testTag("note-${note.key}"),shape=RoundedCornerShape(20.dp),elevation=2.dp) {
+        Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
+            Box(Modifier.size(72.dp).border(1.dp,Ada.Line,RoundedCornerShape(14.dp)).background(Color.White,RoundedCornerShape(14.dp)).padding(5.dp),
+                contentAlignment=Alignment.Center) {
+                preview.bitmap?.let { Image(it.asImageBitmap(),contentDescription=null,modifier=Modifier.fillMaxSize(),contentScale=ContentScale.Fit) }
+                    ?: Icon(Icons.Outlined.Description,null,tint=Ada.Line)
+            }
+            Column(Modifier.padding(start=16.dp).weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)) {
+                Text(note.title,fontSize=17.sp,fontWeight=FontWeight.Medium,color=Ada.Ink,maxLines=1,overflow=TextOverflow.Ellipsis)
+                Text(listOfNotNull(metaOf(note),note.folderPath.ifEmpty { null }?.replace("/"," › ")).joinToString(" · "),
+                    style=MaterialTheme.typography.bodyMedium,color=Ada.Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
+            }
+            trailing()
+        }
+    }
+}
+
+@Composable private fun ScreenHeader(title:String,subtitle:String?,onBack:()->Unit) {
+    Row(Modifier.fillMaxWidth().height(84.dp).padding(start=12.dp,end=20.dp),verticalAlignment=Alignment.CenterVertically) {
+        IconButton(onClick=onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Notlara dön",tint=Ada.Ink) }
+        Column(Modifier.weight(1f).padding(start=8.dp)) {
+            Text(title,fontSize=28.sp,fontWeight=FontWeight.SemiBold,color=Ada.Ink)
+            if(subtitle!=null) Text(subtitle,style=MaterialTheme.typography.bodyMedium,color=Ada.Muted)
         }
     }
 }
@@ -409,93 +524,105 @@ private data class PreviewState(val bitmap:Bitmap?,val loaded:Boolean)
 /** Çöp kutusu: notlar burada silinene kadar saklanır; geri yükleme notu eski klasörüne döndürür. */
 @Composable private fun TrashView(state:LibraryState,onBack:()->Unit,onDelete:(String)->Unit) {
     Column(Modifier.fillMaxSize().testTag("trash")) {
-        Row(Modifier.fillMaxWidth().height(72.dp).padding(start=8.dp,end=12.dp),verticalAlignment=Alignment.CenterVertically) {
-            IconButton(onClick=onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Notlara dön",tint=LibInk) }
-            Column(Modifier.weight(1f).padding(start=8.dp)) {
-                Text("Çöp kutusu",fontSize=26.sp,fontWeight=FontWeight.SemiBold,color=LibInk)
-                Text("${state.trash.size} not · silinene kadar saklanır",style=MaterialTheme.typography.bodyMedium,color=LibMuted)
-            }
-        }
-        if(state.trash.isEmpty()) Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) { Text("Çöp kutusu boş",color=LibMuted) }
-        else LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(start=24.dp,end=24.dp,top=8.dp,bottom=48.dp)) {
+        ScreenHeader("Çöp kutusu","${state.trash.size} not · silinene kadar saklanır",onBack)
+        if(state.trash.isEmpty()) Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) { Text("Çöp kutusu boş",color=Ada.Muted) }
+        else LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(start=24.dp,end=24.dp,top=4.dp,bottom=48.dp),
+            verticalArrangement=Arrangement.spacedBy(12.dp)) {
             items(state.trash,key={it.key}) { note ->
-                NoteRow(note,null,showFolder=true,trailing={
+                NoteRow(note) {
                     TextButton(onClick={state.restore(note.key)},modifier=Modifier.testTag("restore-${note.title}")) { Text("Geri yükle") }
-                    TextButton(onClick={onDelete(note.key)},modifier=Modifier.testTag("delete-${note.title}")) { Text("Kalıcı sil",color=Color(0xffb3261e)) }
-                }) {}
+                    TextButton(onClick={onDelete(note.key)},modifier=Modifier.testTag("delete-${note.title}")) { Text("Kalıcı sil",color=Ada.Danger) }
+                }
             }
         }
     }
 }
 
-/** Ayarlar: yazma, yeni not şablonu, kaynak klasör ve hakkında/hata kaydı. */
+private enum class SettingsPage(val label:String,val icon:ImageVector) {
+    WRITING("Yazma",Icons.Outlined.Gesture), PEN("Kalem (GVNpen)",Icons.Outlined.Draw), NEW_NOTE("Yeni not",Icons.AutoMirrored.Outlined.NoteAdd),
+    SOURCE("Kaynak klasör",Icons.Outlined.FolderSpecial), ABOUT("Hakkında",Icons.Outlined.Info)
+}
+
+/** Ayarlar: solda seçili bölümün kartları, sağda yüzen kategori adası. */
 @Composable private fun SettingsView(state:LibraryState,onBack:()->Unit,onPickFolder:()->Unit) {
     val context=LocalContext.current
+    var page by rememberSaveable { mutableStateOf(SettingsPage.WRITING) }
     var confirmUnlink by remember { mutableStateOf(false) }
     val version=remember { runCatching { context.packageManager.getPackageInfo(context.packageName,0).versionName }.getOrNull() ?: "?" }
     val crash=remember { CrashLog.file(context.filesDir) }
     var crashExists by remember { mutableStateOf(crash.isFile && crash.length()>0) }
     Column(Modifier.fillMaxSize().testTag("settings")) {
-        Row(Modifier.fillMaxWidth().height(72.dp).padding(start=8.dp,end=12.dp),verticalAlignment=Alignment.CenterVertically) {
-            IconButton(onClick=onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Notlara dön",tint=LibInk) }
-            Text("Ayarlar",fontSize=26.sp,fontWeight=FontWeight.SemiBold,color=LibInk,modifier=Modifier.padding(start=8.dp))
-        }
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=32.dp,vertical=8.dp).widthIn(max=760.dp),
-            verticalArrangement=Arrangement.spacedBy(20.dp)) {
-            SettingsSection("Yazma") {
-                // GVNpen "Parmakla çizimi engelle" ayarının tersi; tek kaynak GVNpen ayarlarıdır.
-                var fingerDraw by remember { mutableStateOf(!com.gvn.notes.pen.Prefs.load(context).onlyPen) }
-                fun setFinger(on:Boolean) { fingerDraw=on; com.gvn.notes.pen.Prefs.load(context).also { it.onlyPen=!on; it.save(context) } }
-                Row(Modifier.fillMaxWidth().clickable { setFinger(!fingerDraw) }.padding(vertical=8.dp).testTag("setting-finger"),verticalAlignment=Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f).padding(end=16.dp)) {
-                        Text("Parmakla çizim",fontWeight=FontWeight.Medium,color=LibInk)
-                        Text("Açıkken tek parmak da yazar; iki parmak her zaman kaydırır ve yakınlaştırır. Kapalıyken yalnız S Pen yazar (önerilen).",
-                            style=MaterialTheme.typography.bodySmall,color=LibMuted)
+        ScreenHeader("Ayarlar","Çalışma biçimini kendine göre düzenle",onBack)
+        Row(Modifier.fillMaxSize().padding(start=24.dp,end=16.dp,bottom=16.dp),horizontalArrangement=Arrangement.spacedBy(20.dp)) {
+            Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                Text(page.label,fontSize=30.sp,fontWeight=FontWeight.SemiBold,color=Ada.Ink)
+                when(page) {
+                    SettingsPage.WRITING -> {
+                        Text("S Pen'in ve parmağın sayfada ne yapacağını seç.",color=Ada.Muted)
+                        // GVNpen "Parmakla çizimi engelle" ayarının tersi; tek kaynak GVNpen ayarlarıdır.
+                        var fingerDraw by remember { mutableStateOf(!com.gvn.notes.pen.Prefs.load(context).onlyPen) }
+                        fun setFinger(on:Boolean) { fingerDraw=on; com.gvn.notes.pen.Prefs.load(context).also { it.onlyPen=!on; it.save(context) } }
+                        SettingCard("Parmakla çizim","Açıkken tek parmak da yazar; iki parmak her zaman kaydırır ve yakınlaştırır. Kapalıyken yalnız S Pen yazar (önerilen).",
+                            Modifier.clickable { setFinger(!fingerDraw) }.testTag("setting-finger")) { Switch(checked=fingerDraw,onCheckedChange={ setFinger(it) }) }
+                        Text("Kalem, renk, kalınlık, silgi, akıllı şekil ve S Pen düğmesi ayarları \"Kalem (GVNpen)\" bölümünde.",
+                            style=MaterialTheme.typography.bodySmall,color=Ada.Muted)
                     }
-                    Switch(checked=fingerDraw,onCheckedChange={ setFinger(it) })
+                    SettingsPage.PEN -> {
+                        Text("Yazma tarafı GVNpen ile aynıdır; ayarları da GVNpen'in kendi ekranındadır.",color=Ada.Muted)
+                        SettingCard("GVNpen ayarları","Çizim, Silgi, Görünüm, Kalem düğmesi ve Dosyalar. Notun içindeki araç şeridinin dişli düğmesi de aynı ekranı açar.") {
+                            Button(onClick={ context.startActivity(Intent(context,com.gvn.notes.pen.PenSettingsActivity::class.java)) }) { Text("Aç") }
+                        }
+                    }
+                    SettingsPage.NEW_NOTE -> {
+                        Text("Yeni notların ilk sayfası.",color=Ada.Muted)
+                        Island(Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp),elevation=1.dp) {
+                            Row(Modifier.padding(20.dp),horizontalArrangement=Arrangement.spacedBy(16.dp)) {
+                                PagePattern.entries.forEach { p ->
+                                    PatternCard(p,state.settings.defaultPattern==p.code,Modifier.weight(1f)) {
+                                        state.updateSettings(state.settings.copy(defaultPattern=p.code)) }
+                                }
+                            }
+                        }
+                    }
+                    SettingsPage.SOURCE -> {
+                        Text("Bu klasöre koyduğun PDF ve resimler, alt klasörleriyle birlikte otomatik not olur.",color=Ada.Muted)
+                        SettingCard(if(state.source==null) "Bağlı değil" else "Documents/GVNnotes",when {
+                            state.source==null -> "Klasörü bağlarsan oradaki PDF ve resimler otomatik not olur."
+                            state.writable -> "Okuma ve yazma izni var. Taşıma, yeni klasör ve çöp klasöre de yansır."
+                            else -> "Yalnız okuma izni var. Klasöre yansıyan işlemler için yeniden bağla."
+                        }+(state.syncMessage?.let { "\nSon eşitleme: $it" } ?: "")) {}
+                        Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                            Button(onClick=onPickFolder) { Text(if(state.source==null) "Klasörü bağla" else if(state.writable) "Klasörü değiştir" else "Yeniden bağla") }
+                            if(state.source!=null) {
+                                OutlinedButton(onClick={state.sync()},enabled=!state.syncing) { Text("Şimdi eşitle") }
+                                TextButton(onClick={confirmUnlink=true}) { Text("Bağlantıyı kaldır",color=Ada.Danger) }
+                            }
+                        }
+                    }
+                    SettingsPage.ABOUT -> {
+                        SettingCard("GVNnotes $version","Notlar yalnız bu tablette, uygulamanın kendi alanında saklanır; internet kullanılmaz. Uygulamayı kaldırmak notları siler: önemli notları PDF olarak dışa aktar.") {}
+                        SettingCard("Hata kaydı",if(crashExists) "Kaydedilmiş çökme var. Paylaşıp bana gönderebilirsin." else "Kaydedilmiş çökme yok.") {
+                            Row {
+                                TextButton(onClick={
+                                    val text=runCatching { crash.readText() }.getOrDefault("").ifEmpty { "Hata kaydı boş." }
+                                    context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND)
+                                        .setType("text/plain").putExtra(Intent.EXTRA_SUBJECT,"GVNnotes $version hata kaydı")
+                                        .putExtra(Intent.EXTRA_TEXT,text),"Hata kaydını paylaş"))
+                                },enabled=crashExists) { Text("Paylaş") }
+                                TextButton(onClick={ crash.delete(); crashExists=false },enabled=crashExists) { Text("Temizle") }
+                            }
+                        }
+                    }
                 }
-                Text("Kalem, renk, kalınlık, silgi, akıllı şekil ve S Pen düğmesi ayarları notun içindeki GVNpen şeridinin Ayarlar düğmesindedir.",
-                    style=MaterialTheme.typography.bodySmall,color=LibMuted)
             }
-            SettingsSection("Yeni not") {
-                Text("Varsayılan sayfa",style=MaterialTheme.typography.bodyMedium,color=LibInk)
-                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                    PagePattern.entries.forEach { p ->
-                        FilterChip(selected=state.settings.defaultPattern==p.code,onClick={ state.updateSettings(state.settings.copy(defaultPattern=p.code)) },label={Text(p.label)})
+            Island(Modifier.width(272.dp).fillMaxHeight()) {
+                Column(Modifier.padding(vertical=14.dp)) {
+                    SettingsPage.entries.forEach { p ->
+                        TreeRow(p.icon,p.label,null,page==p,0,Ada.Muted,tag="settings-${p.name.lowercase()}") { page=p }
                     }
+                    Spacer(Modifier.weight(1f))
+                    Text("GVNnotes $version\nAyarlar otomatik kaydedilir.",fontSize=12.sp,color=Ada.Muted,modifier=Modifier.padding(horizontal=24.dp,vertical=8.dp))
                 }
-            }
-            SettingsSection("Kaynak klasör") {
-                Text(when {
-                    state.source==null -> "Bağlı değil. Documents/GVNnotes klasörünü bağlarsan oradaki PDF ve resimler otomatik not olur."
-                    state.writable -> "Bağlı · okuma ve yazma izni var. Taşıma, yeni klasör ve çöp klasöre de yansır."
-                    else -> "Bağlı · yalnız okuma izni var. Klasöre yansıyan işlemler için yeniden bağla."
-                },style=MaterialTheme.typography.bodyMedium,color=LibInk)
-                state.syncMessage?.let { Text("Son eşitleme: $it",style=MaterialTheme.typography.bodySmall,color=LibMuted) }
-                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                    Button(onClick=onPickFolder,colors=ButtonDefaults.buttonColors(containerColor=LibAccent)) {
-                        Text(if(state.source==null) "Klasörü bağla" else if(state.writable) "Klasörü değiştir" else "Yeniden bağla")
-                    }
-                    if(state.source!=null) {
-                        OutlinedButton(onClick={state.sync()},enabled=!state.syncing) { Text("Şimdi eşitle") }
-                        TextButton(onClick={confirmUnlink=true}) { Text("Bağlantıyı kaldır",color=Color(0xffb3261e)) }
-                    }
-                }
-            }
-            SettingsSection("Hakkında") {
-                Text("GVNnotes $version",style=MaterialTheme.typography.bodyMedium,color=LibInk)
-                Text("Notlar yalnız bu tablette, uygulamanın kendi alanında saklanır; internet kullanılmaz. Uygulamayı kaldırmak notları siler: önemli notları PDF olarak dışa aktar.",
-                    style=MaterialTheme.typography.bodySmall,color=LibMuted)
-                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick={
-                        val text=runCatching { crash.readText() }.getOrDefault("").ifEmpty { "Hata kaydı boş." }
-                        context.startActivity(android.content.Intent.createChooser(android.content.Intent(android.content.Intent.ACTION_SEND)
-                            .setType("text/plain").putExtra(android.content.Intent.EXTRA_SUBJECT,"GVNnotes $version hata kaydı")
-                            .putExtra(android.content.Intent.EXTRA_TEXT,text),"Hata kaydını paylaş"))
-                    },enabled=crashExists) { Text("Hata kaydını paylaş") }
-                    TextButton(onClick={ crash.delete(); crashExists=false },enabled=crashExists) { Text("Temizle") }
-                }
-                if(!crashExists) Text("Kaydedilmiş çökme yok.",style=MaterialTheme.typography.bodySmall,color=LibMuted)
             }
         }
     }
@@ -505,10 +632,79 @@ private data class PreviewState(val bitmap:Bitmap?,val loaded:Boolean)
         dismissButton={TextButton(onClick={confirmUnlink=false}){Text("Vazgeç")}})
 }
 
-@Composable private fun SettingsSection(title:String,content:@Composable ColumnScope.()->Unit) {
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White).border(1.dp,LibBorder,RoundedCornerShape(16.dp)).padding(20.dp),
-        verticalArrangement=Arrangement.spacedBy(10.dp)) {
-        Text(title,fontWeight=FontWeight.SemiBold,color=LibAccent)
-        content()
+@Composable private fun SettingCard(title:String,body:String,modifier:Modifier=Modifier,trailing:@Composable ()->Unit) {
+    Island(Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp),elevation=1.dp) {
+        Row(modifier.padding(horizontal=24.dp,vertical=18.dp),verticalAlignment=Alignment.CenterVertically) {
+            Column(Modifier.weight(1f).padding(end=16.dp)) {
+                Text(title,fontSize=17.sp,fontWeight=FontWeight.SemiBold,color=Ada.Ink)
+                Text(body,fontSize=13.sp,color=Ada.Muted)
+            }
+            trailing()
+        }
+    }
+}
+
+@Composable private fun PatternCard(p:PagePattern,selected:Boolean,modifier:Modifier=Modifier,onClick:()->Unit) {
+    Column(modifier.clip(RoundedCornerShape(18.dp)).clickable(onClick=onClick).semantics { this.selected=selected }.testTag("pattern-${p.code}")) {
+        Box(Modifier.fillMaxWidth().aspectRatio(.72f).border(if(selected) 3.dp else 1.dp,if(selected) Ada.Accent else Ada.Line,RoundedCornerShape(18.dp))
+            .background(Ada.Surface,RoundedCornerShape(18.dp)).padding(10.dp)) {
+            PatternPreview(p.code,Modifier.fillMaxSize())
+        }
+        Row(Modifier.fillMaxWidth().padding(top=8.dp,start=2.dp),verticalAlignment=Alignment.CenterVertically) {
+            Text(if(p==PagePattern.NONE) "Boş" else p.label,Modifier.weight(1f),fontWeight=FontWeight.SemiBold,color=Ada.Ink)
+            if(selected) Icon(Icons.Outlined.Check,null,tint=Ada.Accent,modifier=Modifier.size(20.dp))
+        }
+    }
+}
+
+/** Yeni not: ad, klasör ağacından konum ve dört kâğıt şablonu. */
+@Composable private fun NewNoteDialog(state:LibraryState,allFolders:List<String>,title:String,onTitle:(String)->Unit,pattern:Int,onPattern:(Int)->Unit,
+    location:String,onLocation:(String)->Unit,onDismiss:()->Unit,onCreate:()->Unit) {
+    Dialog(onDismissRequest=onDismiss,properties=DialogProperties(usePlatformDefaultWidth=false)) {
+        Island(Modifier.fillMaxWidth(.9f).widthIn(max=980.dp),elevation=12.dp) {
+            Column(Modifier.verticalScroll(rememberScrollState()).padding(32.dp)) {
+                Text("Bir sayfayla başla.",fontSize=32.sp,fontWeight=FontWeight.SemiBold,color=Ada.Ink)
+                Text("Adını yaz, yerini ve kâğıdını seç.",color=Ada.Muted,fontSize=16.sp)
+                Row(Modifier.padding(top=24.dp),horizontalArrangement=Arrangement.spacedBy(32.dp)) {
+                    Column(Modifier.width(320.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                        Text("Not adı",fontWeight=FontWeight.SemiBold,color=Ada.Ink,fontSize=14.sp)
+                        OutlinedTextField(value=title,onValueChange={ if(it.length<=100) onTitle(it) },singleLine=true,enabled=!state.creating,
+                            shape=RoundedCornerShape(16.dp),modifier=Modifier.fillMaxWidth().testTag("note-title"))
+                        Text("Konum",fontWeight=FontWeight.SemiBold,color=Ada.Ink,fontSize=14.sp,modifier=Modifier.padding(top=12.dp))
+                        Column(Modifier.fillMaxWidth().heightIn(max=280.dp).clip(RoundedCornerShape(20.dp)).background(Ada.Desk)
+                            .verticalScroll(rememberScrollState()).padding(vertical=6.dp)) {
+                            (listOf("")+allFolders).forEach { p ->
+                                val selected=p==location
+                                Row(Modifier.fillMaxWidth().padding(horizontal=6.dp).heightIn(min=48.dp).clip(Ada.RowShape)
+                                    .background(if(selected) Ada.Soft else Color.Transparent).clickable { onLocation(p) }
+                                    .semantics { this.selected=selected }.testTag("location-${p.ifEmpty { "root" }}")
+                                    .padding(start=(14+(if(p.isEmpty()) 0 else (p.count { it=='/' }+1)*18)).dp,end=12.dp),
+                                    verticalAlignment=Alignment.CenterVertically) {
+                                    Icon(if(p.isEmpty()) Icons.Outlined.Home else Icons.Outlined.Folder,null,tint=if(selected) Ada.Accent else Ada.Petrol,modifier=Modifier.size(22.dp))
+                                    Text(if(p.isEmpty()) "Klasör dışı" else nameOf(p),Modifier.weight(1f).padding(start=12.dp),color=Ada.Ink,
+                                        fontWeight=if(selected) FontWeight.SemiBold else FontWeight.Normal,maxLines=1,overflow=TextOverflow.Ellipsis)
+                                    if(selected) Icon(Icons.Outlined.Check,null,tint=Ada.Accent,modifier=Modifier.size(20.dp))
+                                }
+                            }
+                        }
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text("Sayfa şablonu",fontWeight=FontWeight.SemiBold,color=Ada.Ink,fontSize=18.sp,modifier=Modifier.padding(bottom=12.dp))
+                        Row(horizontalArrangement=Arrangement.spacedBy(16.dp)) {
+                            PagePattern.entries.forEach { p -> PatternCard(p,pattern==p.code,Modifier.weight(1f)) { onPattern(p.code) } }
+                        }
+                        Text("Yeni notlar otomatik kaydedilir. Sayfa şablonunu sonradan sayfa sıralayıcıdan değiştirebilirsin.",
+                            fontSize=13.sp,color=Ada.Muted,modifier=Modifier.padding(top=16.dp))
+                    }
+                }
+                state.creationError?.let { Text(it,color=MaterialTheme.colorScheme.error,style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(top=12.dp)) }
+                Row(Modifier.fillMaxWidth().padding(top=24.dp),horizontalArrangement=Arrangement.spacedBy(12.dp,Alignment.End)) {
+                    OutlinedButton(onClick=onDismiss,enabled=!state.creating,modifier=Modifier.height(48.dp)) { Text("Vazgeç") }
+                    Button(onClick=onCreate,enabled=title.isNotBlank() && !state.creating,modifier=Modifier.height(48.dp).testTag("create-note")) {
+                        Icon(Icons.Outlined.Add,null); Spacer(Modifier.width(8.dp)); Text(if(state.creating) "Oluşturuluyor…" else "Notu oluştur",fontWeight=FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
     }
 }

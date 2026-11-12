@@ -76,8 +76,8 @@ class FolderSyncDeviceTest {
         waitFor { compose.onAllNodesWithText("hucre").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithContentDescription("Üst klasör").performClick()
         compose.onNodeWithContentDescription("Üst klasör").performClick()
-        waitFor { compose.onAllNodesWithTag("drawer").fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithTag("drawer").performClick()
+        // Geniş ekranda klasör ağacı adası hep açıktır; dar ekranda çekmeceden açılır.
+        if(compose.onAllNodesWithTag("drawer").fetchSemanticsNodes().isNotEmpty()) compose.onNodeWithTag("drawer").performClick()
         waitFor { compose.onAllNodesWithContentDescription("Histoloji, 1 not").fetchSemanticsNodes().isNotEmpty() }
         shot("03-drawer-tree")
         inst.runOnMainSync { activity.finish() }

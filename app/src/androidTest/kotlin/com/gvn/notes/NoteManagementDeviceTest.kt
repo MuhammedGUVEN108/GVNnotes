@@ -123,7 +123,7 @@ class NoteManagementDeviceTest {
         compose.onNodeWithTag("menu-trash").performClick()
         waitFor { compose.onAllNodesWithText("Not çöp kutusuna taşındı.").fetchSemanticsNodes().isNotEmpty() }
         waitFor { compose.onAllNodesWithText("Yönetim").fetchSemanticsNodes().isEmpty() }
-        compose.onNodeWithTag("drawer").performClick()
+        if(compose.onAllNodesWithTag("drawer").fetchSemanticsNodes().isNotEmpty()) compose.onNodeWithTag("drawer").performClick()
         waitFor { compose.onAllNodesWithContentDescription("Çöp kutusu, 1 not").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithContentDescription("Çöp kutusu, 1 not").performClick()
         waitFor { compose.onAllNodesWithTag("restore-Yönetim").fetchSemanticsNodes().isNotEmpty() }
