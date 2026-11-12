@@ -77,6 +77,22 @@ class CursorSizeDeviceTest {
         base.deleteRecursively()
     }
 
+    /**
+     * Yalnız elle: kullanıcının gerçek notunda ölçer (-e note "<başlık>"). Nota yazmaz; yakınlaştırma geçicidir.
+     * Argüman yoksa atlanır (DEVICE-TEST çalıştırmasında çalışmaz).
+     */
+    @Test fun cursorsOnUserNote() {
+        val title=InstrumentationRegistry.getArguments().getString("note") ?: return
+        val lib=NoteLibrary(File(inst.targetContext.filesDir,"notebooks"))
+        val key=lib.list().first { it.title==title }.key
+        val activity=inst.startActivitySync(Intent(inst.targetContext,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as MainActivity
+        inst.waitForIdleSync(); SystemClock.sleep(2000)
+        ui { androidx.lifecycle.ViewModelProvider(activity)[LibraryState::class.java].open(key) }
+        attach(activity); SystemClock.sleep(1500)
+        val v0=editor.viewport
+        try { measure("gercek") } finally { ui { editor.viewport=v0; page.refresh() } }
+    }
+
     @Test fun cursorsKeepScreenSize() {
         File(inst.targetContext.filesDir,"test-document").deleteRecursively()
         val activity=inst.startActivitySync(Intent(inst.targetContext,MainActivity::class.java)
