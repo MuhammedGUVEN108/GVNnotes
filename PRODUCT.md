@@ -27,7 +27,7 @@ Dosyalarım'daki `Documents/GVNnotes` klasörüne eklenen PDF/resimleri klasör 
 - Veriler yalnız tablette, uygulamanın kendi alanında; internet ve bulut yok. Uygulamayı kaldırmak notları siler.
 
 ## Operating Context
-Proje `D:/Sanal Desktop/GVNnotes`, Windows + PowerShell 5.1, yerel Gradle. Tablet USB ile bağlanır (seri `TABLET-SERI-NO`). Paket kimliği `com.gvn.notes.prototype` notları korumak için sabit. Güncel sürüm 0.11.0: tablette otomatik testler geçti, kullanıcı denemesi bekleniyor.
+Proje `D:/Sanal Desktop/GVNnotes`, Windows + PowerShell 5.1, yerel Gradle. Tablet USB ile bağlanır (seri `TABLET-SERI-NO`). Paket kimliği `com.gvn.notes.prototype` notları korumak için sabit. Güncel sürüm 0.12.0: tablette otomatik testler geçti, kullanıcı denemesi bekleniyor.
 
 ## Brand Commitments
 Kalem tarafı GVNpen kimliğini taşır (şerit düzeni, simgeler, GVNpen markası). Uygulama çerçevesi Petrol Ada: açık mavi-gri masa, yüzen yumuşak gölgeli adalar, indigo seçim, petrol mavisi klasör. Samsung Notes yalnız davranış referansı; Samsung kodu/görselleri kopyalanmaz.

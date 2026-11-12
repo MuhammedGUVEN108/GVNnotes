@@ -13,11 +13,11 @@ Yapay zekâ ajanları önce [AGENTS.md](AGENTS.md) dosyasını okumalı.
 - **Notlar:** PDF, resim (çoklu resim tek not) ve boş sayfa (Düz, Çizgili, Kareli, Noktalı); çok sayfa; kement seçimi; otomatik ve doğrulanmış kayıt; çöp kutusu; PDF olarak dışa aktarma.
 - **Klasör eşitleme:** `Documents/GVNnotes` alt klasörleriyle otomatik not olur; taşıma, yeni klasör ve çöp iki yönlü.
 
-Doğrulama: tablette 13 cihaz + 2 kütüphane testi geçti, ekranlar görüntüyle kontrol edildi. Kullanıcının S Pen ile elle denemesi bekleniyor. Geçmiş: [docs/DOGRULAMA.md](docs/DOGRULAMA.md).
+Doğrulama: tablette 13 test biriminin hepsi geçti ([durum](docs/TEST-DURUMU.md)), ekranlar görüntüyle kontrol edildi. Kullanıcının S Pen ile elle denemesi bekleniyor. Geçmiş: [docs/DOGRULAMA.md](docs/DOGRULAMA.md).
 
 ## Sonraki adım
 
-Kullanıcının 0.11.0 denemesi ve geri bildirimi; ardından 1.0.0.
+Kullanıcının 0.12.0 denemesi ve geri bildirimi; ardından 1.0.0.
 
 ## Belgeler
 
