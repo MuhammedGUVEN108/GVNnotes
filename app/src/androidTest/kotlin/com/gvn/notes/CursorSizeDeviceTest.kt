@@ -45,27 +45,61 @@ class CursorSizeDeviceTest {
     }
     private fun zoom(f:Float) = ui { val cx=page.width/2f; val cy=page.height/2f; editor.viewport=editor.viewport.zoomAt(f,cx,cy); page.refresh() }
 
+    private fun shot(name:String) {
+        val image=inst.uiAutomation.takeScreenshot() ?: return
+        val dir=File(inst.targetContext.getExternalFilesDir(null),"cursor-test").apply { mkdirs() }
+        File(dir,"$name.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG,100,it) }; image.recycle()
+    }
+    private fun attach(activity:android.app.Activity) {
+        val end=SystemClock.uptimeMillis()+15000
+        while(SystemClock.uptimeMillis()<end) { var found:InkPageView?=null; ui { found=find(activity.window.decorView) }; if(found!=null) break; SystemClock.sleep(100) }
+        ui { page=checkNotNull(find(activity.window.decorView))
+            editor=InkPageView::class.java.getDeclaredField("editor").apply { isAccessible=true }.get(page) as EditorState }
+        val end2=SystemClock.uptimeMillis()+10000
+        while(SystemClock.uptimeMillis()<end2) { var ok=false; ui { ok=editor.ready && page.width>0 }; if(ok) break; SystemClock.sleep(100) }
+        SystemClock.sleep(800)
+    }
+
+    /** PDF sayfası: kullanıcı imlecin yalnız PDF/resim notlarında büyüyüp küçüldüğünü bildirdi. */
+    @Test fun cursorsKeepScreenSizeOnPdf() {
+        val base=File(inst.targetContext.filesDir,"test-library"); base.deleteRecursively()
+        val pdf=File(inst.targetContext.cacheDir,"imlec.pdf")
+        val d=android.graphics.pdf.PdfDocument(); val pg=d.startPage(android.graphics.pdf.PdfDocument.PageInfo.Builder(600,800,1).create())
+        pg.canvas.drawRect(100f,100f,500f,700f,android.graphics.Paint().apply { color=Color.rgb(230,230,250) }); d.finishPage(pg)
+        pdf.outputStream().use { d.writeTo(it) }; d.close()
+        val key=NoteLibrary(File(base,"notebooks")).importPdf("İmleç PDF") { pdf.inputStream() }
+        val activity=inst.startActivitySync(Intent(inst.targetContext,MainActivity::class.java)
+            .putExtra("gvnnotes.testLibrary",true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as MainActivity
+        inst.waitForIdleSync(); SystemClock.sleep(1500)
+        ui { androidx.lifecycle.ViewModelProvider(activity)[LibraryState::class.java].open(key) }
+        attach(activity)
+        measure("pdf")
+        base.deleteRecursively()
+    }
+
     @Test fun cursorsKeepScreenSize() {
         File(inst.targetContext.filesDir,"test-document").deleteRecursively()
         val activity=inst.startActivitySync(Intent(inst.targetContext,MainActivity::class.java)
             .putExtra("gvnnotes.testDocument",true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         inst.waitForIdleSync(); SystemClock.sleep(600)
-        ui { page=checkNotNull(find(activity.window.decorView))
-            editor=InkPageView::class.java.getDeclaredField("editor").apply { isAccessible=true }.get(page) as EditorState }
-        SystemClock.sleep(400)
+        attach(activity)
+        measure("bos")
+    }
+
+    private fun measure(kind:String) {
         val results=HashMap<String,Pair<Int,Int>>()
         for(tool in listOf("pen","eraser")) {
             ui { page.usePen(tool=tool,eraser=40f); page.prefs.showCursor=true }
             val cx=page.width/2f; val cy=page.height/2f
-            hover(cx,cy); SystemClock.sleep(150); val normal=cursorWidth()
-            zoom(2f); hover(cx,cy); SystemClock.sleep(150); val zoomed=cursorWidth()
-            zoom(.5f); zoom(.5f); hover(cx,cy); SystemClock.sleep(150); val out=cursorWidth()
+            hover(cx,cy); SystemClock.sleep(300); val normal=cursorWidth(); shot("$kind-$tool-1x")
+            zoom(2f); hover(cx,cy); SystemClock.sleep(300); val zoomed=cursorWidth(); shot("$kind-$tool-2x")
+            zoom(.5f); zoom(.5f); hover(cx,cy); SystemClock.sleep(300); val out=cursorWidth(); shot("$kind-$tool-05x")
             zoom(2f)
             results[tool]=normal to zoomed
             assertTrue("$tool imleci görünmeli",normal>0)
             assertTrue("$tool imleci yakınlaşınca değişmemeli: $normal → $zoomed",kotlin.math.abs(zoomed-normal)<=normal/10+2)
             assertTrue("$tool imleci uzaklaşınca değişmemeli: $normal → $out",kotlin.math.abs(out-normal)<=normal/10+2)
         }
-        android.util.Log.i("GVNnotesTest","imlec genislikleri: $results")
+        android.util.Log.i("GVNnotesTest","$kind imlec genislikleri: $results")
     }
 }
