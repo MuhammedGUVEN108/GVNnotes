@@ -10,7 +10,7 @@ Kullanıcı Türkçe konuşur. Arayüz metinleri, belgeler, kod yorumları ve co
 
 ## Kesin kullanıcı kararları (değiştirme)
 
-1. **Yazma tarafı GVNpen ile birebir aynı** (12 Kasım 2026): "GVNpen'in tüm özellikleri olmalı ve yazma, geçişler, ikonlar aynı olmalı." GVNpen, kullanıcının kendi kalem uygulamasıdır (`C:/Users/Muhammed/Desktop/tablet kalem uygulaması`). Kodu `app/src/main/java/com/gvn/notes/pen/` altına kopyalandı. Araç sırası, simgeler, menüler, zamanlamalar (150 ms katlanma, 350/400 ms kalem yaklaşınca açılma/kapanma, 120 ms soluklaşma), çizim davranışı ve ayar ekranı **değiştirilmez**. Yalnız renk/görünüm GVNnotes temasına uyarlanabilir (kullanıcı bunu istedi).
+1. **Yazma tarafı GVNpen ile birebir aynı** (12 Kasım 2026): "GVNpen'in tüm özellikleri olmalı ve yazma, geçişler, ikonlar aynı olmalı." GVNpen, kullanıcının kendi kalem uygulamasıdır (`D:/Sanal Desktop/tablet kalem uygulaması`). Kodu `app/src/main/java/com/gvn/notes/pen/` altına kopyalandı. Araç sırası, simgeler, menüler, zamanlamalar (150 ms katlanma, 350/400 ms kalem yaklaşınca açılma/kapanma, 120 ms soluklaşma), çizim davranışı ve ayar ekranı **değiştirilmez**. Yalnız renk/görünüm GVNnotes temasına uyarlanabilir (kullanıcı bunu istedi).
 2. **Arayüz "Petrol Ada"** (12 Kasım 2026): kütüphane, düzenleyici çerçevesi, ayarlar ve yeni not bu tasarım dilindedir. Referans: `D:/Sanal Desktop/GVNnotes Arayüz Sheetleri/6-petrol-ada.html`. Ayrıntı: [DESIGN.md](DESIGN.md).
 3. Ayrı pencere/overlay yok. Çizgiler sayfa koordinatında, PDF/resim zeminiyle birlikte hareket eder.
 4. Kaynak klasör eşitlemesi iki yönlüdür; "kaynak kazanır"; hedefte aynı ad varsa işlem reddedilir; uygulama kullanıcı dosyasını **asla silmez** (çöp = `.GVNnotes-çöp` klasörüne taşıma).
