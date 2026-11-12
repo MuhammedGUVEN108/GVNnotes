@@ -53,6 +53,12 @@
                           "date":  "2026-11-12 12:12",
                           "version":  "0.12.0"
                       },
+    "cursor-size":  {
+                        "result":  "passed",
+                        "fingerprint":  "15876f8fc9c83260",
+                        "date":  "2026-11-12 15:57",
+                        "version":  "0.13.0"
+                    },
     "templates":  {
                       "result":  "passed",
                       "fingerprint":  "140d46b83ac1d6f6",

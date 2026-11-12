@@ -25,6 +25,7 @@ $units=[ordered]@{
   'pen-tools'=@{ tests=,@('PenToolsDeviceTest',''); files=@('app/src/main/java/com/gvn/notes/pen/',"${K}InkPageView.kt","${K}StrokeBuild.kt","${K}EditorState.kt",'core/src/main/kotlin/com/gvn/notes/core/PenGeometry.kt',"${T}PenToolsDeviceTest.kt") }
   'lasso'=@{ tests=,@('LassoDeviceTest',''); files=@("${K}InkPageView.kt","${K}EditorState.kt","${K}StrokeBuild.kt","${K}MainActivity.kt",'core/src/main/kotlin/com/gvn/notes/core/PenGeometry.kt',"${T}LassoDeviceTest.kt") }
   'folder-delete'=@{ tests=,@('FolderDeleteDeviceTest',''); files=@("${K}FolderSync.kt","${K}NoteLibrary.kt","${K}PageStore.kt","${T}FolderDeleteDeviceTest.kt") }
+  'cursor-size'=@{ tests=,@('CursorSizeDeviceTest',''); files=@("${K}InkPageView.kt",'app/src/main/res/drawable/pencil_cursor.png',"${T}CursorSizeDeviceTest.kt") }
   'templates'=@{ tests=,@('TemplateDeviceTest',''); files=@("${K}PagePattern.kt","${K}NoteLibrary.kt","${K}EditorState.kt","${K}InkPageView.kt","${K}PageStore.kt","${T}TemplateDeviceTest.kt") }
   'finger-draw'=@{ tests=,@('FingerDrawDeviceTest',''); files=@("${K}InkPageView.kt","${K}AppSettings.kt",'app/src/main/java/com/gvn/notes/pen/Prefs.java',"${T}FingerDrawDeviceTest.kt") }
   'persistence-restart'=@{ tests=@(@('PersistenceRestartTest','seed'),@('PersistenceRestartTest','verify'),@('PersistenceRestartTest','deleted')); files=@("${K}PageStore.kt","${K}EditorState.kt","${K}InkPageView.kt","${K}MainActivity.kt",'core/src/main/kotlin/com/gvn/notes/core/SaveEnvelope.kt',"${T}PersistenceRestartTest.kt") }
