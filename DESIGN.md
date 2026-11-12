@@ -1,6 +1,6 @@
 ---
 name: GVNnotes
-description: "GVNpen arayüz kimliğini referans alan yerel kalem prototipi"
+description: "Petrol Ada: kalıcı klasör ağacı ve yüzen adalar; yazma tarafı GVNpen"
 colors:
   desk: "#E3E9F1"
   island-surface: "#F9FBFF"
@@ -10,99 +10,109 @@ colors:
   accent-soft: "#E6E8FA"
   line: "#CAD3E3"
   petrol-folder: "#186C84"
-  rail-midnight: "#18222E"
-  tool-active: "#186C84"
-  accent-cyan: "#4FC4DD"
-  chrome-surface: "#EFF5F9"
-  workspace: "#E5EBEF"
+  danger: "#B3261E"
   paper: "#FFFFFF"
-  rail-divider: "#394B5C"
-  icon-disabled: "#738393"
-  ink-red: "#D33F49"
-  ink-yellow: "#E5A900"
+  pen-tile: "#EEF1F8"
+  pen-dark-island: "#1F2D42"
+  pen-dark-tile: "#2C3B54"
+  pen-dark-selected: "#3A4380"
 rounded:
-  circle: "50%"
+  island: "24dp"
+  card: "20dp"
+  row: "16dp"
+  pen-bar: "20dp"
+  pen-tile: "12dp"
+  pill: "28dp"
 spacing:
-  tool-gap: "8dp"
-  rail-inset: "12dp"
-  page-margin: "20dp"
+  island-inset: "16dp"
+  grid-gap: "22dp"
+  touch-target: "48dp"
 components:
-  tool-button:
-    textColor: "{colors.paper}"
-    rounded: "{rounded.circle}"
-    size: "48dp"
-  tool-button-selected:
-    backgroundColor: "{colors.tool-active}"
-    textColor: "{colors.paper}"
-    rounded: "{rounded.circle}"
-    size: "48dp"
-  tool-rail:
-    backgroundColor: "{colors.rail-midnight}"
-    width: "72dp"
-    padding: "12dp 0"
-  color-swatch:
-    rounded: "{rounded.circle}"
-    size: "30dp"
-  paper:
-    backgroundColor: "{colors.paper}"
+  island:
+    backgroundColor: "{colors.island-surface}"
+    rounded: "{rounded.island}"
+    elevation: "6dp"
+  tree-row-selected:
+    backgroundColor: "{colors.accent-soft}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.row}"
+    height: "48dp"
+  primary-button:
+    backgroundColor: "{colors.accent-indigo}"
+    textColor: "#FFFFFF"
+    height: "48dp"
+  folder-icon:
+    textColor: "{colors.petrol-folder}"
+  pen-tool-selected:
+    backgroundColor: "{colors.accent-soft}"
+    borderColor: "{colors.accent-indigo}"
+    rounded: "{rounded.pen-tile}"
 ---
-# Design System: GVNnotes
+# Design System: GVNnotes — "Petrol Ada"
 
-> **0.11.0 (12 Kasım 2026): "Petrol Ada" uygulama arayüzü.** Kütüphane, düzenleyici çerçevesi, ayarlar ve yeni not bu dili kullanır: açık mavi-gri masa (desk), yüzen yumuşak gölgeli adalar (island-surface, 24 dp köşe), indigo seçim ve birincil eylem, petrol mavisi klasör/eşitleme kimliği. Kaynak: `app/src/main/kotlin/com/gvn/notes/Theme.kt` ve `D:/Sanal Desktop/GVNnotes Arayüz Sheetleri/6-petrol-ada.html`. GVNpen araç şeridi ve ayar ekranı kendi renkleriyle (rail-midnight, tool-active, accent-cyan) aynen kalır.
+Kullanıcı 12 Kasım 2026'da altı tasarım yönünden **6-Petrol Ada**'yı seçti: Derin Petrol'ün kalıcı klasör ağacı + Ada'nın yüzen panelleri. Referans sheet: `D:/Sanal Desktop/GVNnotes Arayüz Sheetleri/6-petrol-ada.html`. Kod kaynağı: `app/src/main/kotlin/com/gvn/notes/Theme.kt` (Ada.* renkleri, `AdaColors`, `Island`).
 
 ## Overview
 
-Mevcut GVNpen arayüz kimliği referans alınır; motor kodu kullanılmaz. Mod: Operate. Kompakt, uygulama içine yerleşik sol araç şeridi kâğıt çalışma alanını öncelikli tutar. Samsung Notes yalnız davranış/mimari referansıdır; Samsung kodu veya görseli kopyalanmaz.
+Klasörler sabit bir omurga, araçlar yüzen adalar. Masa açık mavi-gri; her şey bu masanın üstünde yumuşak gölgeli, yuvarlak köşeli adalarda durur. Kâğıt beyazdır ve en çok yeri alır.
 
-**Key Characteristics:**
-- Gece mavisi kompakt sol şerit, petrol mavisi seçili araç, beyaz kâğıt.
-- Material 3 bağlam satırı, Material Icons (Apache 2.0) ve özgün silgi vektörü.
-- İlk prototip açık tema; koyu tema henüz teslim kapsamına dahil değil.
-
-Bu belge MainActivity.kt ve InkPageView.kt kaynaklarından çıkarılmıştır. Gerçek cihaz bağlı değil; emülatör, ekran görüntüsü ve native detector sonucu yoktur. Render ve S Pen hissi henüz görsel/fiziksel olarak doğrulanamadı. Kod incelemesi ekran kanıtı yerine geçmez.
+- **Klasör ağacı adası** kütüphanede hep görünür (≥ 840 dp); dar ekranda çekmeceye döner.
+- **Düzenleyicide** sayfa sıralayıcı, eylemler, kayıt durumu ve klasör listesi ayrı adalardır; gerektiğinde açılır, işi bitince sayfaya yer açar.
+- **GVNpen araç şeridi** de bir adadır: yüzen, sürüklenebilir, katlanabilir. Düzeni ve davranışı GVNpen'den gelir ve değişmez; yalnız renkleri bu sisteme uyarlanmıştır.
+- Renk rolleri: **indigo** = seçim ve birincil eylem; **petrol mavisi** = klasör ve eşitleme kimliği; **ink/muted** = metin.
 
 ## Colors
 
-Ön bilgideki tokenlar MainActivity.kt ve InkPageView.kt sabitleridir. Gece mavisi araç şeridi; petrol mavisi etkin araç ve Material primary; camgöbeği Material secondary; açık yüzey uygulama çerçevesi; gri çalışma masası ve beyaz sayfa birbirinden ayrılır. Kırmızı ve sarı hızlı mürekkep seçenekleridir. Şerit ayıracı ve pasif simge renkleri ayrı tokenlardır. Varsayılan Material 3 renk rolleri burada yeniden tanımlanmaz.
+| Token | Hex | Kullanım |
+|---|---|---|
+| desk | #E3E9F1 | Uygulama ve yazma yüzeyi zemini |
+| island-surface | #F9FBFF | Adalar, kartlar, üst çubuk, GVNpen şeridi (açık tema) |
+| ink | #1F2D42 | Başlık ve gövde metni, simgeler |
+| muted | #58687F | İkincil metin, sayılar, pasif simgeler |
+| accent-indigo | #4F57B0 | Seçili durum çerçevesi, birincil düğme, kaydırıcı, kement |
+| accent-soft | #E6E8FA | Seçili satır/araç zemini, konum çipi |
+| line | #CAD3E3 | Ayraçlar, kenarlıklar |
+| petrol-folder | #186C84 | Klasör simgeleri, eşitleme simgesi |
+| danger | #B3261E | Kalıcı silme, kaynak bulunamadı |
+
+GVNpen şeridi temaları (`Prefs.bg/surface/selectedBg/line`): açık tema island-surface / #EEF1F8 karo / accent-soft seçili; koyu tema #1F2D42 ada / #2C3B54 karo / #3A4380 seçili. Seçili araç çerçevesi kullanıcının "Vurgu rengi"dir (varsayılan indigo). Varsayılan GVNpen teması açıktır; koyu tema Görünüm ayarından seçilebilir.
 
 ## Typography
 
-Material tipografi; sistem fontu ve sp ölçekleme. Başlık titleLarge, sayfa adı bodyMedium, yüzde/kalınlık labelLarge, şerit markası labelMedium ve kayıt uyarısı bodySmall rollerini kullanır. Özel font veya özel tipografik ölçek tanımlanmamıştır; Material sürümünün varsayılanları geçerlidir.
+Sistem fontu (Roboto/Samsung One), Material 3 ölçeği, sp. Ekran başlığı 28 sp SemiBold; ada başlığı 22 sp Bold; kart başlığı 16 sp SemiBold; satır 15 sp; ikincil 12–13 sp muted. Yeni not penceresi başlığı 32 sp.
 
 ## Layout
 
-Üst bağlam satırı yatay 20 dp, dikey 10 dp dolgulu; solda uygulama/sayfa adı, sağda yakınlaştırma yüzdesi bulunur. Sol şerit 72 dp genişliğinde, dikey 12 dp dolgulu ve kısa ekranda kaydırılabilirdir. Araç hedefleri 48 dp, araç ve renk hedefleri arası 8 dp'dir. Renk dairesi 30 dp olup 48 dp hedefin ortasındadır. Kalan alan çizim yüzeyidir. Sayfa ilk yerleşimde 20 dp kenar payıyla sığdırılır. Alt kalınlık satırı yatay 16 dp, kaydırıcı yatay 12 dp dolgulu; uyarı alt boşluğu 8 dp'dir. Sistem çubukları safeDrawingPadding ile korunur. Başka breakpoint tanımlanmamıştır.
+- Kütüphane: solda 288 dp klasör ağacı adası (16 dp dış boşluk), sağda 84 dp başlık satırı (başlık + alt bilgi, ara, menü, "Yeni not"), PDF/Resim düğmeleri, klasör kısayol kartları (232 dp), not kartı ızgarası (en az 212 dp sütun, 22 dp aralık, önizleme oranı 1,3).
+- Düzenleyici: 68 dp üst çubuk (geri, başlık, konum çipi; sağda kement, sayfa sıralayıcı, +, ⋯). Tuval tüm alanı kaplar. Sağ üst eylem adası; sağda 212 dp sayfa sıralayıcı adası; alt ortada kayıt durumu + sayfa sayacı adası. Sol alt köşe GVNpen şeridine bırakılır (orada başka ada yok).
+- Ayarlar: solda seçili bölümün kartları, sağda 272 dp kategori adası.
+- Tüm dokunma hedefleri en az 48 dp.
 
 ## Elevation & Depth
 
-Kaynakta özel gölge/elevation tokenı yoktur. Sayfa ve çalışma masası düz renk ayrımıyla okunur; özel hareketli dekorasyon yoktur. Material bileşenlerinin varsayılan durum davranışları korunur.
+Adalar 6 dp gölge; kartlar 2–3 dp; Klasör adası ve yeni not penceresi 12 dp. Klasör adası açılınca tuval %10 ink perdesiyle hafifçe kararır.
 
 ## Shapes
 
-Araç düğmeleri ve renk örnekleri daireseldir. Seçili renk 3 dp, diğerleri 1 dp beyaz çerçevelidir. Kâğıt dikdörtgendir; kaynakta yuvarlatılmış köşe yoktur. Hem tamamlanmış mürekkep hem canlı çizim yüzeyi görünür kâğıt sınırına göre kırpılır; fiziksel render doğrulaması beklenir.
+Ada 24 dp, kart 20 dp, satır 16 dp, hap (pill) 28 dp köşe. GVNpen şeridi ve menüleri 20 dp, şerit karoları 12 dp. Kâğıt köşesizdir.
 
 ## Components
 
-- **Araç şeridi:** Kalem, fosforlu, tüm çizgi silgisi; ardından undo/redo ve hızlı renkler. Seçili araç petrol mavisi daireyle, selected semantiğiyle tanımlanır; simgeler içerik açıklaması taşır. Pasif simgeler ayrı nötr renktedir.
-- **Renk seçici:** Koyu mürekkep, petrol mavisi, kırmızı ve sarı. Seçili renk çerçeve ve selected semantiğiyle belirtilir. Her hedef sonrası boşluk korunur.
-- **Kalınlık kontrolü:** Material Slider, 1–12 aralığı ve mevcut tam sayı etiketi. Yanında fareyle çizim denemesi anahtarı bulunur.
-- **Sayfa:** Beyaz zemin ve gri masa; iki parmakla zoom/kaydırma. Mürekkep sayfa koordinatlarında tutulur ve zeminle birlikte hareket eder; ayrı pencere/overlay yoktur.
-- **Prototip durumu:** Dosya/klasör menüleri gösterilmez; çizimlerin henüz diske kaydedilmediği açıkça yazılır. Yoğun çizim sırasında araç kontrolleri devre dışı kalır; undo/redo geçmişe göre etkinleşir.
-
-Silgi simgesi uygulamaya ait basit poligon/çizgi geometrili EraserIcon ImageVector’dür; GVNpen veya Samsung görseli kopyalanmaz.
-
-Sidecar renk rampaları yalnız panel için sentezlenmiş OKLCH türevleridir; uygulamanın normatif paleti değildir.
-
-Sidecar HTML/CSS örnekleri native bileşenlerin belgelenmiş renk ve geometrisinin tarayıcı önizlemeleridir; Android render veya Material davranış eşdeğerliği kanıtı değildir. CSS px değerleri yalnız önizleme içindir; uygulamadaki ölçüler dp'dir. Yeni hover veya hareket dili tanımlamaz.
+- **Klasör ağacı adası:** "GVNnotes" + yeni klasör düğmesi; Tüm notlar, Klasörler, iç içe daraltılabilir klasörler ve not sayıları; Çöp kutusu; eşitleme kartı (dokun: bağla / eşitle); Ayarlar.
+- **Not kartı:** yüzen önizleme, başlık, "tarih · N sayfa · PDF", Tüm notlar'da klasör etiketi, ⋯ menüsü (yeniden adlandır, taşı, çöpe at).
+- **Konum çipi + Klasör adası:** başlıkta "Klasör › Alt klasör"; dokununca aynı klasördeki notlar (açık olan işaretli), "Klasöre git", "Bu klasörde yeni". Başka nota geçmeden önce kayıt tamamlanır.
+- **Sayfa sıralayıcı adası:** "Sayfalar N" + kapat; küçük resimler, ⋯ menüsü, sona sayfa ekleme kutusu.
+- **Yeni not penceresi:** ad, klasör ağacından konum, dört şablon önizlemesi.
+- **GVNpen şeridi:** tutamak, göz, gezinme, kalem, fosforlu, silgi, 2B, 3B, kalınlık, geri al, yinele, temizle, ayarlar, kapat, 2×2 hızlı renk, renk paleti, GVNpen markası. Sıra ve simgeler GVNpen'den; değiştirme.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** Kâğıt çalışma alanını ve kompakt, uygulama içi sol şeridi koru.
-- **Do** Seçimi hem görsel durum hem erişilebilirlik semantiğiyle belirt.
-- **Do** Görsel ve S Pen kabulünü gerçek tablette ayrıca doğrula.
+- **Do** Yeni yüzeyleri `Island` ile, renkleri `Ada.*` ile kur.
+- **Do** Seçimi hem görsel durum hem erişilebilirlik semantiğiyle (`selected`, içerik açıklaması) belirt.
+- **Do** Arayüz değişikliğini tablette ekran görüntüsüyle kontrol et.
 
 ### Don't:
-- **Don't** GVNpen motorunu/kodunu veya Samsung kodu/görsellerini taşıma.
-- **Don't** Henüz bulunmayan kayıt veya dosya yönetimini çalışıyormuş gibi gösterme.
-- **Don't** Kaynak incelemesini görsel veya fiziksel kabul olarak sunma.
+- **Don't** GVNpen şeridinin araçlarını, sırasını, simgelerini, zamanlamalarını veya davranışını değiştirme; yalnız renk/şekil uyarlanabilir.
+- **Don't** Sol alt köşeye kalıcı öge koyma (GVNpen şeridiyle çakışır).
+- **Don't** Samsung Notes kodu, simgesi veya görselini kopyalama.

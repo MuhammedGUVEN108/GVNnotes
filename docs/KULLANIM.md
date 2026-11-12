@@ -1,54 +1,57 @@
-# GVNnotes kullanım kılavuzu (0.9.0)
+# GVNnotes kullanım kılavuzu (0.11.0)
 
-GVNnotes, Galaxy Tab S9+ ve S Pen için PDF, resim ve boş sayfalar üzerine el yazısıyla not alma uygulamasıdır. Notlar yalnız tablette, uygulamanın kendi alanında saklanır; internet kullanılmaz.
+GVNnotes, Galaxy Tab S9+ ve S Pen için PDF, resim ve boş sayfalar üzerine el yazısıyla not alma uygulamasıdır. Yazma tarafı GVNpen ile aynıdır. Notlar yalnız tablette, uygulamanın kendi alanında saklanır; internet kullanılmaz.
 
-## Not listesi
+## Kütüphane
 
-- **Yeni not:** sağ alttaki yuvarlak düğme. Ad ver, sayfa türünü seç (Düz, Çizgili, Kareli, Noktalı).
-- **PDF'den not:** sağ üstteki PDF simgesi. Seçilen PDF'in kopyası alınır; asıl dosyaya dokunulmaz.
-- **Resimden not:** sağ üstteki ⋮ → Resimden not. Birden çok resim seçersen tek not olur, her resim bir sayfa.
-- **Ara / sırala:** büyüteç başlıkta ve klasör adında arar; ⋮ → Ada / Tarihe göre sırala.
-- **Not menüsü (⋮):** Yeniden adlandır, Klasöre taşı, Çöp kutusuna taşı.
-- **Yan menü (☰):** Tüm notlar, Çöp kutusu, Klasörler ve klasör ağacı, eşitleme.
+- **Sol panel (klasör ağacı):** Tüm notlar, Klasörler ve iç içe klasörler (sayılarıyla; ok ile daralt/genişlet), Çöp kutusu. En altta eşitleme kartı (dokun: klasörü bağla ya da şimdi eşitle) ve Ayarlar. Sağ üstteki klasör+ düğmesi yeni klasör açar. Tablet dik tutulup ekran daralırsa panel ☰ düğmesiyle açılan çekmeceye döner.
+- **Yeni not:** sağ üstteki **Yeni not**. Ad ver, konumu (klasör) seç, sayfa türünü seç (Boş, Çizgili, Kareli, Noktalı) → **Notu oluştur**.
+- **PDF içe aktar / Resimden not:** başlığın altındaki düğmeler. Birden çok resim seçersen tek not olur, her resim bir sayfa. Asıl dosyaya dokunulmaz, kopyası alınır.
+- **Klasör kartları:** bulunduğun klasörün alt klasörleri; dokununca içine girersin. Sol üstteki ← üst klasöre çıkar.
+- **Not kartı:** önizleme, ad, tarih, sayfa sayısı, PDF ise "PDF"; Tüm notlar'da klasör adı. **⋯** → Yeniden adlandır, Klasöre taşı, Çöp kutusuna taşı.
+- **Ara / sırala:** büyüteç notun adında ve klasöründe arar. **⋯** → Ada / Tarihe göre sırala, Yeni klasör, Ayarlar, Notları yenile, Kaynak klasörü değiştir.
 - **Çöp kutusu:** Geri yükle ya da Kalıcı sil. Notlar sen silene kadar kalır.
 
 ## Documents/GVNnotes klasörü (otomatik not)
 
-1. Ayarlar → Kaynak klasör → **Klasörü bağla**. Seçici `Documents/GVNnotes` klasöründe açılır: **Bu klasörü kullan → İzin ver**.
+1. Eşitleme kartına ya da Ayarlar → Kaynak klasör → **Klasörü bağla**'ya dokun. Seçici `Documents/GVNnotes` klasöründe açılır: **Bu klasörü kullan → İzin ver**.
 2. PDF ve resimlerini bu klasöre, istediğin alt klasör düzeniyle koy (ör. `1. KURUL/Histoloji/...`).
-3. Uygulamayı açınca ya da uygulamaya geri dönünce klasör taranır; yeni dosyalar not olur, klasör düzeni korunur.
+3. Uygulamayı açınca ya da uygulamaya dönünce klasör taranır; yeni dosyalar not olur, klasör düzeni korunur.
 
 Kurallar:
 - Dosyayı taşıdıysan ya da adını değiştirdiysen aynı not olarak tanınır, yazıların korunur.
 - İçeriği değişen dosya yeni not olur; eski not yazılarıyla kalır ("Kaynak PDF değişti").
 - Silinen dosyanın notu silinmez ("Kaynak bulunamadı · yazılar korunuyor").
 - Uygulamada klasör oluşturma, not taşıma ve çöpe atma klasöre de yansır. Çöpe atılan dosya `.GVNnotes-çöp` klasörüne gider, geri yüklenince yerine döner. Uygulama hiçbir dosyayı silmez; hedefte aynı ad varsa işlemi yapmaz.
-- Eski bağlantıda yazma izni yoksa listede "Yeniden bağla" kartı çıkar.
+- Yazma izni yoksa listede "Yeniden bağla" kartı çıkar.
 
 ## Not ekranı
 
-- **Üst çubuk:** geri, başlık (dokun → değiştir), Sayfa sıralayıcı, **+** (bu sayfanın arkasına boş sayfa), Tam ekran, ⋮ (Başlığı değiştir, PDF olarak dışa aktar, Fare ile çizim).
-- **Tuval:** parmakla kaydır ve savur, iki parmakla yakınlaştır. Sağ üstte yakınlaştırma yüzdesi ve **Ekrana sığdır**; sağ altta sayfa sayacı. Not, kapattığın sayfadan açılır.
-- **Sol araç şeridi:**
-  - **Kalem / Fosforlu kalem:** seçiliyken tekrar dokun → **Akıllı şekil** ayarı.
-  - **Silgi:** seçiliyken tekrar dokun → "Dokunulan çizgiyi tamamen sil" (varsayılan) ya da alan silgisi ve silgi boyutu.
-  - **Kement:** yazıların etrafına döngü çiz → seçilir. Çerçevenin içinden sürükle → taşınır. Üstteki çubuk: Sil, Çoğalt, Rengi uygula, Seçimi kaldır.
-  - **Renkler:** 5 sabit renk, son kullandığın özel renkler, 🎨 ile 24 renklik seçici.
-  - **Kalınlık:** ince/orta/kalın; seçili olana tekrar dokun → ince ayar.
-  - **Geri al / İleri al.**
-- **S Pen yan düğmesi:** basılıyken kalem silgi olur; bırakınca kaleme döner.
-- **Akıllı şekil:** çizgi, üçgen, dikdörtgen ya da daire çizip kalemi ucunda yarım saniye beklet → düzgün şekle döner.
-- **Sayfa sıralayıcı:** küçük resme dokun → o sayfaya git. Küçük resmin ⋮ menüsü: Yukarı/Aşağı taşı, Arkasına boş sayfa ekle, Şablon (boş sayfalarda), Sayfayı sil. En alttaki + sona sayfa ekler.
+- **Üst çubuk:** ←, başlık (dokun → değiştir), **konum çipi** (ör. "art"), sağda **Kement**, **Sayfa sıralayıcı**, **+** (bu sayfanın arkasına boş sayfa), **⋯** (Tam ekran, Başlığı değiştir, PDF olarak dışa aktar, Fare ile çizim).
+- **Konum çipi → Klasör paneli:** aynı klasördeki notlar; birine dokununca mevcut not kaydedilip o not açılır. **Klasöre git** kütüphanede o klasörü açar; **Bu klasörde yeni** o klasörde yeni not penceresini açar.
+- **Sağ üst:** yakınlaştırma yüzdesi, Ekrana sığdır, Tam ekran, PDF olarak dışa aktar.
+- **Sayfa sıralayıcı (sağ panel):** küçük resme dokun → o sayfaya git. Küçük resmin ⋮ menüsü: Yukarı/Aşağı taşı, Arkasına boş sayfa ekle, Şablon (boş sayfalarda), Sayfayı sil. En alttaki kutu sona sayfa ekler. ✕ ile kapanır.
+- **Alt orta:** kayıt durumu ("Kaydedildi") ve sayfa sayacı; **+** sayfa ekler.
+- **Tuval:** parmakla kaydır, iki parmakla yakınlaştır. Not, kapattığın sayfadan açılır.
+- **Kement:** yazıların etrafına döngü çiz → seçilir; çerçevenin içinden sürükle → taşınır. Üstteki çubuk: Sil, Çoğalt, Rengi uygula, Seçimi kaldır.
 
-## Ayarlar (not listesi ⋮ → Ayarlar)
+## GVNpen araç şeridi
 
-- **Parmakla çizim:** kapalıyken yalnız S Pen yazar (önerilen); açıkken tek parmak da yazar, iki parmak her zaman kaydırır.
-- **Varsayılan sayfa:** yeni notların ilk sayfası.
-- **Kaynak klasör:** bağla, değiştir, şimdi eşitle, bağlantıyı kaldır (notlar kalır).
-- **Hakkında:** sürüm; çökme olduysa **Hata kaydını paylaş**.
+GVNpen'deki şeridin aynısıdır; üstteki noktalı tutamaktan sürükleyip istediğin yere taşıyabilirsin.
+
+- **Göz:** şeridi katlar ve okuma moduna geçer (yazılar görünür kalır). **Ok:** gezinme; kalem sayfayı kaydırır.
+- **Kalem, Fosforlu, Silgi, 2B şekiller, 3B cisimler:** basılı tut ya da kalemi düğmeye yaklaştır → kalınlık / şekil menüsü açılır.
+- **Kalınlık (•••), Geri al, Yinele, Temizle** (görünen sayfayı temizler, geri alınabilir), **Ayarlar** (GVNpen ayar ekranı), **✕** (notu kapatır).
+- **Renkler:** 2×2 hızlı renk ve renk paleti.
+- **S Pen yan düğmesi:** basılıyken siler (ayarlanabilir). **Akıllı şekil:** çizgi, üçgen, dikdörtgen ya da daire çizip kalemi kaldırmadan kısa süre beklet → düzgün şekle döner.
+
+## Ayarlar
+
+- **Uygulama (kütüphanede Ayarlar):** Yazma (parmakla çizim), Kalem (GVNpen ayar ekranını açar), Yeni not (varsayılan sayfa), Kaynak klasör (bağla, değiştir, şimdi eşitle, bağlantıyı kaldır), Hakkında (sürüm, hata kaydını paylaş).
+- **GVNpen ayarları:** Çizim, Silgi, Görünüm (açık/koyu tema, imleç, şerit boyutu, vurgu rengi, hızlı renkler), Kalem düğmesi, Dosyalar (profil). **Kaydet** ile uygulanır.
 
 ## Bilmen gerekenler
 
 - Uygulamayı kaldırmak notları siler. Önemli notları **PDF olarak dışa aktar**.
 - Dışa aktarma sayfaları yaklaşık 180 dpi görüntü olarak yazar (seçilebilir metin yoktur).
-- Klasör taraması uygulama açıkken/öne gelince yapılır; uygulama kapalıyken arka planda tarama yoktur.
+- Klasör taraması uygulama açıkken / öne gelince yapılır; uygulama kapalıyken arka planda tarama yoktur.

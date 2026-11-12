@@ -1,51 +1,53 @@
-# Tablet test oturumu planı — 0.9.0
+# Tablet test oturumu — 0.11.0
 
-0.6.0 ile 0.9.0 arası tablet bağlı değilken kodlandı. Derleme, JVM birim testleri ve lint geçti; **cihaz testleri henüz çalıştırılmadı.** Bu plan, oturumda birlikte yapılacakları sırayla verir.
+Son tam çalıştırma: 12 Kasım 2026, SM-X810 — 13 cihaz aşaması + 2 kütüphane aşaması geçti.
 
-## 0. Hazırlık (5 dk)
+## 0. Hazırlık
 
-1. Tableti USB ile bağla; `adb devices` içinde `TABLET-SERI-NO` görünmeli.
-2. Gerçek notların yedeği (güvenlik için, yalnız okuma):
+1. Tableti USB ile bağla; `adb devices` içinde `TABLET-SERI-NO` görünmeli. adb: `C:/Users/Muhammed/AppData/Local/Ajan-Araclari/android/sdk/platform-tools/adb.exe`.
+2. İsteğe bağlı gerçek not yedeği (yalnız okuma):
    `adb shell run-as com.gvn.notes.prototype tar -cf /sdcard/Download/gvnnotes-yedek.tar files/notebooks files/trash files/sync-index.json`
-3. Paket kimliği değişmedi (`com.gvn.notes.prototype`); kurulum mevcut notların üzerine güncelleme olarak yapılır.
+3. Paket kimliği `com.gvn.notes.prototype`; kurulum mevcut notların üzerine güncellemedir.
 
-## 1. Otomatik cihaz testleri (~10 dk)
+## 1. Otomatik testler
 
-```
+```powershell
 ./build.ps1 -Offline
-gradle :app:assembleDebugAndroidTest   (build.ps1 sonrası; komut DOGRULAMA'daki ile aynı)
+# Test APK'sı (build.ps1'deki JAVA_HOME, ANDROID_HOME ve gradle.bat yoluyla):
+gradle -p . :app:assembleDebugAndroidTest --offline --console plain --no-daemon
 ./DEVICE-TEST.ps1
 ./LIBRARY-TEST.ps1
 ```
 
-DEVICE-TEST.ps1 sırası: PageStore, Ink regresyonu, PDF, klasör eşitleme, not yönetimi, iki yönlü işlemler, **kalem araçları (0.6)**, **kement (0.7)**, **şablonlar (0.8)**, **parmakla çizim (0.9)**, kalıcılık (3 aşama). Testler yalnız `test-document`, `test-library` ve `test-*-src` klasörlerini kullanır; gerçek notlara dokunmaz.
+DEVICE-TEST.ps1 aşamaları: persistence-codec-device, persistence-ink-regression, pdf-note, folder-sync, note-management, two-way, pen-tools, lasso, templates, finger-draw, persistence-seed / reopen / deletion-reopen. LIBRARY-TEST.ps1: library-seed, library-verify.
 
-Başarısız olan test için: `logs/<test>.txt` incelenir, kök neden bulunur, düzeltme + aynı testin yeniden çalıştırılması.
+Testler yalnız `test-document`, `test-library` ve test kaynak klasörlerini kullanır; gerçek notlara ve kaydedilmiş GVNpen ayarlarına dokunmaz. Başarısız aşamada `logs/<aşama>.txt` incelenir, kök neden düzeltilir, aynı aşama yeniden çalıştırılır.
 
-## 2. Elle deneme (S Pen ile, ~20 dk)
+## 2. Görsel kontrol
+
+Arayüz değiştiyse ekran görüntüsü al ve bak:
+
+```bash
+adb exec-out screencap -p > logs/ui-<sürüm>/01-kutuphane.png   # bash/Git Bash; PowerShell 5.1 '>' PNG'yi bozar
+```
+
+Kontrol listesi: kütüphane (klasör ağacı, kartlar), düzenleyici (konum çipi, sağ üst ada, alt orta ada, GVNpen şeridiyle çakışma yok), Klasör adası, sayfa sıralayıcı adası, ayarlar, yeni not penceresi, GVNpen menüsü ve ayar ekranı. 0.11.0 görüntüleri: `logs/ui-0.11.0/`.
+
+## 3. Elle deneme (S Pen ile, kullanıcıyla)
 
 | # | Ne | Beklenen |
 |---|----|----------|
-| 1 | Uygulama adı ve simgesi | "GVNnotes", petrol mavisi sayfa+kalem simgesi |
-| 2 | Not listesi açılışı (çok sayfalı PDF notları dahil) | Hızlı açılır; ikinci açılış daha hızlı (özet önbelleği) |
-| 3 | Ayarlar → Kaynak klasör → **Yeniden bağla** | Yazma izni alınır, kart kaybolur |
-| 4 | Klasöre taşı / yeni klasör / çöpe at / geri yükle | `Dosyalarım`da da aynı değişiklik; `.GVNnotes-çöp` |
-| 5 | Hızlı el yazısı, zoom/kaydırma arası yazma | "Çiziliyor"da takılma yok |
-| 6 | S Pen yan düğmesiyle silme | Basılıyken siler, bırakınca kalem |
-| 7 | Alan silgisi (silgiye tekrar dokun → kapat) | Yalnız süpürülen kısım silinir |
-| 8 | Akıllı şekil: kare/daire/çizgi çiz, uçta beklet | Düzgün şekle döner; bekletmezsen dönmez |
-| 9 | Kement: seç, sürükle, rengi uygula, çoğalt, sil, geri al | Hepsi tek adımda geri alınır |
-| 10 | Yeni not → Çizgili/Kareli/Noktalı; + ile sayfa ekle | Şablon devralınır; sıralayıcıdan değiştirilebilir |
+| 1 | Hızlı el yazısı, zoom/kaydırma arası yazma | Takılma yok; GVNpen'deki his |
+| 2 | Kalem yaklaşınca kalınlık/şekil menüsü | 350 ms'de açılır, uzaklaşınca kapanır |
+| 3 | S Pen yan düğmesiyle silme | Basılıyken siler, bırakınca kalem |
+| 4 | Akıllı şekil: kare/daire/çizgi çiz, uçta beklet | Düzgün şekle döner |
+| 5 | 2B/3B şekiller | Sürükleyerek çizilir |
+| 6 | Kement: seç, sürükle, rengi uygula, çoğalt, sil, geri al | Hepsi tek adımda geri alınır |
+| 7 | Konum çipi → başka nota geç | Önceki not kaydedilir, yeni not açılır |
+| 8 | Klasöre git / Bu klasörde yeni | Kütüphanede doğru klasör; yeni not o klasörde |
+| 9 | Klasöre taşı / yeni klasör / çöpe at / geri yükle | `Dosyalarım`da da aynı değişiklik; `.GVNnotes-çöp` |
+| 10 | Yeni not → şablonlar; + ile sayfa ekle | Şablon devralınır; sıralayıcıdan değiştirilebilir |
 | 11 | PDF olarak dışa aktar → Dosyalarım'da aç | Zemin + yazılar + şablon görünür |
 | 12 | Ayarlar → Parmakla çizim aç/kapat | Açıkken parmak yazar, iki parmak kaydırır |
-| 13 | Avucu ekrana koyarak yazma | Avuç kaydırma/yazı üretmez |
+| 13 | GVNpen Görünüm → Açık tema kapat | Şerit koyu temaya geçer, okunur kalır |
 | 14 | Notu kapatıp açma | Son bırakılan sayfadan açılır |
-| 15 | Ayarlar → Hata kaydı | Çökme yoksa "Kaydedilmiş çökme yok" |
-
-## 3. Bilinen riskler (oturumda özellikle bak)
-
-- **Akıllı şekil eşiği** (uçta 0,55 sn, ~1,5 mm): gerçek S Pen'de çok hassas/çok zor tetikleniyorsa `InkPageView.SHAPE_HOLD_MS/RADIUS` ayarlanır.
-- **Avuç eşiği** (90 dp temas): parmakla çizim açıkken avuç yazı üretiyorsa ayarlanır.
-- **Alan silgisi hızı:** çok yoğun sayfada silgi gecikirse ölçülür (sınır kutusu ön elemesi var).
-- **Ink teslimi:** nadiren tamamlanmayan çizgi örneklerden yeniden kurulur; logcat'te `GVNnotes` etiketi sayılır.
-- **Kayıt biçimi 3:** 0.8.0'dan sonra notlar biçim 3 yazılır; daha eski APK'ya dönülürse bu notlar açılmaz (veri silinmez).

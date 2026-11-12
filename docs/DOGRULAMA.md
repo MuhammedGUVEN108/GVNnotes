@@ -1,5 +1,7 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+> Sürüm sürüm doğrulama günlüğü; en yeni girdi en üstte. Eski girdiler o günün kararlarını yansıtır (ör. Jetpack Ink, Samsung Notes düzeni); güncel kurallar için [AGENTS.md](../AGENTS.md).
+
 ## 0.11.0 — "Petrol Ada" arayüzü, 12 Kasım 2026
 
 Kullanıcı arayüzleri beğenmedi; altı tasarım yönü arasından **6-Petrol Ada**'yı seçti (`D:/Sanal Desktop/GVNnotes Arayüz Sheetleri/6-petrol-ada.html`): Derin Petrol'ün kalıcı klasör ağacı + Ada'nın yüzen panelleri. Yazma tarafı (GVNpen şeridi, ayar ekranı, çizim motoru) değişmedi; şerit zaten yüzen ve sürüklenebilir bir ada.

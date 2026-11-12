@@ -1,5 +1,7 @@
 # GVNpen kaynak incelemesi
 
+> **Tarihsel belge (10 Kasım 2026).** Sondaki "kod aktarılmayacak" kararı 12 Kasım 2026'da kaldırıldı: GVNpen kalem kodu `app/src/main/java/com/gvn/notes/pen/` altına kopyalandı ve InkView akışı sayfa koordinatına uyarlandı (overlay servisi alınmadı). Güncel durum: [AGENTS.md](../AGENTS.md).
+
 Kaynak: C:/Users/Muhammed/Desktop/tablet kalem uygulaması/app/src/main/java/com/gvn/pen (10 Kasım 2026).
 
 - Dil Java, Android Views/Canvas; Compose veya Kotlin değil.

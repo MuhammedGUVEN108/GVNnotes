@@ -5,30 +5,31 @@
 android
 
 ## Stack
-Kotlin + Compose + uygulama içi View çizim yüzeyi: kullanıcı tarafından tasarım ve ilk prototip kapsamı onaylandı. Motor seçimi prototipte doğrulanacak; Jetpack Ink ilk aday.
+Kotlin + Jetpack Compose (kütüphane, düzenleyici çerçevesi, ayarlar) + Android View yazma yüzeyi (InkPageView). Kalem tarafı kullanıcının GVNpen uygulamasından kopyalanan Java kodu (`com.gvn.notes.pen`): araç şeridi, çizim/silgi geometrisi, akıllı şekil, ayar ekranı. Jetpack Ink 0.10.0'da kaldırıldı. minSdk 28, targetSdk 35.
 
 ## Users
-Muhammed; Galaxy Tab S9+ ve S Pen ile kendi ders PDF ve resimleri üzerinde çalışan kullanıcı.
+Muhammed; Galaxy Tab S9+ (SM-X810, Android 16) ve S Pen ile kendi ders PDF'leri ve resimleri üzerinde çalışan tek kullanıcı.
 
 ## Product Purpose
-Dosyalarım'da seçilen klasöre eklenen PDF/resimleri klasör yapısıyla otomatik not yapmak ve doğrudan sayfaya yazmak.
+Dosyalarım'daki `Documents/GVNnotes` klasörüne eklenen PDF/resimleri klasör yapısıyla otomatik not yapmak ve S Pen ile doğrudan sayfaya, GVNpen'deki gibi yazmak.
 
 ## Capabilities and Constraints
-- 10 Kasım 2026 son düzeltmesi: GVNpen **yalnız arayüz referansı**. GVNpen kaynak kodu/çizim motoru taşınmayacak.
+- **Yazma tarafı GVNpen ile birebir aynı** (12 Kasım 2026 kullanıcı kararı): tüm özellikler, yazma hissi, geçişler, simgeler. Yalnız renkler GVNnotes temasına uyarlanır.
+- **Arayüz "Petrol Ada"** (12 Kasım 2026 kullanıcı seçimi): kalıcı yüzen klasör ağacı + yüzen paneller. Bkz. DESIGN.md.
 - Ayrı pencere/overlay yok. S Pen çizgileri sayfa koordinatında, zeminle birlikte hareket eder.
-- PDF + JPEG/PNG/WebP, küçük resimler dahil; çoklu resim tek not desteği isteniyor, birleştirme akışı açık.
-- İç içe ve boş klasörler; iki yönlü adlandırma/taşıma/klasör oluşturma.
-- Silme .GVNnotes-çöp klasörüne taşıma; aynı ad varsa reddet; iki klasörde aynı içerik ayrı not; kaynak çatışmada kazanır.
-- Kaynak kaybolunca not ve yazılar korunur. Dışa aktarma zemin ve yazıları içerir.
-- Arka planda anında algılama garantisi yok. Açılış/ön plan taraması ana mekanizma.
-- İlk prototip boş sayfada kalem/silgi, geri al/ileri al, basınç/eğim, zoom/kaydırma. 0.1.2'de otomatik/kalıcı kayıt eklendi; PDF ve klasör senkronu sonraki aşamalar.
-- 11 Kasım 2026 kullanıcı önce uygulama kabuğunun kurulmasını istedi ve notlar ana ekranı + bağımsız çoklu not adımını onayladı. 0.1.3 bu adımı uygular: gerçek önizlemeler, ad vererek oluştur/aç/geri. Klasör gezintisi, PDF/resim ve kaynak klasör senkronu sonraki adımlardır.
+- PDF + JPEG/PNG/WebP; çoklu resim tek not (her resim bir sayfa). Boş sayfa şablonları: Düz, Çizgili, Kareli, Noktalı.
+- İç içe ve boş klasörler; iki yönlü taşıma / klasör oluşturma / çöp. Yeni not doğrudan seçilen klasörde oluşturulabilir.
+- Silme `.GVNnotes-çöp` klasörüne taşıma; uygulama kullanıcı dosyasını silmez. Aynı ad varsa reddet; iki klasörde aynı içerik ayrı not; kaynak çatışmada kazanır.
+- Kaynak kaybolunca not ve yazılar korunur; içerik değişen kaynak yeni not olur.
+- Dışa aktarma: zemin + şablon + yazılar, ~180 dpi görüntü PDF (seçilebilir metin yok).
+- Arka planda anlık algılama yok; tarama uygulama açılınca / öne gelince yapılır.
+- Veriler yalnız tablette, uygulamanın kendi alanında; internet ve bulut yok. Uygulamayı kaldırmak notları siler.
 
 ## Operating Context
-Proje D:/Sanal Desktop/GVNnotes. Kullanıcı tasarım + ilk prototipi açıkça istedi. Gerçek SM-X810 Tab S9+, Android16/API36 bağlı; 0.1.1 yazma ekranı ve 0.1.2 kalıcı kayıt kullanıcı tarafından onaylandı. 0.1.3 çoklu not arayüzü cihazda otomatik testli, kullanıcı yeni sürümü henüz onaylamadı.
+Proje `D:/Sanal Desktop/GVNnotes`, Windows + PowerShell 5.1, yerel Gradle. Tablet USB ile bağlanır (seri `TABLET-SERI-NO`). Paket kimliği `com.gvn.notes.prototype` notları korumak için sabit. Güncel sürüm 0.11.0: tablette otomatik testler geçti, kullanıcı denemesi bekleniyor.
 
 ## Brand Commitments
-GVNpen'in kompakt yan araç şeridi ve araç düzeni referans. Samsung Notes yalnız davranış/mimari referansı; Samsung kodu/görselleri kopyalanmaz.
+Kalem tarafı GVNpen kimliğini taşır (şerit düzeni, simgeler, GVNpen markası). Uygulama çerçevesi Petrol Ada: açık mavi-gri masa, yüzen yumuşak gölgeli adalar, indigo seçim, petrol mavisi klasör. Samsung Notes yalnız davranış referansı; Samsung kodu/görselleri kopyalanmaz.
 
 ## Evidence on Hand
-research/samsung-notes-4.3.831/RAPOR.md; yerel GVNpen Java kaynakları incelendi. Gerçek tablet testleri ve kullanıcı onayları docs/DOGRULAMA.md içinde. Sürümlerin doğrulama kapsamları birbirine genellenmez.
+Tablet testleri ve kullanıcı onayları `docs/DOGRULAMA.md`; ekran görüntüleri `logs/ui-0.11.0/`; tasarım sheet'leri `D:/Sanal Desktop/GVNnotes Arayüz Sheetleri/`; Samsung Notes incelemesi `research/samsung-notes-4.3.831/RAPOR.md`. Sürümlerin doğrulama kapsamları birbirine genellenmez.

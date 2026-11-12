@@ -1,5 +1,7 @@
 # GVNnotes — düzeltilmiş tasarım, 10 Kasım 2026
 
+> **Tarihsel belge (10 Kasım 2026).** Klasör eşitleme kuralları ve veri modeli gerekçeleri (kimlik UUID, kaynak kazanır, çöp, izin kaybı ≠ silinme vb.) hâlâ geçerlidir. **Geçersiz kısımlar:** "GVNpen yalnız arayüz referansı, kod/motor aktarılmaz" (0.10.0'da kaldırıldı: yazma tarafı GVNpen kodudur), Jetpack Ink/motion prediction notları (Ink kaldırıldı), Room ve aşama planı (uygulanmadı; kayıt PageStore ile yapılıyor). Güncel durum: [AGENTS.md](../AGENTS.md).
+
 ## Kararlar ve son kullanıcı düzeltmesi
 
 Tab S9+, S Pen, PDF/resimden otomatik not, alt klasörler ve boş klasörler, iki yönlü dosya yönetimi, .GVNnotes-çöp, kaynak kazanır, ad çakışmasını reddet, aynı içerik iki klasörde ayrı not, kayıp kaynakta notu koru, çoklu resim ve dışa aktarma kararları korunur.
