@@ -134,18 +134,27 @@ class FolderSyncDeviceTest {
         assertEquals(0,partial.missing); assertFalse(partial.complete)
         assertTrue(index().entries.none { it.state==SourceState.MISSING })
 
-        // Silinen kaynak: not ve yazılar kalır, durum MISSING.
+        // Dosyalarım'dan silinen kaynak: not çöp kutusuna gider (yazılar çöpte korunur), durum MISSING.
         File(src,"1. KURUL/hucre.pdf").delete()
         val gone=sync()
         assertEquals(1,gone.missing)
-        assertTrue(notes().any { it.key==hucre.key })
+        assertTrue(notes().none { it.key==hucre.key })
+        assertTrue(library.trash().list().any { it.key==hucre.key })
         assertEquals(SourceState.MISSING,index().entries.single { it.key==hucre.key }.state)
+        assertEquals(0,sync().missing) // Tekrar eşitleme ikinci kez saymaz.
 
-        // Geri gelirse (aynı içerik, aynı yol) yeniden bağlanır, kopya not oluşmaz.
+        // Geri gelirse (aynı içerik, aynı yol) not çöpten döner, kopya not oluşmaz.
         pdf(File(src,"1. KURUL/hucre.pdf"),1,pages=2)
         val back=sync()
-        assertEquals(0,back.imported); assertEquals(0,back.missing) // Aynı belge kimliği: doğrudan yeniden bağlanır.
+        assertEquals(0,back.imported); assertEquals(0,back.missing); assertEquals(1,back.returned)
         assertEquals(SourceState.AVAILABLE,index().entries.single { it.key==hucre.key }.state)
+        assertTrue(library.trash().list().none { it.key==hucre.key })
         assertEquals(4,notes().size)
+
+        // Kullanıcı çöpten geri alırsa (dosya hâlâ yok) not bir daha çöpe atılmaz.
+        File(src,"1. KURUL/hucre.pdf").delete(); assertEquals(1,sync().missing)
+        library.restoreFromTrash(hucre.key)
+        assertEquals(0,sync().missing)
+        assertTrue(notes().any { it.key==hucre.key })
     }
 }

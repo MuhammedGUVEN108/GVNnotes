@@ -188,7 +188,12 @@ class NoteLibrary(private val root:File) {
     }
     /** Kalıcı silme yalnız çöpteki not için yapılır. */
     fun deleteFromTrash(key:String) { trash().directory(key).deleteRecursively() }
-    fun trashedAt(key:String)=runCatching { File(trash().directory(key),"trashed-at.txt").readText().toLong() }.getOrDefault(0L)
+    fun trashedAt(key:String):Long {
+        val f=File(trash().directory(key),"trashed-at.txt")
+        runCatching { return f.readText().trim().toLong() }
+        // Zamanı bilinmeyen (eski) çöp: 30 günlük süre bugünden başlar.
+        val now=System.currentTimeMillis(); runCatching { f.writeText(now.toString()) }; return now
+    }
     fun rename(key:String,title:String) {
         val name=title.trim(); require(name.isNotEmpty() && name.length<=100)
         val store=PageStore(directory(key)); val snapshot=store.open().snapshot ?: return
@@ -234,6 +239,8 @@ fun renderPage(directory:File,page:Page,strokes:List<RenderedStroke>,width:Int,s
 }
 
 private const val PAGE_WIDTH=1000f
+/** Çöp kutusunda bekleme süresi; sonra not kalıcı silinir. */
+const val TRASH_DAYS=30
 private const val MAX_PDF_BYTES=512L*1024*1024
 
 class LibraryState(val library:NoteLibrary,private val treeFor:(String)->SourceTree):ViewModel() {
@@ -311,6 +318,7 @@ class LibraryState(val library:NoteLibrary,private val treeFor:(String)->SourceT
             loading=true; error=null
             try {
                 val (active,trashed)=withContext(Dispatchers.IO) {
+                    runCatching { purgeExpiredTrash() }
                     library.list() to runCatching { library.trash().list().map { it.copy(modified=library.trashedAt(it.key).takeIf { t -> t>0 } ?: it.modified) } }.getOrDefault(emptyList())
                 }
                 notes=active; trash=trashed.sortedByDescending { it.modified }
@@ -344,15 +352,44 @@ class LibraryState(val library:NoteLibrary,private val treeFor:(String)->SourceT
      * .GVNnotes-çöp klasörüne taşınır (iki yönlü); izin yoksa dosya yerinde kalır ama yeniden içe aktarılmaz.
      */
     fun moveToTrash(key:String)=noteAction("Not çöp kutusuna taşındı.","Not çöpe taşınamadı.") {
-        val entry=liveEntry(key); val t=tree()
-        var message:String?=null
+        if(trashNote(key,tree())) "Not ve kaynak dosyası çöpe taşındı." else null
+    }
+    /** Tek notu çöpe atar; kaynak dosyası taşındıysa true. */
+    private fun trashNote(key:String,t:SourceTree?):Boolean {
+        val entry=liveEntry(key)
+        var sourceMoved=false
         if(entry!=null && t!=null && t.writable) {
             val trashed=t.moveToTrash(entry.documentId!!,entry.path,entry.name)
             index.update(key) { it.copy(documentId=trashed,inTrash=true) }
-            message="Not ve kaynak dosyası çöpe taşındı."
+            sourceMoved=true
         }
         library.moveToTrash(key); index.setState(key,SourceState.TRASHED)
-        message
+        return sourceMoved
+    }
+    /**
+     * Klasörü alt klasörleriyle siler: içindeki tüm notlar çöp kutusuna (kaynak dosyaları .GVNnotes-çöp'e) gider,
+     * kaynakta kalan klasör ağacı da .GVNnotes-çöp'e taşınır. Kullanıcı dosyası silinmez. Not geri yüklenince klasörü yeniden oluşur.
+     */
+    fun deleteFolder(path:String)=noteAction("Klasör silindi.","Klasör silinemedi.") {
+        require(path.isNotEmpty())
+        val inside={ p:String -> p==path || p.startsWith("$path/") }
+        val t=tree()
+        val inSource=t!=null && t.hasFolder(path)
+        if(inSource) writableTree() // Kaynakta var ama yazma izni yoksa hiçbir şey yapılmaz.
+        val keys=library.list().filter { inside(it.folderPath) }.map { it.key }
+        var moved=0
+        keys.forEach { if(trashNote(it,t)) moved++ }
+        if(inSource) t!!.trashFolder(path)
+        index.removeFolderTree(path)
+        if(keys.isEmpty()) null else "Klasör silindi · ${keys.size} not çöp kutusunda."
+    }
+    /** Çöpte [TRASH_DAYS] günü dolan notlar kalıcı silinir (açılışta ve yenilemede). Kaynak dosyalar .GVNnotes-çöp'te kalır. */
+    private fun purgeExpiredTrash() {
+        val limit=System.currentTimeMillis()-TRASH_DAYS*24L*60*60*1000
+        library.trash().list().forEach { note ->
+            val at=library.trashedAt(note.key)
+            if(at in 1 until limit) runCatching { library.deleteFromTrash(note.key) }
+        }
     }
     /** Notu geri yükler; kaynak dosyası .GVNnotes-çöp'teyse eski klasörüne özgün adıyla geri getirilir. */
     fun restore(key:String)=noteAction("Not geri yüklendi.","Not geri yüklenemedi.") {
@@ -367,7 +404,7 @@ class LibraryState(val library:NoteLibrary,private val treeFor:(String)->SourceT
                 index.setState(key,SourceState.MISSING)
                 message="Not geri yüklendi; klasörde aynı adlı dosya olduğu için kaynak çöpte kaldı."
             }
-        } else index.setState(key,if(entry?.inTrash==true) SourceState.MISSING else SourceState.AVAILABLE)
+        } else index.setState(key,if(entry?.inTrash==true || entry?.state==SourceState.MISSING) SourceState.MISSING else SourceState.AVAILABLE)
         message
     }
     /** Notu kalıcı siler. Kaynak dosya silinmez; .GVNnotes-çöp klasöründe kalır (kullanıcı dosyası). */

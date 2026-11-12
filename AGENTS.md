@@ -1,6 +1,6 @@
 # AGENTS.md — GVNnotes
 
-Bu dosya, bu projede çalışan yapay zekâ ajanları (Codex, Claude, Cursor, Gemini vb.) içindir. Güncel durum burada yazılıdır; başka bir belgeyle çelişirse **bu dosya ve kod** geçerlidir. Son güncelleme: 12 Kasım 2026, sürüm 0.11.0.
+Bu dosya, bu projede çalışan yapay zekâ ajanları (Codex, Claude, Cursor, Gemini vb.) içindir. Güncel durum burada yazılıdır; başka bir belgeyle çelişirse **bu dosya ve kod** geçerlidir. Son güncelleme: 12 Kasım 2026, sürüm 0.12.0.
 
 ## Proje ne?
 
@@ -15,8 +15,10 @@ Kullanıcı Türkçe konuşur. Arayüz metinleri, belgeler, kod yorumları ve co
 3. Ayrı pencere/overlay yok. Çizgiler sayfa koordinatında, PDF/resim zeminiyle birlikte hareket eder.
 4. Kaynak klasör eşitlemesi iki yönlüdür; "kaynak kazanır"; hedefte aynı ad varsa işlem reddedilir; uygulama kullanıcı dosyasını **asla silmez** (çöp = `.GVNnotes-çöp` klasörüne taşıma).
 5. Aynı içerik iki klasörde iki ayrı nottur (not kimliği UUID, hash yalnız içerik kimliği).
-6. Kaynak dosya kaybolsa da not ve yazılar korunur.
-7. Samsung Notes yalnız davranış referansıdır; Samsung kodu, simgesi, görseli kopyalanmaz.
+6. Dosyalarım'dan silinen kaynağın notu **çöp kutusuna** gider (12 Kasım 2026; önceki "not yerinde kalır" kuralının yerine). Yalnız tamamlanmış taramada; eksik/izinsiz taramada hiçbir not çöpe gitmez. Dosya geri konursa not çöpten kendiliğinden döner. Kullanıcı çöpten geri alırsa not bir daha atılmaz.
+7. **Çöp kutusu 30 gün** (`TRASH_DAYS`): süresi dolan not açılışta/yenilemede kalıcı silinir. Kaynak dosyalar `.GVNnotes-çöp`'te kalır; uygulama kullanıcı dosyası silmez.
+8. **Klasör silme** alt klasörleriyle birliktedir: içindeki tüm notlar çöpe, kaynak dosyaları ve kalan klasör ağacı `.GVNnotes-çöp`'e taşınır.
+9. Samsung Notes yalnız davranış referansıdır; Samsung kodu, simgesi, görseli kopyalanmaz.
 
 Eskiyen kararlar (artık geçersiz): "GVNpen yalnız arayüz referansı, kodu taşınmaz" (10 Kasım); "çizim motoru Jetpack Ink" (0.1–0.9); "kütüphane Samsung Notes düzeninde" (0.2–0.10). Bu ifadeleri eski belgelerde görürsen uygulama.
 
@@ -69,10 +71,12 @@ PowerShell 5.1 (Windows). Araç yolları `build.ps1` içinde (JDK 21, Android SD
 ./build.ps1 -Offline        # core + app JVM testleri, debug APK, lint; APK'yı dist/GVNnotes-<sürüm>.apk olarak kopyalar
 # Tablet testleri için önce test APK'sı:
 gradle -p . :app:assembleDebugAndroidTest --offline   # build.ps1'deki gradle.bat ve JAVA_HOME/ANDROID_HOME ile
-./DEVICE-TEST.ps1           # 13 aşama: kayıt, regresyon, PDF, eşitleme, not yönetimi, iki yönlü, kalem, kement, şablon, parmak, kalıcılık
-./LIBRARY-TEST.ps1          # 2 aşama: çoklu not, süreç yeniden başlatma
+./DEVICE-TEST.ps1           # yalnız ilgili kodu değişen test birimlerini çalıştırır; durum docs/TEST-DURUMU.md (✅/⬜/❌)
+./DEVICE-TEST.ps1 -Hepsi    # hepsini zorla (sürüm öncesi, emin olunamayan geniş değişiklikte)
+./DEVICE-TEST.ps1 -Sadece folder-sync,lasso
 ```
 
+- **Test atlama (kullanıcı isteği):** her birimin ilgili kaynak dosyaları `DEVICE-TEST.ps1` içindeki `$units` tablosundadır; bu dosyaların parmak izi son başarılı çalıştırmadakiyle aynıysa birim atlanır. Kayıt: `docs/test-durumu.json` (makine) ve `docs/TEST-DURUMU.md` (tikli tablo). **Yeni test ya da yeni kaynak dosyası eklerken tabloyu güncelle**; bir birimin kullandığı dosya listede yoksa o dosyadaki değişiklik testi tetiklemez. Sürüm numarası değişikliği testi tetiklemez.
 - adb: `C:/Users/Muhammed/AppData/Local/Ajan-Araclari/android/sdk/platform-tools/adb.exe`, tablet seri no `TABLET-SERI-NO`.
 - Tablet testleri kullanıcı notlarına dokunmaz: `files/test-document`, `files/test-library` ve test kaynak klasörleri kullanılır (yalnız debug derlemede, test intent'iyle). GVNpen ayarları testte yalnız bellekte değiştirilir, kaydedilmez.
 - Test seçicileri `testTag` ve içerik açıklamalarına bağlıdır (ör. `library`, `new-note`, `note-title`, `create-note`, `editor`, `back-to-notes`, `page-sorter`, `page-indicator`, `folder-<ad>`, "Sayfa sıralayıcı", "Üst klasör", "<klasör>, N not"). Arayüzü değiştirirken bunları koru ya da testleri birlikte güncelle.

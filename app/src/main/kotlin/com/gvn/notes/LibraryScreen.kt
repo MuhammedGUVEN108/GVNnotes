@@ -90,6 +90,7 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
     var deletingKey by rememberSaveable { mutableStateOf<String?>(null) }
     var movingKey by rememberSaveable { mutableStateOf<String?>(null) }
     var newFolder by rememberSaveable { mutableStateOf(false) }
+    var deletingFolder by rememberSaveable { mutableStateOf<String?>(null) }
     var sortByName by rememberSaveable { mutableStateOf(false) }
     val collapsed=remember { mutableStateListOf<String>() }
     val context=LocalContext.current
@@ -189,6 +190,8 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
                                 DropdownMenu(expanded=menu,onDismissRequest={menu=false}) {
                                     DropdownMenuItem(text={Text("Yeni klasör")},onClick={menu=false; newFolder=true},
                                         leadingIcon={Icon(Icons.Outlined.CreateNewFolder,null)},modifier=Modifier.testTag("menu-new-folder"))
+                                    if(!current.isNullOrEmpty()) DropdownMenuItem(text={Text("Bu klasörü sil",color=Ada.Danger)},onClick={menu=false; deletingFolder=current},
+                                        leadingIcon={Icon(Icons.Outlined.FolderDelete,null,tint=Ada.Danger)},modifier=Modifier.testTag("menu-delete-folder"))
                                     DropdownMenuItem(text={Text(if(sortByName) "Tarihe göre sırala" else "Ada göre sırala")},onClick={menu=false; sortByName=!sortByName},
                                         leadingIcon={Icon(Icons.AutoMirrored.Outlined.Sort,null)})
                                     DropdownMenuItem(text={Text("Ayarlar")},onClick={menu=false; showSettings=true},
@@ -239,7 +242,7 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
                             }
                             if(query.isBlank() && childFolders.isNotEmpty()) item(span=full) {
                                 LazyRow(horizontalArrangement=Arrangement.spacedBy(14.dp),contentPadding=PaddingValues(vertical=6.dp)) {
-                                    items(childFolders,key={it}) { p -> FolderTile(nameOf(p),countUnder(p),allFolders.count { parentOf(it)==p }) { folder=p } }
+                                    items(childFolders,key={it}) { p -> FolderTile(nameOf(p),countUnder(p),allFolders.count { parentOf(it)==p },onDelete={ deletingFolder=p }) { folder=p } }
                                 }
                             }
                             if(visible.isEmpty()) item(span=full) {
@@ -314,6 +317,24 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
             confirmButton={TextButton(onClick={state.createFolder(parent,name); newFolder=false},
                 enabled=name.isNotBlank() && !name.trim().startsWith(".") && name.none { it in "/\\:*?\"<>|" },modifier=Modifier.testTag("folder-create")){Text("Oluştur")}},
             dismissButton={TextButton(onClick={newFolder=false}){Text("Vazgeç")}})
+    }
+    deletingFolder?.let { p ->
+        val notes=countUnder(p); val subs=allFolders.count { it.startsWith("$p/") }
+        AlertDialog(onDismissRequest={deletingFolder=null},icon={Icon(Icons.Outlined.FolderDelete,null,tint=Ada.Danger)},
+            title={Text("\"${nameOf(p)}\" silinsin mi?")},
+            text={Text(buildString {
+                append("Klasör")
+                if(subs>0) append(" ve $subs alt klasörü")
+                append(" silinir. ")
+                append(if(notes>0) "İçindeki $notes not çöp kutusuna taşınır; $TRASH_DAYS gün sonra kalıcı silinir, o zamana kadar geri yükleyebilirsin." else "İçinde not yok.")
+                if(state.source!=null) append(" Documents/GVNnotes'taki dosyalar .GVNnotes-çöp klasörüne taşınır; hiçbir dosya silinmez.")
+            })},
+            confirmButton={TextButton(onClick={
+                state.deleteFolder(p)
+                if(folder!=null && (folder==p || folder!!.startsWith("$p/"))) folder=upOf(p)
+                deletingFolder=null
+            },modifier=Modifier.testTag("confirm-delete-folder")){Text("Klasörü sil",color=Ada.Danger)}},
+            dismissButton={TextButton(onClick={deletingFolder=null}){Text("Vazgeç")}})
     }
     deletingKey?.let { key ->
         val note=state.trash.firstOrNull { it.key==key }
@@ -398,16 +419,24 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
     }
 }
 
-@Composable private fun FolderTile(name:String,count:Int,subfolders:Int,onClick:()->Unit) {
+@Composable private fun FolderTile(name:String,count:Int,subfolders:Int,onDelete:()->Unit,onClick:()->Unit) {
     Surface(onClick=onClick,shape=RoundedCornerShape(20.dp),color=Ada.Surface,shadowElevation=3.dp,
-        modifier=Modifier.width(232.dp).semantics { contentDescription="Klasör, $name, $count not" }.testTag("folder-$name")) {
+        modifier=Modifier.width(264.dp).semantics { contentDescription="Klasör, $name, $count not" }.testTag("folder-$name")) {
         Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
             Box(Modifier.size(44.dp).background(Ada.Desk,RoundedCornerShape(14.dp)),contentAlignment=Alignment.Center) {
                 Icon(Icons.Outlined.Folder,null,tint=Ada.Petrol)
             }
-            Column(Modifier.padding(start=12.dp)) {
+            Column(Modifier.padding(start=12.dp).weight(1f)) {
                 Text(name,color=Ada.Ink,fontWeight=FontWeight.SemiBold,fontSize=15.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
                 Text(listOfNotNull("$count not",if(subfolders>0) "$subfolders klasör" else null).joinToString(" · "),color=Ada.Muted,fontSize=12.sp)
+            }
+            Box {
+                var open by remember { mutableStateOf(false) }
+                IconButton(onClick={open=true},modifier=Modifier.testTag("folder-menu-$name")) { Icon(Icons.Outlined.MoreHoriz,"$name seçenekleri",tint=Ada.Muted) }
+                DropdownMenu(expanded=open,onDismissRequest={open=false}) {
+                    DropdownMenuItem(text={Text("Klasörü sil",color=Ada.Danger)},onClick={open=false; onDelete()},
+                        leadingIcon={Icon(Icons.Outlined.FolderDelete,null,tint=Ada.Danger)},modifier=Modifier.testTag("menu-delete-folder-$name"))
+                }
             }
         }
     }
@@ -492,7 +521,7 @@ private data class PreviewState(val bitmap:Bitmap?,val loaded:Boolean)
 }
 
 /** Liste satırı (çöp kutusu): küçük önizleme, başlık, bilgi ve sağda eylemler. */
-@Composable private fun NoteRow(note:NoteCard,trailing:@Composable ()->Unit) {
+@Composable private fun NoteRow(note:NoteCard,extra:String?=null,trailing:@Composable ()->Unit) {
     val preview=rememberPreview(note)
     Island(Modifier.fillMaxWidth().testTag("note-${note.key}"),shape=RoundedCornerShape(20.dp),elevation=2.dp) {
         Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
@@ -505,6 +534,7 @@ private data class PreviewState(val bitmap:Bitmap?,val loaded:Boolean)
                 Text(note.title,fontSize=17.sp,fontWeight=FontWeight.Medium,color=Ada.Ink,maxLines=1,overflow=TextOverflow.Ellipsis)
                 Text(listOfNotNull(metaOf(note),note.folderPath.ifEmpty { null }?.replace("/"," › ")).joinToString(" · "),
                     style=MaterialTheme.typography.bodyMedium,color=Ada.Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
+                if(extra!=null) Text(extra,fontSize=12.sp,color=Ada.Danger)
             }
             trailing()
         }
@@ -524,12 +554,13 @@ private data class PreviewState(val bitmap:Bitmap?,val loaded:Boolean)
 /** Çöp kutusu: notlar burada silinene kadar saklanır; geri yükleme notu eski klasörüne döndürür. */
 @Composable private fun TrashView(state:LibraryState,onBack:()->Unit,onDelete:(String)->Unit) {
     Column(Modifier.fillMaxSize().testTag("trash")) {
-        ScreenHeader("Çöp kutusu","${state.trash.size} not · silinene kadar saklanır",onBack)
+        ScreenHeader("Çöp kutusu","${state.trash.size} not · $TRASH_DAYS gün sonra kalıcı silinir",onBack)
         if(state.trash.isEmpty()) Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) { Text("Çöp kutusu boş",color=Ada.Muted) }
         else LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(start=24.dp,end=24.dp,top=4.dp,bottom=48.dp),
             verticalArrangement=Arrangement.spacedBy(12.dp)) {
             items(state.trash,key={it.key}) { note ->
-                NoteRow(note) {
+                val left=(TRASH_DAYS-((System.currentTimeMillis()-note.modified)/(24L*60*60*1000)).toInt()).coerceAtLeast(0)
+                NoteRow(note,if(left<=1) "Yarın kalıcı silinecek" else "$left gün sonra kalıcı silinecek") {
                     TextButton(onClick={state.restore(note.key)},modifier=Modifier.testTag("restore-${note.title}")) { Text("Geri yükle") }
                     TextButton(onClick={onDelete(note.key)},modifier=Modifier.testTag("delete-${note.title}")) { Text("Kalıcı sil",color=Ada.Danger) }
                 }

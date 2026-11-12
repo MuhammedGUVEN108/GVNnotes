@@ -1,4 +1,4 @@
-# GVNnotes kullanım kılavuzu (0.11.0)
+# GVNnotes kullanım kılavuzu (0.12.0)
 
 GVNnotes, Galaxy Tab S9+ ve S Pen için PDF, resim ve boş sayfalar üzerine el yazısıyla not alma uygulamasıdır. Yazma tarafı GVNpen ile aynıdır. Notlar yalnız tablette, uygulamanın kendi alanında saklanır; internet kullanılmaz.
 
@@ -8,9 +8,10 @@ GVNnotes, Galaxy Tab S9+ ve S Pen için PDF, resim ve boş sayfalar üzerine el 
 - **Yeni not:** sağ üstteki **Yeni not**. Ad ver, konumu (klasör) seç, sayfa türünü seç (Boş, Çizgili, Kareli, Noktalı) → **Notu oluştur**.
 - **PDF içe aktar / Resimden not:** başlığın altındaki düğmeler. Birden çok resim seçersen tek not olur, her resim bir sayfa. Asıl dosyaya dokunulmaz, kopyası alınır.
 - **Klasör kartları:** bulunduğun klasörün alt klasörleri; dokununca içine girersin. Sol üstteki ← üst klasöre çıkar.
+- **Klasörü sil:** klasör kartının **⋯** menüsü ya da klasörün içindeyken üstteki **⋯ → Bu klasörü sil**. Klasör **alt klasörleriyle birlikte** silinir; içindeki notlar çöp kutusuna, `Documents/GVNnotes`'taki dosyaları `.GVNnotes-çöp` klasörüne gider.
 - **Not kartı:** önizleme, ad, tarih, sayfa sayısı, PDF ise "PDF"; Tüm notlar'da klasör adı. **⋯** → Yeniden adlandır, Klasöre taşı, Çöp kutusuna taşı.
 - **Ara / sırala:** büyüteç notun adında ve klasöründe arar. **⋯** → Ada / Tarihe göre sırala, Yeni klasör, Ayarlar, Notları yenile, Kaynak klasörü değiştir.
-- **Çöp kutusu:** Geri yükle ya da Kalıcı sil. Notlar sen silene kadar kalır.
+- **Çöp kutusu:** Geri yükle ya da Kalıcı sil. Notlar **30 gün** kalır, sonra kendiliğinden kalıcı silinir; her notta kalan gün yazar.
 
 ## Documents/GVNnotes klasörü (otomatik not)
 
@@ -21,7 +22,7 @@ GVNnotes, Galaxy Tab S9+ ve S Pen için PDF, resim ve boş sayfalar üzerine el 
 Kurallar:
 - Dosyayı taşıdıysan ya da adını değiştirdiysen aynı not olarak tanınır, yazıların korunur.
 - İçeriği değişen dosya yeni not olur; eski not yazılarıyla kalır ("Kaynak PDF değişti").
-- Silinen dosyanın notu silinmez ("Kaynak bulunamadı · yazılar korunuyor").
+- Dosyalarım'dan bir dosyayı silersen notu **çöp kutusuna** gider (yazıları 30 gün orada durur). Dosyayı geri koyarsan not çöpten kendiliğinden döner. Çöpten kendin geri alırsan not yerinde kalır ("Kaynak bulunamadı · yazılar korunuyor").
 - Uygulamada klasör oluşturma, not taşıma ve çöpe atma klasöre de yansır. Çöpe atılan dosya `.GVNnotes-çöp` klasörüne gider, geri yüklenince yerine döner. Uygulama hiçbir dosyayı silmez; hedefte aynı ad varsa işlemi yapmaz.
 - Yazma izni yoksa listede "Yeniden bağla" kartı çıkar.
 

@@ -20,7 +20,8 @@ Dosyalarım'daki `Documents/GVNnotes` klasörüne eklenen PDF/resimleri klasör 
 - PDF + JPEG/PNG/WebP; çoklu resim tek not (her resim bir sayfa). Boş sayfa şablonları: Düz, Çizgili, Kareli, Noktalı.
 - İç içe ve boş klasörler; iki yönlü taşıma / klasör oluşturma / çöp. Yeni not doğrudan seçilen klasörde oluşturulabilir.
 - Silme `.GVNnotes-çöp` klasörüne taşıma; uygulama kullanıcı dosyasını silmez. Aynı ad varsa reddet; iki klasörde aynı içerik ayrı not; kaynak çatışmada kazanır.
-- Kaynak kaybolunca not ve yazılar korunur; içerik değişen kaynak yeni not olur.
+- Dosyalarım'dan silinen kaynağın notu çöp kutusuna gider (dosya geri gelirse döner); içerik değişen kaynak yeni not olur.
+- Çöp kutusu 30 gün; sonra kalıcı silme. Klasör silme alt klasörleriyle birlikte.
 - Dışa aktarma: zemin + şablon + yazılar, ~180 dpi görüntü PDF (seçilebilir metin yok).
 - Arka planda anlık algılama yok; tarama uygulama açılınca / öne gelince yapılır.
 - Veriler yalnız tablette, uygulamanın kendi alanında; internet ve bulut yok. Uygulamayı kaldırmak notları siler.

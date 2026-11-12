@@ -2,6 +2,20 @@
 
 > Sürüm sürüm doğrulama günlüğü; en yeni girdi en üstte. Eski girdiler o günün kararlarını yansıtır (ör. Jetpack Ink, Samsung Notes düzeni); güncel kurallar için [AGENTS.md](../AGENTS.md).
 
+## 0.12.0 — Klasör silme, 30 günlük çöp, silinen dosyanın notu çöpe; akıllı test atlama, 12 Kasım 2026
+
+Kullanıcı istekleri: "klasör silme gelmeli, silince alt klasörleriyle beraber hepsi silinmeli"; "çöp kutusunda 30 gün süre koymalı, sonra kalıcı silinmeli"; "Dosyalarım'dan bir dosya silinirse not karşılığı da çöp kutusuna taşınsın"; "bir test daha önce test edilmişse ve o alanda yeni özellik eklenmemişse test etme, tik koyarak tut".
+
+- **Klasör silme** (`LibraryState.deleteFolder`): klasör kartı ⋯ ve klasör içinde üst ⋯ menüsü, onay penceresi. Alt ağaçtaki tüm notlar çöpe; kaynak dosyalar tek tek `.GVNnotes-çöp`'e (geri yükleme eski yola döner, klasörü yeniden oluşturur); kaynakta kalan klasör ağacı (not olmayan dosyalar dahil) `.GVNnotes-çöp`'e taşınır. Kaynakta olup yazma izni yoksa hiçbir şey yapılmaz.
+- **Çöp 30 gün** (`TRASH_DAYS`): süresi dolan not açılışta/yenilemede kalıcı silinir; zamanı bilinmeyen eski çöpün süresi bugünden başlar. Çöp ekranında kalan gün.
+- **Dosyalarım'da silinen kaynak:** tamamlanmış taramada yeni kaybolan kaynağın notu çöpe gider (önceki kural: not yerinde MISSING kalırdı). Dosya geri gelirse not çöpten döner; kullanıcı çöpten geri alırsa tekrar atılmaz; notu kalıcı silinmiş kayıt eşlenmez.
+- **Testler:** `DEVICE-TEST.ps1` birim başına ilgili kaynak dosyalarının parmak izini tutar; değişmeyen ve geçmiş birimi atlar. `docs/TEST-DURUMU.md` (✅/⬜/❌) + `docs/test-durumu.json`. `-Hepsi`, `-Sadece`. Kütüphane testleri aynı betikte (`library`).
+- Elle düzenleme (bu oturum, uygulama dışında): kullanıcının isteğiyle "5. Sınıf Matematik" klasöründen kalan 49 not (kaynak klasörü Dosyalarım'dan zaten silinmişti) uygulamanın çöp kutusuna taşındı, eşitleme kaydı TRASHED yapıldı. Birinde (14. Gün - Test 9-10) 64 çizgi yazı var; çöpte.
+
+Doğrulama (SM-X810): JVM testleri ve lint geçti. Yeni `folder-delete` cihaz testi (alt klasörler, not olmayan dosya, uygulamada oluşturulmuş not, yeniden eşitleme, geri yükleme, 30 gün) ve güncellenen `folder-sync` (silinen kaynak → çöp, geri gelince döner, çöpten geri alınca tekrar atılmaz) dahil **13 birimin hepsi geçti**; ikinci çalıştırmada hepsi atlandı. Klasör menüsü, onay penceresi ve çöp sayacı ekran görüntüsüyle kontrol edildi (`logs/ui-0.12.0/`). Gerçek SAF (Dosyalarım) üzerinde klasör silme elle denenmedi; testler düz dosya kaynağıyla.
+
+APK: `dist/GVNnotes-0.12.0.apk`, SHA256 `534a2ebfc659875dbebbe73ff882c2bb4d258ebba13ba34ad4059912faf18dc2`.
+
 ## 0.11.0 — "Petrol Ada" arayüzü, 12 Kasım 2026
 
 Kullanıcı arayüzleri beğenmedi; altı tasarım yönü arasından **6-Petrol Ada**'yı seçti (`D:/Sanal Desktop/GVNnotes Arayüz Sheetleri/6-petrol-ada.html`): Derin Petrol'ün kalıcı klasör ağacı + Ada'nın yüzen panelleri. Yazma tarafı (GVNpen şeridi, ayar ekranı, çizim motoru) değişmedi; şerit zaten yüzen ve sürüklenebilir bir ada.

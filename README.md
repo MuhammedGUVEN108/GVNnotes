@@ -4,7 +4,9 @@ Galaxy Tab S9+ ve S Pen için PDF, resim ve boş sayfalar üzerine el yazısıyl
 
 Yapay zekâ ajanları önce [AGENTS.md](AGENTS.md) dosyasını okumalı.
 
-## Mevcut durum — 0.11.0 (12 Kasım 2026)
+## Mevcut durum — 0.12.0 (12 Kasım 2026)
+
+- **0.12.0:** klasör silme (alt klasörleriyle), çöp kutusu 30 gün sonra kendiliğinden boşalır, Dosyalarım'dan silinen dosyanın notu çöpe gider (dosya geri gelirse döner). Tablet testleri yalnız ilgili kodu değişenleri çalıştırır ([durum tablosu](docs/TEST-DURUMU.md)).
 
 - **Yazma:** GVNpen ile aynı. Yüzen, sürüklenebilir araç şeridi: kalem, fosforlu, silgi (tüm çizgi / alan), 2B ve 3B şekiller, akıllı şekil, kalınlık, geri al / yinele, sayfayı temizle, hızlı renkler, renk paleti, gezinme ve okuma modu. S Pen yan düğmesi, kalem yaklaşınca açılan menüler, kalem imleci. GVNpen ayar ekranı.
 - **Arayüz: "Petrol Ada".** Kütüphanede solda kalıcı, yüzen klasör ağacı; önizlemeli not kartları; klasör kısayolları. Düzenleyicide başlıkta konum çipi → Klasör adası (aynı klasördeki notlar, klasöre git, bu klasörde yeni not); sağda kapatılabilir sayfa sıralayıcı; sağ üstte yakınlaştırma / tam ekran / dışa aktar; altta kayıt durumu ve sayfa sayacı. GVNpen şeridi de aynı renklerde.
@@ -23,7 +25,7 @@ Kullanıcının 0.11.0 denemesi ve geri bildirimi; ardından 1.0.0.
 - [Kullanım kılavuzu](docs/KULLANIM.md)
 - [Ürün tanımı](PRODUCT.md) · [Tasarım sistemi](DESIGN.md)
 - [Kodun neyi neden yaptığı](docs/KOD-REHBERI.md) · [Kayıt ve kurtarma](docs/KAYIT-MIMARISI.md)
-- [Tablet test oturumu](docs/TABLET-TESTI.md) · [Doğrulama geçmişi](docs/DOGRULAMA.md)
+- [Tablet test oturumu](docs/TABLET-TESTI.md) · [Test durumu ✅](docs/TEST-DURUMU.md) · [Doğrulama geçmişi](docs/DOGRULAMA.md)
 - Tarihsel: [Eşitleme ve veri modeli gerekçeleri](docs/TASARIM.md) · [GVNpen kaynak incelemesi](docs/GVNPEN-INCELEME.md) · [Samsung Notes incelemesi](research/samsung-notes-4.3.831/RAPOR.md)
 - Arayüz tasarım sheet'leri: `D:/Sanal Desktop/GVNnotes Arayüz Sheetleri/` (seçilen: `6-petrol-ada.html`)
 

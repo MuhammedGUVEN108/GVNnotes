@@ -1,4 +1,4 @@
-# Kayıt ve kurtarma — 0.11.0
+# Kayıt ve kurtarma — 0.12.0
 
 ## Kullanıcı akışı
 
@@ -14,7 +14,7 @@ Not yeniden açılınca sayfalar, çizgiler, renkler, kalınlıklar ve basınç 
 | `notebooks/<uuid>/preview.png`, `preview-revision.txt` | Kütüphane önizlemesi (silinirse yeniden üretilir) |
 | `notebooks/<uuid>/card.json` | Liste özeti önbelleği (silinirse yeniden üretilir) |
 | `notebooks/<uuid>/` içindeki kaynak kopyası | İçe aktarılan PDF/resimlerin kopyası (asıl dosyaya dokunulmaz) |
-| `trash/<uuid>/` | Çöpteki notlar (`trashed-at.txt` ile) |
+| `trash/<uuid>/` | Çöpteki notlar (`trashed-at.txt` ile); 30 gün sonra kalıcı silinir |
 | `sync-index.json`, `sync-source.txt` | Klasör eşitleme dizini ve bağlı SAF klasörü |
 | `settings.json` | Uygulama ayarları (varsayılan şablon) |
 | `crash-log.txt` | Çökme kaydı (en çok 64 KB) |

@@ -1,0 +1,80 @@
+{
+    "persistence-codec-device":  {
+                                     "result":  "passed",
+                                     "fingerprint":  "d3fa2d15811992e8",
+                                     "date":  "2026-11-12 12:11",
+                                     "version":  "0.12.0"
+                                 },
+    "persistence-ink-regression":  {
+                                       "result":  "passed",
+                                       "fingerprint":  "ef1ce9dedd7f420d",
+                                       "date":  "2026-11-12 12:11",
+                                       "version":  "0.12.0"
+                                   },
+    "pdf-note":  {
+                     "result":  "passed",
+                     "fingerprint":  "9d9f386ebe8b8e5d",
+                     "date":  "2026-11-12 12:12",
+                     "version":  "0.12.0"
+                 },
+    "folder-sync":  {
+                        "result":  "passed",
+                        "fingerprint":  "3a524d3718d3cddf",
+                        "date":  "2026-11-12 12:12",
+                        "version":  "0.12.0"
+                    },
+    "note-management":  {
+                            "result":  "passed",
+                            "fingerprint":  "6646f985c5bdcf5e",
+                            "date":  "2026-11-12 12:12",
+                            "version":  "0.12.0"
+                        },
+    "two-way":  {
+                    "result":  "passed",
+                    "fingerprint":  "5a1b1968569a3d29",
+                    "date":  "2026-11-12 12:12",
+                    "version":  "0.12.0"
+                },
+    "pen-tools":  {
+                      "result":  "passed",
+                      "fingerprint":  "f3389dc0f0750c36",
+                      "date":  "2026-11-12 12:12",
+                      "version":  "0.12.0"
+                  },
+    "lasso":  {
+                  "result":  "passed",
+                  "fingerprint":  "788e301e808b64ff",
+                  "date":  "2026-11-12 12:12",
+                  "version":  "0.12.0"
+              },
+    "folder-delete":  {
+                          "result":  "passed",
+                          "fingerprint":  "e3f585e0c7193a8c",
+                          "date":  "2026-11-12 12:12",
+                          "version":  "0.12.0"
+                      },
+    "templates":  {
+                      "result":  "passed",
+                      "fingerprint":  "9d961cfab70c9df1",
+                      "date":  "2026-11-12 12:12",
+                      "version":  "0.12.0"
+                  },
+    "finger-draw":  {
+                        "result":  "passed",
+                        "fingerprint":  "a2c93e631b118559",
+                        "date":  "2026-11-12 12:12",
+                        "version":  "0.12.0"
+                    },
+    "persistence-restart":  {
+                                "result":  "passed",
+                                "fingerprint":  "de7dcc60549ef4d1",
+                                "date":  "2026-11-12 12:12",
+                                "version":  "0.12.0"
+                            },
+    "library":  {
+                    "result":  "passed",
+                    "fingerprint":  "ce3c53b868d83c5f",
+                    "date":  "2026-11-12 12:13",
+                    "version":  "0.12.0"
+                }
+}

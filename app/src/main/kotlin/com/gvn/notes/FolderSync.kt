@@ -30,6 +30,10 @@ interface SourceTree {
     fun moveToTrash(documentId:String,fromPath:String,name:String):String=throw UnsupportedOperationException()
     /** Çöpteki belgeyi [toPath] klasörüne özgün adıyla geri getirir. Hedefte aynı ad varsa [NameTakenException]. */
     fun restoreFromTrash(documentId:String,toPath:String,originalName:String):String=throw UnsupportedOperationException()
+    /** [path] klasörünü (içinde kalanlarla) kökteki [TRASH_FOLDER] klasörüne taşır; çöpte aynı ad varsa "ad (2)" olur. Hiçbir şey silinmez. */
+    fun trashFolder(path:String):Unit=throw UnsupportedOperationException()
+    /** [path] klasörü kaynakta var mı. */
+    fun hasFolder(path:String):Boolean=false
 }
 
 class NameTakenException(name:String):IllegalStateException("Hedefte aynı adda öge var: $name")
@@ -121,6 +125,16 @@ class SafSourceTree(private val context:Context,private val tree:Uri):SourceTree
         }
         return moveDoc(id,dir(fromPath),trash)
     }
+    override fun hasFolder(path:String)=runCatching { dir(path); true }.getOrDefault(false)
+    override fun trashFolder(path:String) {
+        val name=path.substringAfterLast('/'); val parent=dir(path.substringBeforeLast('/',""))
+        var id=dir(path); val trash=dir(TRASH_FOLDER,create=true)
+        if(child(trash,name)!=null) {
+            val unique=uniqueFolderNames(name).first { child(trash,it)==null }
+            id=DocumentsContract.getDocumentId(checkNotNull(DocumentsContract.renameDocument(resolver,uri(id),unique)) { "Klasör adlandırılamadı." })
+        }
+        moveDoc(id,parent,trash)
+    }
     override fun restoreFromTrash(documentId:String,toPath:String,originalName:String):String {
         val target=dir(toPath,create=true)
         if(child(target,originalName)!=null) throw NameTakenException(originalName)
@@ -131,6 +145,8 @@ class SafSourceTree(private val context:Context,private val tree:Uri):SourceTree
     }
 }
 
+/** Klasör için "ad (2)", "ad (3)"… (noktalı klasör adları uzantı sanılmasın diye ayrı). */
+private fun uniqueFolderNames(name:String)=generateSequence(2) { it+1 }.map { "$name ($it)" }
 /** "ad (2).pdf", "ad (3).pdf"… */
 private fun uniqueNames(name:String):Sequence<String> {
     val base=name.substringBeforeLast('.'); val ext=name.substringAfterLast('.',"")
@@ -166,6 +182,12 @@ class FileSourceTree(private val root:File,override val writable:Boolean=true):S
         val target=(sequenceOf(name)+uniqueNames(name)).map { File(trash,it) }.first { !it.exists() }
         check(File(root,documentId).renameTo(target)) { "Dosya çöpe taşınamadı." }; return id(target)
     }
+    override fun hasFolder(path:String)=path.isNotEmpty() && at(path).isDirectory
+    override fun trashFolder(path:String) {
+        val trash=File(root,TRASH_FOLDER).apply { mkdirs() }; val name=path.substringAfterLast('/')
+        val target=(sequenceOf(name)+uniqueFolderNames(name)).map { File(trash,it) }.first { !it.exists() }
+        check(at(path).renameTo(target)) { "Klasör çöpe taşınamadı." }
+    }
     override fun restoreFromTrash(documentId:String,toPath:String,originalName:String):String {
         val target=File(at(toPath),originalName); if(target.exists()) throw NameTakenException(originalName)
         target.parentFile!!.mkdirs(); check(File(root,documentId).renameTo(target)) { "Dosya geri getirilemedi." }; return id(target)
@@ -199,6 +221,8 @@ class SyncIndex(private val file:File) {
         save(entries.map { if(it.key==key) change(it) else it },folders,lastSync)
     }
     fun addFolder(path:String) { load(); save(entries,(folders+path).distinct().sorted(),lastSync) }
+    /** [path] ve alt klasörlerini listeden çıkarır. */
+    fun removeFolderTree(path:String) { load(); save(entries,folders.filterNot { it==path || it.startsWith("$path/") },lastSync) }
     var entries:List<SyncEntry> = emptyList(); private set
     var folders:List<String> = emptyList(); private set
     var lastSync:Long=0; private set
@@ -231,12 +255,14 @@ class SyncIndex(private val file:File) {
     }
 }
 
-data class SyncReport(val imported:Int=0,val moved:Int=0,val missing:Int=0,val replaced:Int=0,val failed:Int=0,val complete:Boolean=true) {
+data class SyncReport(val imported:Int=0,val moved:Int=0,val missing:Int=0,val replaced:Int=0,val failed:Int=0,val complete:Boolean=true,
+    val returned:Int=0) {
     val summary get()=buildList {
         if(imported>0) add("$imported yeni PDF not oldu")
         if(moved>0) add("$moved not taşındı")
         if(replaced>0) add("$replaced PDF değişti, yeni sürüm ayrı not")
-        if(missing>0) add("$missing kaynak bulunamadı")
+        if(missing>0) add("dosyası silinen $missing not çöp kutusuna taşındı")
+        if(returned>0) add("dosyası geri gelen $returned not çöpten döndü")
         if(failed>0) add("$failed PDF açılamadı")
         if(!complete) add("bazı klasörler okunamadı")
     }.joinToString(" · ").ifEmpty { "Klasör güncel" }
@@ -248,7 +274,8 @@ data class SyncReport(val imported:Int=0,val moved:Int=0,val missing:Int=0,val r
  * - Aynı belge yeniden görülürse tekrar oluşturulmaz. Boyut/zaman yalnız ipucudur; değişince yeniden hash alınır.
  * - İçerik değişirse eski not ve yazıları korunur, yeni sürüm ayrı not olur.
  * - Kaybolan kaynakla aynı içerikte tek yeni belge varsa taşıma sayılır; not ve yazılar korunur, klasör güncellenir.
- * - Yalnız tamamlanmış taramada yokluk "kayıp" sayılır; not asla silinmez.
+ * - Yalnız tamamlanmış taramada yokluk "kayıp" sayılır. Dosyası Dosyalarım'dan silinen not (12 Kasım 2026 kullanıcı kararı)
+ *   çöp kutusuna taşınır; çöpte 30 gün durur, yazılar geri yüklenebilir. Dosya geri gelirse not çöpten kendiliğinden döner.
  */
 class FolderSync(private val library:NoteLibrary,private val index:SyncIndex,private val tree:SourceTree) {
     fun run():SyncReport {
@@ -257,12 +284,14 @@ class FolderSync(private val library:NoteLibrary,private val index:SyncIndex,pri
         val folders=scan.items.filter { it.isDirectory }.map { if(it.path.isEmpty()) it.name else "${it.path}/${it.name}" }.sorted()
         val old=index.entries
         // Etkin kayıtlar eşlenir; değişmiş (REPLACED) ve çöpteki (TRASHED) kayıtlar olduğu gibi korunur.
-        val active=old.filter { it.documentId!=null && (it.state==SourceState.AVAILABLE || it.state==SourceState.MISSING) }
+        // Notu kalıcı silinmiş (ne listede ne çöpte) kayıtlar eşlenmez; dosyası yeniden konursa yeni not olur.
+        val alive={ e:SyncEntry -> library.directory(e.key).exists() || library.trash().directory(e.key).exists() }
+        val active=old.filter { it.documentId!=null && (it.state==SourceState.AVAILABLE || it.state==SourceState.MISSING) && alive(it) }
         val byDoc=active.associateBy { it.documentId!! }
         val trashedDocs=old.filter { it.state==SourceState.TRASHED }.mapNotNull { it.documentId }.toSet()
         val seen=files.map { it.documentId }.toSet()
         val result=ArrayList<SyncEntry>()
-        var imported=0; var moved=0; var replaced=0; var failed=0
+        var imported=0; var moved=0; var replaced=0; var failed=0; returned=0
         // Kaybolmuş (bu taramada görülmeyen) kayıtlar taşıma adayıdır.
         val vanished=active.filter { it.documentId !in seen }.toMutableList()
         val untouched=old.filter { it !in active }
@@ -307,14 +336,26 @@ class FolderSync(private val library:NoteLibrary,private val index:SyncIndex,pri
         // Görülmeyenler: tamamlanmış taramada kayıp, eksik taramada bilinmiyor (eski hali korunur).
         var missing=0
         vanished.forEach { e ->
-            if(scan.complete) { result+=e.copy(state=SourceState.MISSING); if(e.state!=SourceState.MISSING) missing++ }
+            if(scan.complete) {
+                result+=e.copy(state=SourceState.MISSING)
+                // Yeni kaybolan (önceden AVAILABLE) not çöpe gider; zaten MISSING olan (ör. kullanıcının çöpten geri aldığı) tekrar atılmaz.
+                if(e.state!=SourceState.MISSING) {
+                    if(library.directory(e.key).exists() && !library.trash().directory(e.key).exists()) runCatching { library.moveToTrash(e.key) }
+                    missing++
+                }
+            }
             else result+=e
         }
         index.save(result,if(scan.complete) folders else (index.folders+folders).distinct().sorted(),System.currentTimeMillis())
-        return SyncReport(imported,moved,missing,replaced,failed,scan.complete)
+        return SyncReport(imported,moved,missing,replaced,failed,scan.complete,returned)
     }
+    private var returned=0
     /** Kaynak taşındı/adı değişti: not klasörü güncellenir (kaynak kazanır), yazılar korunur. */
     private fun relocate(entry:SyncEntry,item:SourceItem):SyncEntry {
+        // Dosyası silindiği için çöpe giden not, dosya geri gelince çöpten döner.
+        if(entry.state==SourceState.MISSING && !library.directory(entry.key).exists() && library.trash().directory(entry.key).exists()) {
+            library.restoreFromTrash(entry.key); returned++
+        }
         if(entry.path!=item.path || entry.name!=item.name) {
             val oldTitle=titleOf(entry.name)
             library.moveNote(entry.key,item.path,oldTitle,titleOf(item.name))
