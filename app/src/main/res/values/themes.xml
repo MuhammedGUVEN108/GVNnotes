@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- GVNpen ayar ekranı: GVNnotes "Petrol Ada" vurgusu (indigo). Metin/zemin renkleri koddan, Prefs temasından gelir. -->
+    <style name="GVNpen.Settings.Light" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:colorAccent">#FF4F57B0</item>
+        <item name="android:colorControlActivated">#FF4F57B0</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+    <style name="GVNpen.Settings.Dark" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:colorAccent">#FFB5BAF6</item>
+        <item name="android:colorControlActivated">#FFB5BAF6</item>
+    </style>
+</resources>

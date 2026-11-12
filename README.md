@@ -12,7 +12,7 @@ Proje merkezi: `D:/Sanal Desktop/GVNnotes`.
 
 ## Mevcut durum
 
-**0.11.0 — "Petrol Ada" arayüzü (12 Kasım 2026).** Kütüphanede kalıcı yüzen klasör ağacı, düzenleyicide konum çipi + Klasör adası, ada biçiminde ayarlar ve yeni not penceresi. Yazma tarafı GVNpen ile aynı kaldı. Tasarım: `D:/Sanal Desktop/GVNnotes Arayüz Sheetleri/6-petrol-ada.html`. Cihazda henüz denenmedi.
+**0.11.0 — "Petrol Ada" arayüzü (12 Kasım 2026).** Kütüphanede kalıcı yüzen klasör ağacı, düzenleyicide konum çipi + Klasör adası, ada biçiminde ayarlar ve yeni not penceresi. Yazma tarafı GVNpen ile aynı kaldı. Tasarım: `D:/Sanal Desktop/GVNnotes Arayüz Sheetleri/6-petrol-ada.html`. GVNpen şeridi de aynı renklerde. Tablette tüm otomatik testler geçti; kullanıcı denemesi bekleniyor.
 
 **0.9.0 — ilk kullanılabilir sürüm adayı.** PDF/resim/boş sayfa notları, çok sayfa, sayfa sıralayıcı ve şablonlar; Samsung Notes düzeninde arayüz; S Pen kalem/fosforlu, tüm çizgi ve alan silgisi, S Pen yan düğmesi, akıllı şekil, kement seçimi; otomatik kayıt; `Documents/GVNnotes` iki yönlü klasör eşitlemesi; çöp kutusu; PDF olarak dışa aktarma; ayarlar ve hata kaydı.
 

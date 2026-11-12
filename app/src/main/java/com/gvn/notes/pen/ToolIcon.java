@@ -11,8 +11,8 @@ public class ToolIcon extends View {
     private final Path glyph=new Path(),work=new Path();private java.util.List<Geometry.Stroke> preview;private int previewColor;
     private GradientDrawable bg;private int bgColor,bgStroke;private boolean bgSelected;
     ToolIcon(Context c,String n,String label,Prefs f){super(c);name=n;prefs=f;setContentDescription(label);setTooltipText(label);setFocusable(true);setClickable(true);build();refresh();}
-    void refresh(){int color=selected?(prefs.light?0xffb4deea:0xff1e5669):prefs.surface(),stroke=selected?prefs.accent:0;if(bg!=null&&color==bgColor&&stroke==bgStroke&&selected==bgSelected)return;bgColor=color;bgStroke=stroke;bgSelected=selected;
-        bg=new GradientDrawable();bg.setColor(color);bg.setCornerRadius(7*getResources().getDisplayMetrics().density);if(selected)bg.setStroke((int)(2*getResources().getDisplayMetrics().density),stroke);setBackground(bg);invalidate();}
+    void refresh(){int color=selected?prefs.selectedBg():prefs.surface(),stroke=selected?prefs.ui():0;if(bg!=null&&color==bgColor&&stroke==bgStroke&&selected==bgSelected)return;bgColor=color;bgStroke=stroke;bgSelected=selected;
+        bg=new GradientDrawable();bg.setColor(color);bg.setCornerRadius(12*getResources().getDisplayMetrics().density);if(selected)bg.setStroke((int)(2*getResources().getDisplayMetrics().density),stroke);setBackground(bg);invalidate();}
     /** Dimmed icons (nothing to undo/redo) draw their glyph at reduced opacity; the background is unchanged. */
     void setDimmed(boolean value){if(dimmed!=value){dimmed=value;invalidate();}}
     static void line(Path z,float...xy){z.moveTo(xy[0],xy[1]);for(int i=2;i<xy.length;i+=2)z.lineTo(xy[i],xy[i+1]);}

@@ -11,9 +11,12 @@ Kullanıcı arayüzleri beğenmedi; altı tasarım yönü arasından **6-Petrol 
 - **Yeni not:** büyük pencere: ad, klasör ağacından konum seçimi (yeni: not doğrudan seçilen klasörde oluşur), dört şablon önizlemesi.
 - Cihaz testleri yeni düzene uyarlandı (geniş ekranda klasör ağacı hep açık, çekmece düğmesi yalnız dar ekranda).
 
-Doğrulama: core + app JVM testleri ve lint geçti; cihaz testleri derleniyor. **Tablet bağlı değildi: cihaz testleri çalıştırılmadı, arayüz cihazda görülmedi.**
+- **GVNpen şeridi ve ayar ekranı renkleri** (kullanıcı isteği: "ayrıksı durmasın, özellikleri bozma"): yalnız görünüm değişti. Açık tema = ada yüzeyi #F9FBFF, seçili araç indigo zemin + vurgu çerçevesi, ayraçlar #CAD3E3, köşeler 20 dp (şerit/menü) ve 12 dp (düğme); koyu tema gece mavisi ada #1F2D42. Kaydırıcı/seçili düğme kullanıcının vurgu rengini kullanır. Ayar ekranına indigo tema (radyo, anahtar, açık durum çubuğu). Ayar biçimi 5: eski varsayılan vurgu (#4FC4DD) indigoya, tema açığa geçer; kullanıcının seçtiği özel vurgu korunur; Görünüm → Açık tema ile koyu temaya dönülebilir.
+- Tablet ilk görüntülerinde bulunan kusurlar düzeltildi: "Kaydedildi" GVNpen şeridinin altında kalıyordu (alt orta adaya taşındı); üst çubuk düğmeleri sağa yaslanmıyordu.
 
-APK: `dist/GVNnotes-0.11.0.apk`, SHA256 `ce9836173dcec356ac44663dbf73337ac77d234760dcb5d21f3928eacbd179bc`.
+Doğrulama (SM-X810, 12 Kasım 2026): core + app JVM testleri ve lint geçti; **13 cihaz aşaması + 2 kütüphane aşaması geçti** (son çalıştırma GVNpen renk değişikliğinden sonra). Kütüphane, düzenleyici, klasör adası, sayfa adası, ayarlar, yeni not, GVNpen şeridi/menüsü/ayarları ekran görüntüsüyle kontrol edildi (`logs/ui-0.11.0/`). Kullanıcının notları yerinde.
+
+APK: `dist/GVNnotes-0.11.0.apk`, SHA256 `64554c3b082d55291994b0b58690e112e94fea7aef1c0916cd77e2750a114998`.
 
 ## 0.10.0 — Yazma tarafı GVNpen ile aynı, 12 Kasım 2026
 

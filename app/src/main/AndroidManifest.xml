@@ -9,6 +9,6 @@
             </intent-filter>
         </activity>
         <activity android:name=".pen.PenSettingsActivity" android:exported="false" android:label="GVNpen · Ayarlar"
-            android:theme="@android:style/Theme.Material.NoActionBar"/>
+            android:theme="@style/GVNpen.Settings.Light"/>
     </application>
 </manifest>
