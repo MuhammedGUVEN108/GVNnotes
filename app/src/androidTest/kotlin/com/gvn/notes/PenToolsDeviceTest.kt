@@ -120,5 +120,27 @@ class PenToolsDeviceTest {
         ui { editor.insertBlankPageAfter(0) }; settle()
         ui { editor.insertBlankPageAfter(0) }; settle()
         ui { assertEquals(firstId,editor.pages[0].id); assertEquals(3,editor.pages.size); assertEquals(listOf(0,1,2),editor.pages.map { it.order }) }
+
+        // Silgi ekranda sabit boy (12 Kasım 2026): 2 kat yakınlaştırınca aynı silgi sayfada yarı genişlikte siler.
+        ui { page.clearCurrentPage() }; settle()
+        fun gapAt(zoom:Float):Float {
+            ui { page.usePen(width=6f) }
+            pen((0..20).map { 300f+it*20f to 500f })
+            if(zoom!=1f) ui { val c=editor.viewport.toScreen(500f,500f); editor.viewport=editor.viewport.zoomAt(zoom,c.first,c.second); page.refresh() }
+            ui { page.usePen(tool="eraser",whole=false,eraser=40f) }
+            pen((0..10).map { 500f to 470f+it*6f })
+            var gap=0f
+            ui {
+                val pieces=editor.history.items.filter { it.data.pageId==editor.pages[0].id }
+                assertEquals("alan silgisi ikiye kesmeli",2,pieces.size)
+                val left=pieces.minOf { s -> s.data.samples.maxOf { it.x } }; val right=pieces.maxOf { s -> s.data.samples.minOf { it.x } }
+                gap=right-left
+            }
+            ui { page.clearCurrentPage() }; settle()
+            if(zoom!=1f) ui { val c=editor.viewport.toScreen(500f,500f); editor.viewport=editor.viewport.zoomAt(1f/zoom,c.first,c.second); page.refresh() }
+            return gap
+        }
+        val normal=gapAt(1f); val zoomed=gapAt(2f)
+        assertTrue("2x yakında silinen genişlik yarıya inmeli: $normal → $zoomed",zoomed in normal*.35f..normal*.65f)
     }
 }

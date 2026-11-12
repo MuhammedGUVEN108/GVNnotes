@@ -161,7 +161,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
             val h = hoverScreen ?: return
             if (!drawing || editor.lassoMode) return
             if (eraserCursor()) {
-                val radius = prefs.eraser/2*editor.viewport.scale
+                val radius = eraserScreenRadius()
                 cursorPaint.style=Paint.Style.STROKE; cursorPaint.strokeWidth=2.5f*density; cursorPaint.color=Color.WHITE; c.drawCircle(h.x,h.y,radius,cursorPaint)
                 cursorPaint.strokeWidth=density; cursorPaint.color=0xff18222e.toInt(); c.drawCircle(h.x,h.y,radius,cursorPaint)
             } else if (prefs.showCursor) {
@@ -192,6 +192,11 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     fun savePrefs() { prefs.save(context) }
     private fun drawGeo(c: Canvas, s: Geometry.Stroke) = PenRenderer.drawStroke(c,s,0,s.points.size,paint,prefs.smooth,strokePath,null)
     private fun eraserCursor() = temp || prefs.tool=="eraser"
+    /**
+     * Silgi yarıçapı ekran ölçüsündedir (GVNpen'deki gibi dp): yakınlaştırma ne olursa olsun imleç aynı boyda görünür
+     * ve tam imlecin altını siler (kullanıcı isteği, 12 Kasım 2026). Sayfadaki karşılığı ölçeğe bölünerek bulunur.
+     */
+    private fun eraserScreenRadius() = prefs.eraser/2*density
 
     // ---------------- Sayfa yerleşimi ve görünüm ----------------
     private fun layoutPages() {
@@ -429,9 +434,9 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     private fun erase(pageIndex:Int,p:Geometry.Point) {
         val page=editor.pages.getOrNull(pageIndex) ?: return
         if(!erasing) { erasing=true; last=null }
-        val radius=prefs.eraser/2
+        val radius=eraserScreenRadius()/editor.viewport.scale // Ekranda sabit boy: yakınlaştırınca sayfada küçülür.
         val prev=last
-        val from=if(prev!=null && Geometry.distance(prev,p)<max(64f,prefs.eraser*4)) prev else p
+        val from=if(prev!=null && Geometry.distance(prev,p)<max(64f,prefs.eraser*4)*density/editor.viewport.scale) prev else p
         val list=working ?: editor.history.items
         var out:MutableList<RenderedStroke>?=null
         list.forEachIndexed { k,rs ->

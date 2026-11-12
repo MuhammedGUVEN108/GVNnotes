@@ -2,6 +2,14 @@
 
 > Sürüm sürüm doğrulama günlüğü; en yeni girdi en üstte. Eski girdiler o günün kararlarını yansıtır (ör. Jetpack Ink, Samsung Notes düzeni); güncel kurallar için [AGENTS.md](../AGENTS.md).
 
+## 0.12.1 — Silgi ekranda sabit boy, 12 Kasım 2026
+
+Kullanıcı: "silginin belli bir boyutu var ama ekranı yaklaştırınca silgi daha büyük oluyor, imleç devasa oluyor; tutarlılığı sağlamalıyız." Silgi yarıçapı artık ekran ölçüsünde (GVNpen'deki gibi boyut/2 dp): yakınlaştırma ne olursa olsun imleç aynı boyda, sildiği alan tam imlecin altı; sayfadaki karşılığı ölçeğe bölünür. Kalem kalınlığı değişmedi (sayfa ölçüsünde kalır).
+
+Doğrulama: derleme, JVM testleri, lint geçti. Yeni cihaz denetimi (`pen-tools`): aynı silgi 2× yakınlaştırmada sayfada yarı genişlikte siler. **Tablet bağlantısı koptuğu için cihaz testleri henüz çalıştırılmadı** (TEST-DURUMU.md'de ilgili birimler ⬜).
+
+APK: `dist/GVNnotes-0.12.1.apk`, SHA256 `4a7b73b2aa343b9f34b67b5a7a9dec2f98455ef81f374a56d4c5e777b955122f`.
+
 ## 0.12.0 — Klasör silme, 30 günlük çöp, silinen dosyanın notu çöpe; akıllı test atlama, 12 Kasım 2026
 
 Kullanıcı istekleri: "klasör silme gelmeli, silince alt klasörleriyle beraber hepsi silinmeli"; "çöp kutusunda 30 gün süre koymalı, sonra kalıcı silinmeli"; "Dosyalarım'dan bir dosya silinirse not karşılığı da çöp kutusuna taşınsın"; "bir test daha önce test edilmişse ve o alanda yeni özellik eklenmemişse test etme, tik koyarak tut".
