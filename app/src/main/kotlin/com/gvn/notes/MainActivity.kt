@@ -192,7 +192,7 @@ private val Divider=Ada.Line
                 }
                 Text(if(revision>=0) editor.note.title else "",style=MaterialTheme.typography.titleLarge,color=Ink,maxLines=1,
                     overflow=TextOverflow.Ellipsis,fontWeight=FontWeight.SemiBold,
-                    modifier=Modifier.weight(1f,fill=false).padding(start=8.dp).clickable(enabled=canEdit,onClickLabel="Başlığı değiştir") { renaming=true })
+                    modifier=Modifier.widthIn(max=560.dp).padding(start=8.dp).clickable(enabled=canEdit,onClickLabel="Başlığı değiştir") { renaming=true })
                 if(folder?.path!=null) FolderChip(folder.path,folderIsland,enabled=!closing) { folderIsland=!folderIsland }
                 Spacer(Modifier.weight(1f))
                 TopAction(Icons.Outlined.Gesture,"Kement seçimi",editor.lassoMode,editor.ready) {
@@ -254,13 +254,14 @@ private val Divider=Ada.Line
                 if(sorter && !fullscreen) Island(Modifier.align(Alignment.TopEnd).padding(top=80.dp,end=16.dp,bottom=80.dp).width(212.dp).fillMaxHeight()) {
                     PageSorter(editor,revision,canEdit,onClose={sorter=false}) { i -> pageView?.scrollToPage(i) }
                 }
-                // Alt adalar: solda kayıt durumu, ortada sayfa sayacı.
+                // Alt orta ada: kayıt durumu + sayfa sayacı (sol alt GVNpen şeridine ait; orada kalırsa şeridin altına girer).
                 val status=if(closing) "Notlara dönülüyor…" else if(editor.busy) "Çiziliyor…" else editor.saveStatus
-                if(status.isNotEmpty()) Pill(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
-                    Icon(Icons.Outlined.CloudDone,null,tint=Accent,modifier=Modifier.padding(start=14.dp).size(16.dp))
-                    Text(status,color=Muted,style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(start=8.dp,end=16.dp,top=10.dp,bottom=10.dp))
-                }
                 Pill(Modifier.align(Alignment.BottomCenter).padding(bottom=16.dp)) {
+                    if(status.isNotEmpty()) {
+                        Icon(Icons.Outlined.CloudDone,null,tint=Accent,modifier=Modifier.padding(start=16.dp).size(16.dp))
+                        Text(status,color=Muted,style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(start=8.dp,end=12.dp))
+                        Box(Modifier.width(1.dp).height(24.dp).background(Divider))
+                    }
                     Text("Sayfa ${editor.currentPage+1} / ${editor.pages.size}",color=Ink,style=MaterialTheme.typography.labelLarge,
                         modifier=Modifier.padding(start=18.dp,end=6.dp).testTag("page-indicator")
                             .semantics { contentDescription="Sayfa ${editor.currentPage+1} / ${editor.pages.size}" })
