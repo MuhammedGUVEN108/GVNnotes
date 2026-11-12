@@ -2,6 +2,19 @@
 
 > Sürüm sürüm doğrulama günlüğü; en yeni girdi en üstte. Eski girdiler o günün kararlarını yansıtır (ör. Jetpack Ink, Samsung Notes düzeni); güncel kurallar için [AGENTS.md](../AGENTS.md).
 
+## 0.13.0 — GVNpen şeridi yatay da olabilir, 12 Kasım 2026
+
+Kullanıcı: "GVNpen'i yukarıdan aşağı pozisyonun yanında soldan sağa pozisyona da ekleyebilir miyiz… ayarlardan olmasın, arayüzde küçük bir tuş olsun"; "döndür simgesini internetten al"; "yataya geçince boyalar sığmamış, yatayda biraz küçült".
+
+- Şeritte tutamağın altında küçük **Şeridi döndür** düğmesi (tutamak kadar ince). Dokununca dikey ↔ yatay; seçim GVNpen profiline `ToolbarOrientation` olarak yazılır (eski profiller dikey kalır). Araçlar, sıra, menüler ve zamanlamalar aynı; katlanma yatayda genişlikte çalışır, menüler şeridin altında (yer yoksa üstünde) açılır.
+- Yataya geçince şerit altta, sayfa sayacının üstüne ortalanır (üstteki konum çipi ve yakınlaştırma paneliyle çakışmaz); dikeye dönünce eski köşesine.
+- Yatayda düğmeler 32 dp, 2×2 renkler küçük, logo dar: dik ekranda da sığar.
+- Simge: Lucide `rotate-cw-square` (ISC), lisans `docs/UCUNCU-TARAF.md`.
+
+Doğrulama: derleme, JVM testleri, lint geçti. `pen-tools` dahil etkilenen 7 birim yatay şerit denetimiyle (yön, araçların aynı kalması, menünün şeridin altında açılması) tablette geçti — küçültme ve alta yerleştirme bundan sonra yapıldı; bu son hali için birimler ⬜. Tablette ekran görüntüsünde yatay şerit renkleri ve logo sığıyor. Not: tablette kullanıcının ayrı GVNpen uygulaması (com.gvn.pen) ekran üstü katman olarak açıktı; ikinci (koyu) şerit odur.
+
+APK: `dist/GVNnotes-0.13.0.apk`, SHA256 `d7d80652692816a73360c1912da223121c2e19cddbfa46f744243cfdf4dadccf`.
+
 ## 0.12.1 — Silgi ekranda sabit boy, 12 Kasım 2026
 
 Kullanıcı: "silginin belli bir boyutu var ama ekranı yaklaştırınca silgi daha büyük oluyor, imleç devasa oluyor; tutarlılığı sağlamalıyız." Silgi yarıçapı artık ekran ölçüsünde (GVNpen'deki gibi boyut/2 dp): yakınlaştırma ne olursa olsun imleç aynı boyda, sildiği alan tam imlecin altı; sayfadaki karşılığı ölçeğe bölünür. Kalem kalınlığı değişmedi (sayfa ölçüsünde kalır).

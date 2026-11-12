@@ -30,13 +30,16 @@ public class ToolIcon extends View {
             case "clear":line(z,3,6,21,6);line(z,7,6,8,22,17,22,18,6);line(z,9,6,9,2,15,2,15,6);line(z,11,10,11,18);line(z,15,10,15,18);break;
             case "settings":for(int i=0;i<8;i++){double a=i*Math.PI/4;line(z,12+8*(float)Math.cos(a),12+8*(float)Math.sin(a),12+11*(float)Math.cos(a),12+11*(float)Math.sin(a));}break;
             case "close":line(z,5,5,19,19);line(z,19,5,5,19);break;
+            // GVNnotes eki: şeridi döndür (dikey ↔ yatay). Simge: Lucide "rotate-cw-square" v0.460.0, ISC lisansı (docs/UCUNCU-TARAF.md).
+            case "rotate":z.addPath(androidx.core.graphics.PathParser.createPathFromPathData(
+                "M12 5H6a2 2 0 0 0-2 2v3M9 8l3-3-3-3M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"));break;
         }
     }
     @Override protected void onDraw(Canvas c){super.onDraw(c);c.save();float scale=Math.min(getResources().getDisplayMetrics().density,Math.min(getWidth()/26f,getHeight()/26f));c.translate((getWidth()-24*scale)/2,(getHeight()-24*scale)/2);c.scale(scale,scale);int ink=prefs.text();p.setColor(dimmed?ink&0xffffff|0x66000000:ink);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(1.7f);p.setStrokeCap(Paint.Cap.ROUND);p.setStrokeJoin(Paint.Join.ROUND);
         switch(name){
             case "grip":for(int x=9;x<=15;x+=6)for(int y=5;y<=19;y+=7)c.drawCircle(x,y,.8f,p);break;
             case "eye":c.drawPath(glyph,p);c.drawCircle(12,12,3,p);break;
-            case "cursor":case "pen":case "highlighter":case "eraser":case "line":case "arrow":case "triangle":case "undo":case "clear":case "close":c.drawPath(glyph,p);break;
+            case "cursor":case "pen":case "highlighter":case "eraser":case "line":case "arrow":case "triangle":case "undo":case "clear":case "close":case "rotate":c.drawPath(glyph,p);break;
             case "rectangle":c.drawRect(3,4,21,20,p);break;
             case "ellipse":c.drawOval(2,5,22,19,p);break;
             case "thickness":p.setStyle(Paint.Style.FILL);for(int i=0;i<3;i++)c.drawCircle(4+i*8,12,1.3f+i*1.1f,p);break;

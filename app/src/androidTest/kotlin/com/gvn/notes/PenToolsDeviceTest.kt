@@ -142,5 +142,32 @@ class PenToolsDeviceTest {
         }
         val normal=gapAt(1f); val zoomed=gapAt(2f)
         assertTrue("2x yakında silinen genişlik yarıya inmeli: $normal → $zoomed",zoomed in normal*.35f..normal*.65f)
+
+        // Yatay şerit (0.13.0): döndür düğmesi şeridi yataya çevirir; araçlar aynı, menü şeridin altında açılır.
+        fun bar():com.gvn.notes.pen.PenToolbar { var b:com.gvn.notes.pen.PenToolbar?=null
+            fun walk(v:View){ if(v is com.gvn.notes.pen.PenToolbar) b=v else if(v is ViewGroup) for(i in 0 until v.childCount) walk(v.getChildAt(i)) }
+            walk(activity.window.decorView); return b!! }
+        fun f(name:String):Any? { val t=bar(); return com.gvn.notes.pen.PenToolbar::class.java.getDeclaredField(name).apply { isAccessible=true }.get(t) }
+        fun icon(name:String)=(f("icons") as Map<*,*>)[name] as View
+        val before=(f("icons") as Map<*,*>).keys.toSet()
+        // Döndür düğmesi ayarı kaydeder (kullanıcı ayarı); testte kaydetmeden aynı yerleşimi kurarız.
+        ui { assertFalse(page.prefs.horizontal); assertNotNull(icon("rotate")); page.prefs.horizontal=true; bar().buildBar() }
+        inst.waitForIdleSync(); SystemClock.sleep(300)
+        ui {
+            assertTrue(page.prefs.horizontal)
+            assertEquals(android.widget.LinearLayout.HORIZONTAL,(f("bar") as android.widget.LinearLayout).orientation)
+            assertTrue("yatay şerit enine uzun olmalı",(f("barW") as Int)>(f("barH") as Int))
+            assertEquals("araçlar değişmemeli",before,(f("icons") as Map<*,*>).keys.toSet())
+            icon("thickness").performClick()
+        }
+        inst.waitForIdleSync(); SystemClock.sleep(300)
+        ui {
+            val popup=f("popup") as View
+            val barY=f("barY") as Int; val barH=f("barH") as Int
+            assertTrue("menü şeridin altında ya da üstünde olmalı",popup.translationY>=barY+barH || popup.translationY+popup.height<=barY)
+            bar().closePopup(); page.prefs.horizontal=false; bar().buildBar()
+        }
+        inst.waitForIdleSync(); SystemClock.sleep(300)
+        ui { assertFalse(page.prefs.horizontal); assertEquals(android.widget.LinearLayout.VERTICAL,(f("bar") as android.widget.LinearLayout).orientation) }
     }
 }
