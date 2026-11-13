@@ -40,27 +40,65 @@ class PageStoreDeviceTest {
             assertEquals(before.geo.marker,after.geo.marker)
         }
     }
-    @Test fun damagedLatestFallsBackAndNoValidSlotFailsWithoutOverwrite() {
-        val dir=File(InstrumentationRegistry.getInstrumentation().targetContext.cacheDir,"store-recovery-test")
-        dir.deleteRecursively()
-        val store=PageStore(dir); store.save(persistenceFixture(1,1)); store.save(persistenceFixture(2,2))
-        val latest=File(dir,"document-a.gvn"); latest.writeBytes(latest.readBytes().copyOf(30))
-        val recovered=PageStore(dir).open()
-        assertTrue(recovered.recovered); assertEquals(1L,recovered.snapshot!!.revision)
-        assertEquals(1,recovered.snapshot.strokes.size)
-        val other=File(dir,"document-b.gvn"); other.writeBytes(byteArrayOf(7,8,9))
-        val before=latest.readBytes(); val beforeOther=other.readBytes()
+    @Test fun damagedDatabaseFailsWithoutDeletingTheFile() {
+        val dir=File(InstrumentationRegistry.getInstrumentation().targetContext.cacheDir,"store-corruption-test")
+        dir.deleteRecursively(); PageStore(dir).save(persistenceFixture(1,1))
+        val db=PageStore.databaseFile(dir); db.writeBytes(ByteArray(256) { 7 })
+        val before=db.readBytes()
         assertTrue(runCatching { PageStore(dir).open() }.isFailure)
-        assertArrayEquals(before,latest.readBytes()); assertArrayEquals(beforeOther,other.readBytes())
+        assertArrayEquals(before,db.readBytes())
     }
-    @Test fun failedCommitDoesNotReportSuccessOrDestroyPreviousSnapshot() {
+    @Test fun failedTransactionPreservesPreviousRevision() {
         val dir=File(InstrumentationRegistry.getInstrumentation().targetContext.cacheDir,"store-failed-commit-test")
         dir.deleteRecursively()
         val store=PageStore(dir); store.save(persistenceFixture(1,1))
-        // Sonraki slotun hedefini klasör yaparak gerçek dosya commit hatası üret.
-        File(dir,"document-a.gvn").apply { mkdirs(); File(this,"blocker").writeText("test-owned commit blocker") }
+        PageInkDatabase.connection(PageStore.databaseFile(dir),true).use {
+            it.execSQL("CREATE TRIGGER reject_test BEFORE INSERT ON strokes WHEN NEW.id='saved-stroke-1' BEGIN SELECT RAISE(ABORT,'test rollback'); END")
+        }
         assertTrue(runCatching { store.save(persistenceFixture(2,2)) }.isFailure)
-        val restored=PageStore(dir).open()
-        assertEquals(1L,restored.snapshot!!.revision); assertEquals(1,restored.snapshot.strokes.size)
+        val restored=PageStore(dir).open().snapshot!!
+        assertEquals(1L,restored.revision); assertEquals(1,restored.strokes.size)
+    }
+    @Test fun incompleteSampleSetCannotBeReadAsValidInk() {
+        val dir=File(InstrumentationRegistry.getInstrumentation().targetContext.cacheDir,"store-incomplete-test")
+        dir.deleteRecursively(); PageStore(dir).save(persistenceFixture(1,1))
+        PageInkDatabase.connection(PageStore.databaseFile(dir),true).use { db ->
+            db.execSQL("UPDATE sample_sets SET count=count+1")
+            db.execSQL("UPDATE strokes SET count=count+1")
+        }
+        SampleMemory.clearUnpinned()
+        val samples=PageStore(dir).open().snapshot!!.strokes.first().data.samples
+        assertTrue(runCatching { samples.last() }.isFailure)
+    }
+    @Test fun lazyPagesAndIncrementalAppendDoNotRewriteOtherInk() {
+        val dir=File(InstrumentationRegistry.getInstrumentation().targetContext.cacheDir,"store-paged-test")
+        dir.deleteRecursively()
+        val base=persistenceFixture(1,1)
+        val pages=List(100) { base.page.copy(id="page-$it",order=it) }
+        val store=PageStore(dir)
+        // Sayfaları artımlı doldur: toplam 30.000 çizgi / 2.880.000 nokta (eski sınırların üstü).
+        val history=PageHistory()
+        for(page in pages) {
+            val strokes=List(300) { n -> RenderedStroke(PageStroke("${page.id}-$n",page.id,1,Tool.PEN,0xff123456.toInt(),3f,
+                List(96) { k -> Sample(10f+k,20f+n,.7f,0f,0f,k.toLong()) })) }
+            history.replacePage(page.id,strokes)
+            store.save(PageSnapshot(1L+page.order,base.folder,base.note,pages,history.items,null,history.grouped))
+        }
+        SampleMemory.clearUnpinned()
+        val start=System.nanoTime()
+        val reopened=PageStore(dir); val loaded=reopened.open().snapshot!!
+        android.util.Log.i("GVNnotesPaged","metadataOpenMs=${(System.nanoTime()-start)/1e6}")
+        assertEquals(30_000,loaded.strokes.size)
+        assertFalse((loaded.strokes.first().data.samples as SampleHandle).ready())
+        assertFalse((loaded.strokes.last().data.samples as SampleHandle).ready())
+        assertEquals(105f,loaded.strokes.last().data.samples.last().x,0f)
+        val added=RenderedStroke(base.strokes.first().data.copy(id="new-stroke",pageId=pages[50].id))
+        // copy(strokes=...) geçerli yeni listeyi kullanmalı; eski pageInk haritasını kullanmamalı.
+        reopened.save(loaded.copy(revision=101,strokes=loaded.strokes+added))
+        assertEquals(3L,reopened.lastWrittenPoints); assertEquals(1,reopened.lastWrittenPages)
+        val changed=reopened.open().snapshot!!
+        reopened.save(changed.copy(revision=102,note=changed.note.copy(title="Yeni başlık")))
+        assertEquals(0L,reopened.lastWrittenPoints); assertEquals(0,reopened.lastWrittenPages)
+        assertEquals(30_001,PageStore(dir).open().snapshot!!.strokes.size)
     }
 }

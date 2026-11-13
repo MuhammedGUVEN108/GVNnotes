@@ -13,6 +13,9 @@ Muhammed; Galaxy Tab S9+ (SM-X810, Android 16) ve S Pen ile kendi ders PDF'leri 
 ## Product Purpose
 Dosyalarım'daki `Documents/GVNnotes` klasörüne eklenen PDF/resimleri klasör yapısıyla otomatik not yapmak ve S Pen ile doğrudan sayfaya, GVNpen'deki gibi yazmak.
 
+## Yoğun not davranışı
+100 sayfalık ders dosyasında yıl boyu mürekkep birikmesi temel senaryodur. 0.16.0 sayfa/çizgi bazlı kalıcı SQLite kayıt, noktaları gerektiğinde yükleme ve komşu sayfa hazırlığı kullanır. Zoom sırasında mevcut görüntü ölçeklenir; net karolar arka planda hazırlanır. Soğuk yoğun sayfanın hazırlık süresi olabilir; sınırsız kapasite veya sıfır gecikme garantisi verilmez.
+
 ## Capabilities and Constraints
 - **Yazma tarafı GVNpen ile birebir aynı** (12 Kasım 2026 kullanıcı kararı): tüm özellikler, yazma hissi, geçişler, simgeler. Yalnız renkler GVNnotes temasına uyarlanır.
 - **Arayüz "Petrol Ada"** (12 Kasım 2026 kullanıcı seçimi): kalıcı yüzen klasör ağacı + yüzen paneller. Bkz. DESIGN.md.
@@ -27,7 +30,7 @@ Dosyalarım'daki `Documents/GVNnotes` klasörüne eklenen PDF/resimleri klasör 
 - Veriler yalnız tablette, uygulamanın kendi alanında; internet ve bulut yok. Uygulamayı kaldırmak notları siler.
 
 ## Operating Context
-Proje `D:/Sanal Desktop/GVNnotes`, Windows + PowerShell 5.1, yerel Gradle. Tablet USB ile bağlanır (seri `TABLET-SERI-NO`). Paket kimliği `com.gvn.notes.prototype` notları korumak için sabit. Güncel sürüm 0.15.0: sık liste, belgeyi örtmeyen yan panel ve üst satırda kontroller; 17 tablet test birimi ve görsel doğrulama geçti; tablette kurulu.
+Proje `D:/Sanal Desktop/GVNnotes`, Windows + PowerShell 5.1, yerel Gradle. Tablet USB ile bağlanır (seri `TABLET-SERI-NO`). Paket kimliği `com.gvn.notes.prototype` notları korumak için sabit. Güncel sürüm 0.16.0: sık liste, belgeyi örtmeyen yan panel ve üst satırda kontroller; 17 tablet test birimi ve görsel doğrulama geçti; tablette kurulu.
 
 ## Brand Commitments
 Kalem tarafı GVNpen kimliğini taşır (şerit düzeni, simgeler, GVNpen markası). Uygulama çerçevesi Petrol Ada: açık mavi-gri masa, yüzen yumuşak gölgeli adalar, indigo seçim, petrol mavisi klasör. Samsung Notes yalnız davranış referansı; Samsung kodu/görselleri kopyalanmaz.
@@ -41,4 +44,4 @@ Kullanıcı kütüphanede alan tekrarını ve düzenleyicide panellerin sayfayı
 
 ## Kalıcı birikim ve performans
 
-Hedef kullanım: aynı 100 sayfalık ders dosyası aylar/yıl boyunca mürekkeple dolar. Görünmeyen sayfalar için bitmap ayrılmaz; görünen karolar 64 MiB bütçede tutulur. 100 sayfa/952.320 nokta senaryosu kaydetme/yeniden açmayla doğrulandı. Bu gerçek bir yıl boyunca saha testi değildir; mevcut şema-4 kayıt sınırları (64 MiB, 20.000 çizgi, 2.000.000 nokta) sürer.
+Hedef kullanım: aynı 100 sayfalık ders dosyası aylar/yıl boyunca mürekkeple dolar. Görünmeyen sayfalar için bitmap ayrılmaz; görünen karolar 64 MiB bütçede tutulur. 100 sayfa/952.320 nokta senaryosu kaydetme/yeniden açmayla doğrulandı. Bu gerçek bir yıl boyunca saha testi değildir; yeni şema-6 SQLite biçiminde eski toplam çizgi/nokta/bayt sınırları uygulanmaz. 2000 sayfa sınırı ve cihaz/disk/tek sayfa yoğunluğu pratik sınırları sürer. 100 sayfa / 30.000 çizgi / 2.880.000 nokta ile doğrulandı.

@@ -1,10 +1,12 @@
 # GVNnotes
 
+0.16.0: sayfa bazlı SQLite kayıt, gerektiğinde nokta yükleme, komşu sayfa hazırlığı ve arka planda mürekkep karoları. Yakınlaştırmada hazır görüntü korunur; yeni netlik arka planda tamamlanır. [Kayıt mimarisi](docs/KAYIT-MIMARISI.md).
+
 Galaxy Tab S9+ ve S Pen için PDF, resim ve boş sayfalar üzerine el yazısıyla not uygulaması. Proje merkezi: `D:/Sanal Desktop/GVNnotes`.
 
 Yapay zekâ ajanları önce [AGENTS.md](AGENTS.md) dosyasını okumalı.
 
-## Mevcut durum — 0.15.0 (14 Kasım 2026)
+## Mevcut durum — 0.16.0 (14 Kasım 2026)
 
 - **0.12.0:** klasör silme (alt klasörleriyle), çöp kutusu 30 gün sonra kendiliğinden boşalır, Dosyalarım'dan silinen dosyanın notu çöpe gider (dosya geri gelirse döner). Tablet testleri yalnız ilgili kodu değişenleri çalıştırır ([durum tablosu](docs/TEST-DURUMU.md)).
 
@@ -37,4 +39,4 @@ Kullanıcının sadeleştirilmiş kütüphane ve üst satır düzenini günlük 
 
 APK debug imzalıdır, yerel kurulum içindir. Paket kimliği `com.gvn.notes.prototype` mevcut notları korumak için değiştirilmez.
 
-**0.15.0 — yoğun mürekkep:** görünen sayfa parçaları için 64 MiB bütçeli önbellek, uzun kalem çizgisinin 128 noktalık canlı ucu, kimlik tabanlı önbellekler ve büyük notlarda akışlı kayıt. Aynı tablette 100 sayfa / 952.320 nokta ile ölçüldü; yoğun çizim 365 → 11 ms, uzun canlı çizgi 491 → 12 ms. [Ölçüm ve sınırlar](docs/PERFORMANS.md).
+**Önceki 0.15.0 — yoğun mürekkep:** görünen sayfa parçaları için 64 MiB bütçeli önbellek, uzun kalem çizgisinin 128 noktalık canlı ucu, kimlik tabanlı önbellekler ve büyük notlarda akışlı kayıt. Aynı tablette 100 sayfa / 952.320 nokta ile ölçüldü; yoğun çizim 365 → 11 ms, uzun canlı çizgi 491 → 12 ms. [Ölçüm ve sınırlar](docs/PERFORMANS.md).

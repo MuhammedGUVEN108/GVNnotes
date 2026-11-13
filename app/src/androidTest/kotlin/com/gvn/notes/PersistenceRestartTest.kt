@@ -28,7 +28,7 @@ class PersistenceRestartTest {
         val deadline=SystemClock.uptimeMillis()+15000
         while(SystemClock.uptimeMillis()<deadline) {
             var saved=false; var failure:String?=null
-            ui { saved=editor.ready && !editor.busy && editor.savedVersion==editor.editVersion; failure=editor.problem }
+            ui { saved=editor.ready && !editor.busy && editor.savedVersion==editor.editVersion && editor.pageReady(editor.page.id) && page.inkSettled(); failure=editor.problem }
             assertNull(failure)
             if(saved) { inst.waitForIdleSync(); SystemClock.sleep(180); return }
             SystemClock.sleep(30)

@@ -27,7 +27,7 @@ fun shapeSamples(points:List<PenGeometry.P>)=points.mapIndexed { i,p -> Sample(p
 
 private val boundsCache=WeakIdentityCache<PageStroke,RectF>()
 /** Çizginin sayfa koordinatındaki sınırı (önbellekli). Silgi ve kement ön elemesi için. */
-fun PageStroke.bounds():RectF = boundsCache[this] ?: run {
+fun PageStroke.bounds():RectF = (samples as? SampleHandle)?.bounds ?: boundsCache[this] ?: run {
     val r=RectF(Float.MAX_VALUE,Float.MAX_VALUE,-Float.MAX_VALUE,-Float.MAX_VALUE)
     samples.forEach { r.left=minOf(r.left,it.x); r.top=minOf(r.top,it.y); r.right=maxOf(r.right,it.x); r.bottom=maxOf(r.bottom,it.y) }
     boundsCache[this]=r; r

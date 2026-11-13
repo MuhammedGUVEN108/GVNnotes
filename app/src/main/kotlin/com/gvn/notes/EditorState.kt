@@ -9,7 +9,10 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
 /** Kayıtlı çizgi. GVNpen çizim görünümü (Geometry.Stroke) ilk kullanımda üretilir; çizgiler kayıttan sonra değişmez. */
-data class RenderedStroke(val data: PageStroke) {
+class RenderedStroke(data:PageStroke) {
+    val data=data.copy(samples=SampleHandle.wrap(data.samples))
+    override fun equals(other:Any?)=this===other || (other is RenderedStroke && data==other.data)
+    override fun hashCode()=data.hashCode()
     val geo: com.gvn.notes.pen.Geometry.Stroke get()=geometryCache[this] ?: data.toGeo().also { geometryCache[this]=it }
 }
 
@@ -26,7 +29,7 @@ class EditorState(val directory:File) : ViewModel() {
     var source:NoteSource?=null; private set
     /** PDF arka planı olan notlarda sayfa görüntülerini üretir; boş notlarda null. */
     var pdf:PdfPages?=null; private set
-    val history = History<RenderedStroke>()
+    var history = PageHistory(); private set
     var revision by mutableIntStateOf(0); private set
     var mouseInput by mutableStateOf(false)
     /** Kement seçimi modu (GVNpen şeridinde yok; üst çubuktan açılır). */
@@ -40,10 +43,44 @@ class EditorState(val directory:File) : ViewModel() {
     var ready by mutableStateOf(false); private set
     var saveStatus by mutableStateOf("Açılıyor…"); private set
     var problem by mutableStateOf<String?>(null); private set
+    fun reportPageProblem() { problem="Sayfa görüntüsü hazırlanamadı. Notu yeniden açın; kayıt dosyası korundu." }
     var savedVersion by mutableLongStateOf(0); private set
     var editVersion by mutableLongStateOf(0); private set
     private val store=PageStore(directory)
     private val writes=Channel<PageSnapshot>(Channel.CONFLATED)
+    private val loadingPages=HashSet<String>()
+    private val pageLoadLimit=kotlinx.coroutines.sync.Semaphore(2)
+    private var pinnedGroups:Map<String,List<RenderedStroke>>?=null
+    private var pinnedCurrent=-1
+    fun pageReady(id:String)=history.forPage(id).all { (it.data.samples as SampleHandle).ready() }
+    fun preparePages(visible:List<String>) {
+        if(!ready || pages.isEmpty()) return
+        val center=currentPage.coerceIn(pages.indices)
+        val neighbors=listOf(center,center-1,center+1).filter { it in pages.indices }
+        val pinned=ArrayList<String>(); var points=0L
+        for(i in neighbors) {
+            val count=history.forPage(pages[i].id).sumOf { it.data.samples.size.toLong() }
+            if(i==center || points+count<=600_000) { pinned+=pages[i].id; points+=count }
+        }
+        if(pinnedGroups!==history.grouped || pinnedCurrent!=center) {
+            val refs=pinned.flatMap { history.forPage(it) }.mapNotNull { (it.data.samples as SampleHandle).reference }.toSet()
+            SampleMemory.pin(this,refs); pinnedGroups=history.grouped; pinnedCurrent=center
+        }
+        for(id in (pinned+visible).distinct()) {
+            if(pageReady(id) || !loadingPages.add(id)) continue
+            val handles=history.forPage(id).map { it.data.samples as SampleHandle }
+            viewModelScope.launch {
+                try {
+                    pageLoadLimit.acquire()
+                    try { withContext(Dispatchers.IO) { SampleMemory.prefetch(handles) } } finally { pageLoadLimit.release() }
+                    revision++
+                } catch(e:Exception) {
+                    if(e is CancellationException) throw e
+                    problem="Sayfanın mürekkebi yüklenemedi. Dosya korundu; yeniden deneyin."
+                } finally { loadingPages.remove(id) }
+            }
+        }
+    }
     init {
         open()
         viewModelScope.launch(Dispatchers.IO) {
@@ -52,6 +89,7 @@ class EditorState(val directory:File) : ViewModel() {
                     store.save(snapshot)
                     withContext(Dispatchers.Main) {
                         savedVersion=snapshot.revision
+                        pinnedGroups=null
                         if(savedVersion==editVersion) { saveStatus="Kaydedildi"; problem=null }
                     }
                 } catch(e:Exception) {
@@ -64,11 +102,14 @@ class EditorState(val directory:File) : ViewModel() {
     private fun open() = viewModelScope.launch {
         problem=null; saveStatus="Açılıyor…"
         try {
-            val loaded=withContext(Dispatchers.IO) { store.open() }
+            val (loaded,preparedHistory)=withContext(Dispatchers.IO) {
+                val opened=store.open()
+                opened to PageHistory().apply { opened.snapshot?.let { restorePages(it.pageInk ?: it.strokes.groupBy { s -> s.data.pageId }) } }
+            }
             loaded.snapshot?.let { snapshot ->
                 folder=snapshot.folder; note=snapshot.note; pages=snapshot.pages; source=snapshot.source
                 if(snapshot.source!=null && pdf==null) pdf=PdfPages(PageStore.sourceFile(directory))
-                history.restore(snapshot.strokes); editVersion=snapshot.revision; savedVersion=snapshot.revision
+                history=preparedHistory; editVersion=snapshot.revision; savedVersion=snapshot.revision
             }
             ready=true; revision++
             saveStatus=if(loaded.recovered) "Önceki sağlam kayıt açıldı" else if(loaded.snapshot!=null) "Kaydedildi" else "Otomatik kayıt açık"
@@ -83,7 +124,7 @@ class EditorState(val directory:File) : ViewModel() {
         writes.trySend(snapshot())
     }
     fun retry() { if(ready) { saveStatus="Kaydediliyor…"; writes.trySend(snapshot()) } else open() }
-    private fun snapshot()=PageSnapshot(editVersion,folder,note,pages,history.items.toList(),source)
+    private fun snapshot()=PageSnapshot(editVersion,folder,note,pages,history.items,source,history.grouped)
     /**
      * [index] numaralı sayfanın arkasına boş sayfa ekler (Samsung Notes'taki "+" gibi). Boyut o sayfanınkiyle
      * aynıdır; PDF sayfasının arkasına eklenen sayfa düz kâğıttır.
@@ -118,7 +159,7 @@ class EditorState(val directory:File) : ViewModel() {
     /** Notu yazılarıyla PDF olarak [open] ile açılan hedefe yazar (arka planda). */
     fun export(open:()->java.io.OutputStream) {
         if(!ready || exporting!=null) return
-        val pagesNow=pages; val strokesNow=history.items.toList()
+        val pagesNow=pages; val strokesNow=history.items
         exporting="Dışa aktarılıyor…"; exportResult=null
         viewModelScope.launch {
             exportResult=try {
@@ -141,7 +182,7 @@ class EditorState(val directory:File) : ViewModel() {
         if(!ready || busy || pages.size<=1 || index !in pages.indices) return
         val id=pages[index].id
         pages=pages.filterIndexed { i,_ -> i!=index }.mapIndexed { i,p -> p.copy(order=i) }
-        history.restore(history.items.filter { it.data.pageId!=id })
+        history.restorePages(history.grouped.filterKeys { it!=id })
         if(currentPage>pages.lastIndex) currentPage=pages.lastIndex
         changed()
     }
@@ -161,37 +202,38 @@ class EditorState(val directory:File) : ViewModel() {
     // --- Kement seçimi ---
     /** Seçili çizgilerin kimlikleri (boş = seçim yok). */
     var selection by mutableStateOf<Set<String>>(emptySet())
-    private fun selected()=history.items.filter { it.data.id in selection }
+    private fun selected()=history.selected(selection)
     fun clearSelection() { selection=emptySet() }
     /** Seçimi siler (tek geri alma adımı). */
     fun deleteSelection() {
         if(!ready || busy || selection.isEmpty()) return
-        history.replace(history.items.filter { it.data.id !in selection }); selection=emptySet(); changed()
+        history.transformPages(selected().map { it.data.pageId }.toSet()) { own -> own.filter { it.data.id !in selection } }; selection=emptySet(); changed()
     }
     /** Seçimi sayfa içinde kaydırır; kimlikler korunur, seçim sürer. */
     fun moveSelection(dx:Float,dy:Float) {
         if(!ready || busy || selection.isEmpty() || (dx==0f && dy==0f)) return
-        history.replace(history.items.map { rs ->
+        history.transformPages(selected().map { it.data.pageId }.toSet()) { own -> own.map { rs ->
             if(rs.data.id !in selection) rs else {
                 RenderedStroke(rs.data.copy(samples=rs.data.samples.map { it.copy(x=it.x+dx,y=it.y+dy) }))
             }
-        }); changed()
+        } }; changed()
     }
     /** Seçimin kopyasını biraz kaydırarak ekler; seçim kopyalara geçer. */
     fun duplicateSelection() {
         if(!ready || busy || selection.isEmpty()) return
         val copies=selected().map { rs -> rs.withSamples(rs.data.samples.map { it.copy(x=it.x+24f,y=it.y+24f) }) }
-        history.replace(history.items+copies); selection=copies.map { it.data.id }.toSet(); changed()
+        history.transformPages(copies.map { it.data.pageId }.toSet()) { own -> own+copies.filter { it.data.pageId==own.firstOrNull()?.data?.pageId } }; selection=copies.map { it.data.id }.toSet(); changed()
     }
     /** Seçili çizgilere geçerli rengi uygular. */
     fun recolorSelection(value:Int) {
         if(!ready || busy || selection.isEmpty()) return
-        history.replace(history.items.map { rs ->
+        history.transformPages(selected().map { it.data.pageId }.toSet()) { own -> own.map { rs ->
             if(rs.data.id !in selection) rs else {
                 RenderedStroke(rs.data.copy(color=(value and 0x00ffffff) or (rs.data.color and 0xff000000.toInt())))
             }
-        }); changed()
+        } }; changed()
     }
+    fun replacePage(page:String,strokes:List<RenderedStroke>) { if(ready) { history.replacePage(page,strokes); changed() } }
     fun replace(strokes: List<RenderedStroke>) { if(ready && strokes!=history.items) { history.replace(strokes); changed() } }
     fun undo() { if (ready && !busy && history.canUndo) { history.undo(); selection=emptySet(); changed() } }
     fun redo() { if (ready && !busy && history.canRedo) { history.redo(); selection=emptySet(); changed() } }
@@ -200,6 +242,6 @@ class EditorState(val directory:File) : ViewModel() {
     var initialPage=runCatching { viewFile.readText().trim().toInt() }.getOrDefault(0)
     override fun onCleared() {
         runCatching { if(directory.isDirectory) viewFile.writeText(currentPage.toString()) }
-        writes.close(); pdf?.close(); super.onCleared()
+        SampleMemory.release(this); writes.close(); pdf?.close(); super.onCleared()
     }
 }

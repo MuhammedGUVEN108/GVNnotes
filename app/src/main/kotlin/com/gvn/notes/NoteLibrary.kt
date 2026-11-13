@@ -32,10 +32,10 @@ class NoteLibrary(private val root:File) {
         val directories=checkNotNull(root.listFiles()) { "Not klasörü okunamadı." }
         return directories.filter { it.isDirectory && runCatching { directory(it.name) }.isSuccess }.mapNotNull { dir ->
             try {
-                val slots=listOf("document-a.gvn","document-b.gvn").map { File(dir,it) }
+                val slots=listOf("document-a.gvn","document-b.gvn","notebook.db","notebook.db-wal","library-revision.txt").map { File(dir,it) }
                 val modified=slots.maxOf { it.lastModified() }
                 // Kayıt dosyaları değişmediyse özetten oku: tüm çizgileri çözmeden liste hızla açılır.
-                val stamp=slots.joinToString("|") { "${it.lastModified()}:${it.length()}" }
+                val stamp=slots.joinToString("|") { "${it.lastModified()}:${it.length()}" }+runCatching { File(dir,"library-revision.txt").readText() }.getOrDefault("")
                 cachedCard(dir,stamp,modified)?.let { return@mapNotNull it }
                 val snapshot=PageStore(dir).open().snapshot ?: return@mapNotNull null
                 val preview=runCatching { thumbnail(dir,snapshot) }.getOrNull()

@@ -14,7 +14,7 @@ function Adb([string[]]$Arguments){
 $K='app/src/main/kotlin/com/gvn/notes/'
 $T='app/src/androidTest/kotlin/com/gvn/notes/'
 # Her birimde ortak: manifest, gradle (surum satirlari haric), core modeli ve test yardimcisi.
-$common=@('app/src/main/AndroidManifest.xml','app/build.gradle.kts','core/src/main/kotlin/com/gvn/notes/core/Model.kt',"${T}TestPen.kt", "${K}WeakIdentityCache.kt")
+$common=@('app/src/main/AndroidManifest.xml','app/build.gradle.kts','core/src/main/kotlin/com/gvn/notes/core/Model.kt',"${T}TestPen.kt", "${K}WeakIdentityCache.kt","${K}SampleHandle.kt","${K}PageHistory.kt","${K}PageInkDatabase.kt","${K}LegacyPageStore.kt")
 $units=[ordered]@{
   'ink-cache'=@{ tests=,@('InkCacheDeviceTest',''); files=@("${K}InkTileCache.kt","${K}ActiveInkCache.kt","${K}StrokeBuild.kt","${K}EditorState.kt",'app/src/main/java/com/gvn/notes/pen/PenRenderer.java',"${T}InkCacheDeviceTest.kt") }
   'ink-performance'=@{ tests=,@('InkPerformanceDeviceTest',''); files=@("${K}InkTileCache.kt","${K}ActiveInkCache.kt","${K}InkPageView.kt","${K}InkTileCache.kt","${K}ActiveInkCache.kt","${K}PageStore.kt","${K}EditorState.kt","${K}StrokeBuild.kt",'core/src/main/kotlin/com/gvn/notes/core/SaveEnvelope.kt',"${T}InkPerformanceDeviceTest.kt") }

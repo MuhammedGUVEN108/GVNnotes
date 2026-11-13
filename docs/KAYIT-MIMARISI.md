@@ -1,47 +1,26 @@
-# Kayıt ve kurtarma — 0.15.0
+# Sayfa bazlı kayıt — 0.16.0
 
 ## Kullanıcı akışı
 
-Kalem kalktığında, silindiğinde, geri alındığında ya da sayfa işlemlerinde kayıt otomatik başlar. 0.14.0 kullanıcı kararıyla kayıt sessiz çalışır; Kaydedildi/Çiziliyor/Kaydediliyor etiketleri gösterilmez. Dosya yazılıp geri okunarak doğrulanmaya devam eder. Kayıt hatasında hata ve "Tekrar dene" çıkar; bellekteki çizim atılmaz. Not kapatılırken (geri ya da Klasör adasından başka nota geçiş) kayıt bitene kadar beklenir; kaydedilemezse "Notta kal / Tekrar dene" sorulur.
+Kalem kalkınca, silince, geri alınca veya sayfa değişikliğinde kayıt arka planda otomatik yapılır. Sürekli Kaydedildi/Çiziliyor etiketi ve alt çubuk yoktur. Hata görünür; bellekteki değişiklikler korunur. Nottan çıkışta son sürümün kaydı beklenir. Geri alma geçmişi oturum içindir.
 
-Not yeniden açılınca sayfalar, çizgiler, renkler, kalınlıklar ve basınç örnekleri yüklenir; not kapatıldığı sayfadan açılır. Geri al geçmişi yalnız oturum içindir.
+## Veri modeli
 
-## Veri konumları (uygulamanın özel alanı, `files/`)
+`notebooks/<uuid>/notebook.db` SQLite şema 6'dır. `pages` sayfa metadata'sını, `strokes` çizgi metadata'sını ve değişmez nokta kümesi kimliğini tutar. `sample_sets` / `chunks` noktaları 256 örneklik küçük BLOB parçalarında saklar. Her parça SHA256 ile doğrulanır; eksik parça/sıra/nokta sayısı hata verir. Kaynak PDF `source.pdf` olarak kalır. Önizleme, liste kartı, görünüm konumu ve eşitleme dosyaları önceki yerindedir.
 
-| Yol | İçerik |
-|---|---|
-| `notebooks/<uuid>/document-a.gvn`, `document-b.gvn` | Notun kaydı (iki slot) |
-| `notebooks/<uuid>/preview.png`, `preview-revision.txt` | Kütüphane önizlemesi (silinirse yeniden üretilir) |
-| `notebooks/<uuid>/card.json` | Liste özeti önbelleği (silinirse yeniden üretilir) |
-| `notebooks/<uuid>/` içindeki kaynak kopyası | İçe aktarılan PDF/resimlerin kopyası (asıl dosyaya dokunulmaz) |
-| `trash/<uuid>/` | Çöpteki notlar (`trashed-at.txt` ile); 30 gün sonra kalıcı silinir |
-| `sync-index.json`, `sync-source.txt` | Klasör eşitleme dizini ve bağlı SAF klasörü |
-| `settings.json` | Uygulama ayarları (varsayılan şablon) |
-| `crash-log.txt` | Çökme kaydı (en çok 64 KB) |
-| `shared_prefs/gvnpen.xml` | GVNpen ayarları (araç, renk, kalınlık, tema, şerit konumu…) |
-| `test-document/`, `test-library/` | Yalnız tablet testleri; kullanıcı verisi değildir |
+- WAL ve FULL synchronous; değişen sayfa/çizgi ile not metadata'sı tek transaction içinde yazılır. Başarısız transaction önceki revizyonu korur. Varsayılan bozulma işleyicisinin dosyayı otomatik silmesi engellenir.
+- Değişmeyen sayfanın nokta verisi okunmaz/yazılmaz. Yeni çizginin noktaları yalnızca ilk kayıt sırasında yazılır; renk, sıra, silme ve geri almada mevcut değişmez kümeler tekrar kullanılır.
+- Ana IO yazıcısı sırayla çalışır; biriken isteklerde son tam mantıksal durum seçilir. Snapshot sayfa listelerine referans verir; bütün belgenin çizgi/nokta listesi kopyalanmaz.
+- Açılışta sayfalar ve hafif çizgi metadata'sı okunur. Noktalar gereken sayfalar için IO'da yüklenir. Aktif sayfa ve bütçeye sığan komşuları önceden hazırlanır. Soğuk sayfa hazır olmadan çizim kabul edilmez.
+- Nokta LRU bütçesi 750.000 örnek; aktif sayfa ve uygun komşular sabitlenir (komşularla hedef 600.000). Tek aktif sayfa daha büyükse sabitlenen veri bu yumuşak bütçeyi aşabilir. Bu, toplam RAM garantisi değildir.
+- Geri alma yalnız değişen sayfanın listelerini tutar (80 adım). Geçmiş/export tarafından kullanılan eski nokta kümeleri canlı handle ile korunur. Her 128 revizyonda kullanılmayan kümelerin sınırlı bir bölümü transaction ile temizlenir.
 
-Bulut ya da dış yedek yoktur. Uygulamayı kaldırmak bu verileri siler; önemli notlar PDF olarak dışa aktarılmalı.
+## Uyumluluk ve sınırlar
 
-## Neden bu yapı?
+Eski şema 1–4 kayıtlarını LegacyPageStore okur; başarılı dönüşümden sonra yeni DB kullanılır. `document-a.gvn` / `document-b.gvn` artık eski APK'nın yeni biçimi yanlışlıkla açmasını önleyen küçük sürüm işaretleridir; yeni biçimin yedek slotu değildir. Daha eski APK'ya dönerek yeni notlar açılamaz.
 
-- **Sayfa koordinatları:** ekran çözünürlüğü veya yakınlaştırma değişince yazı sayfa üzerinde yer değiştirmez. 1000 birim = A4 genişliği.
-- **İki atomik slot:** `document-a.gvn` ve `document-b.gvn` dönüşümlü yazılır. Son kayıt bozuksa önceki sağlam kayıt açılır ve bilgi gösterilir. İki slot da açılamazsa boş sayfa eski dosyaların üzerine yazılmaz.
-- **Zarf + SHA256 (`core/SaveEnvelope`):** yarım/bozuk dosya sağlam veri gibi açılmaz; daha yeni bir uygulamanın yazdığı bilinmeyen biçimin üzerine yazılmaz.
-- **Başarı doğrulaması:** flush + fd.sync, AtomicFile tamamlanır, sonuç geri okunup karşılaştırılır.
-- **Arka plan yazıcısı:** tek IO coroutine'i yazar; biriken isteklerde son tam durum yazılır, eski durum yeninin üzerine yazamaz.
-- **Açılış koruması:** veri yüklenirken çizim engellenir.
-
-## Biçim sürümleri
-
-- Kayıt şeması **4** (`PageStore.SCHEMA`, 0.10.0): Jetpack Ink verisi yok; basınç GVNpen katsayısı (0,15–1,5) olarak saklanır. Şema 1–3 okunur (ham basınç ×1,4; eski yarı saydam fosforlu tam renge çevrilir).
-- Daha eski bir APK'ya dönülürse şema 4 notlar açılmaz (veri silinmez).
-- Sınırlar: kayıt başına 64 MiB, 2000 sayfa, 20.000 çizgi ve 2.000.000 nokta. Bu sürüm bu kapasite sınırlarını kaldırmaz; nokta sınırı artık yazmadan önce de denetlenir.
+Eski belge başına 64 MiB / 20.000 çizgi / 2.000.000 nokta sınırları yeni SQLite biçiminde uygulanmaz. Sayfa sayısı 2000 ile sınırlıdır. Disk alanı, tek sayfa yoğunluğu, metadata boyutu ve cihaz belleği pratik sınır olmaya devam eder; sınırsız kapasite iddiası yoktur. Kullanıcı mevcut notların test verisi olduğunu belirterek biçim değişimini onayladı (14 Kasım 2026).
 
 ## Doğrulama
 
-`DEVICE-TEST.ps1` içindeki kayıt aşamaları: zarf kodlama, çizgi/piksel regresyonu, bozulan son slot, iki slotun bozuk olması, başarısız commit ve gerçek force-stop / yeniden açma döngüsü (seed → reopen → deletion-reopen). Testler `files/test-document` kullanır; kullanıcı notlarına dokunmaz.
-
-## 0.15.0: büyük not kaydında bellek
-
-Payload geçici dosyaya akışla yazılır, zarf ve SHA256 slot dosyasına aktarılır; geri okuma da akışla doğrulanır. Eski dosyayla aynı bayt biçimi korunur. Kayıt açılırken iki slotun bütün nokta nesneleri birden oluşturulmaz; bütünlükleri akışla doğrulandıktan sonra en yeni sağlam slot çözülür. Kodlanmış çizgi önbelleği WeakIdentityCache ile nokta listesinin hashCode’unu dolaşmadan erişilir ve 64 MiB ile sınırlıdır. Kayıt hâlâ tüm not snapshot’ıdır; sayfa bazlı/delta depolama değildir. Ayrı depolama mimarisi olmadan sınırları sadece büyütme.
+PageStoreDeviceTest: metadata/nokta eşitliği, gerçek SQL trigger ile başarısız transaction ve önceki revizyon, bozuk DB'nin silinmemesi; 100 sayfa / 30.000 çizgi / 2.880.000 nokta kaydet-aç, noktaların başlangıçta yüklenmemesi, tek sayfaya 3 yeni nokta için yalnız o sayfanın yazılması, yalnız başlık değişince 0 nokta yazılması. PersistenceRestartTest gerçek force-stop sonrasında kalemi/silgiyi/geri almayı doğrular. Ekran karoları kayıt veya PDF kaynağı değildir; PDF çıktı vektör kalır.

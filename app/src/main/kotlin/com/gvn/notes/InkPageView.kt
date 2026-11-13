@@ -45,7 +45,9 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     private val handler = Handler(Looper.getMainLooper())
     private val strokePath = Path()
     private val wetPath = Path()
-    private val inkTiles=InkTileCache()
+    private var inkTiles:InkTileCache=createInkCache()
+    private fun createInkCache():InkTileCache=InkTileCache(async=true,onReady={ finished.postInvalidateOnAnimation() },onError={ editor.reportPageProblem() })
+    internal fun inkSettled()=inkTiles.settled
     private val activeInk=ActiveInkCache()
     private val localClip=Rect()
 
@@ -70,6 +72,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     private var fingerStroke = false
     /** Bu temas/silme sırasında değişen çizgi listesi; temas bitince tek geri alma adımı olarak kaydedilir. */
     private var working: MutableList<RenderedStroke>? = null
+    private var workingPage:String?=null
     /** Kalem ekrana yakınken ekran koordinatı (imleç) ve sayfa yerel noktası (yaklaşınca silme). */
     private var hoverScreen: PointF? = null
     private var hoverPage = -1
@@ -105,8 +108,10 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     private val finished = object : View(context) {
         override fun onDraw(canvas: Canvas) {
             layoutPages()
+            inkTiles.beginFrame(Triple(editor.viewport,width,height))
             canvas.drawColor(0xffe3e9f1.toInt()) // Petrol Ada masası
-            val strokes = byPage(working ?: editor.history.items)
+            val strokes = editor.history.grouped
+            val visibleIds=ArrayList<String>()
             val pages = editor.pages
             for (i in pages.indices) {
                 val page = pages[i]
@@ -126,10 +131,11 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
                 canvas.concat(m)
                 drawPattern(canvas,page)
                 val dragging = dragFrom!=null && lassoPage==i
-                val own=strokes[page.id].orEmpty()
+                visibleIds+=page.id
+                val own=if(workingPage==page.id) working ?: strokes[page.id].orEmpty() else strokes[page.id].orEmpty()
                 canvas.getClipBounds(localClip)
                 val settled=if(dragging) own.filter { it.data.id !in editor.selection } else own
-                inkTiles.draw(canvas,page,settled,RectF(localClip),editor.viewport.scale,prefs.smooth)
+                inkTiles.draw(canvas,page,settled,RectF(localClip),editor.viewport.scale,prefs.smooth,editor.pageReady(page.id))
                 if(dragging) {
                     val k=canvas.save(); canvas.translate(dragDelta.first,dragDelta.second)
                     own.filter { it.data.id in editor.selection }.forEach { drawGeo(canvas,it.geo) }
@@ -138,6 +144,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
                 drawSelection(canvas,i,page.id)
                 canvas.restoreToCount(save)
             }
+            editor.preparePages(visibleIds)
         }
     }
     /** Çizilmekte olan çizgi, şekil önizlemesi ve tahmin (GVNpen ıslak katmanı). */
@@ -197,7 +204,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
             if(score<best) { best=score; pencilHotX=x*32f/pencil.width; pencilHotY=y*32f/pencil.height }
         }
     }
-    override fun onAttachedToWindow() { super.onAttachedToWindow(); if(Build.VERSION.SDK_INT>=30) requestUnbufferedDispatch(InputDevice.SOURCE_CLASS_POINTER) }
+    override fun onAttachedToWindow() { super.onAttachedToWindow(); if(inkTiles.closed) inkTiles=createInkCache(); if(Build.VERSION.SDK_INT>=30) requestUnbufferedDispatch(InputDevice.SOURCE_CLASS_POINTER) }
     override fun onResolvePointerIcon(event: MotionEvent, pointerIndex: Int): PointerIcon? =
         if(drawing && !editor.lassoMode && event.getToolType(pointerIndex)==MotionEvent.TOOL_TYPE_STYLUS) hiddenPointer else super.onResolvePointerIcon(event,pointerIndex)
 
@@ -369,6 +376,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         if(pointer<0 && (action==MotionEvent.ACTION_DOWN || action==MotionEvent.ACTION_POINTER_DOWN) && canInk(e,ai)) {
             val (page,_)=local(e.getX(ai),e.getY(ai))
             if(page<0) return true
+            if(!editor.pageReady(editor.pages[page].id)) { editor.preparePages(listOf(editor.pages[page].id)); return true }
             requestUnbufferedDispatch(e); handler.removeCallbacks(hoverExitTick)
             stopFingerGesture()
             pointer=e.getPointerId(ai); contact=true; contactPage=page; fingerStroke=e.getToolType(ai)==MotionEvent.TOOL_TYPE_FINGER
@@ -444,11 +452,16 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         }
         preview=null; active=null; smartSnapped=false; activeInk.reset()
     }
-    private fun workingList():MutableList<RenderedStroke> = working ?: editor.history.items.toMutableList().also { working=it }
+    private fun workingList():MutableList<RenderedStroke> {
+        val id=editor.pages.getOrNull(contactPage)?.id ?: workingPage ?: error("Temas sayfası yok")
+        if(workingPage!=id && working!=null) commitWorking()
+        workingPage=id
+        return working ?: editor.history.forPage(id).toMutableList().also { working=it }
+    }
     /** Temas/silme bitti: değişiklik tek geri alma adımı olarak kaydedilir. */
     private fun commitWorking() {
-        val w=working; working=null
-        if(w!=null) editor.replace(w)
+        val w=working; val id=workingPage; working=null; workingPage=null
+        if(w!=null && id!=null) editor.replacePage(id,w)
         editor.busy=contact
         finished.invalidate(); onStateChanged?.invoke()
     }
@@ -459,7 +472,10 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         val radius=eraserScreenRadius()/editor.viewport.scale // Ekranda sabit boy: yakınlaştırınca sayfada küçülür.
         val prev=last
         val from=if(prev!=null && Geometry.distance(prev,p)<max(64f,prefs.eraser*4)*density/editor.viewport.scale) prev else p
-        val list=working ?: editor.history.items
+        if(!editor.pageReady(page.id)) { editor.preparePages(listOf(page.id)); return }
+        if(workingPage!=page.id && working!=null) commitWorking()
+        workingPage=page.id
+        val list=working ?: editor.history.forPage(page.id)
         var out:MutableList<RenderedStroke>?=null
         list.forEachIndexed { k,rs ->
             var result:List<Geometry.Stroke>?=null
@@ -492,8 +508,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     fun clearCurrentPage() {
         val page=editor.pages.getOrNull(editor.currentPage) ?: return
         cancel()
-        val items=editor.history.items
-        if(items.any { it.data.pageId==page.id }) editor.replace(items.filter { it.data.pageId!=page.id })
+        if(editor.history.forPage(page.id).isNotEmpty()) editor.replacePage(page.id,emptyList())
         refresh()
     }
 
@@ -582,7 +597,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     private val dashPaint=Paint(Paint.ANTI_ALIAS_FLAG).apply { style=Paint.Style.STROKE; color=0xff4f57b0.toInt() }
     private val selectionFill=Paint().apply { style=Paint.Style.FILL; color=0x144f57b0 }
     private fun selectionBox():Pair<String,RectF>? {
-        val chosen=editor.history.items.filter { it.data.id in editor.selection }
+        val chosen=editor.history.selected(editor.selection)
         if(chosen.isEmpty()) return null
         val box=RectF(chosen.first().data.bounds())
         chosen.forEach { val b=it.data.bounds(); val w=it.data.width/2; box.union(b.left-w,b.top-w,b.right+w,b.bottom+w) }
@@ -635,7 +650,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
                 else {
                     lassoPath+=PenGeometry.P(local.x,local.y)
                     val pageId=editor.pages[lassoPage].id
-                    editor.selection=editor.history.items.filter { it.data.pageId==pageId && PenGeometry.selectedBy(it.data.samples.map { s -> s.toP() },lassoPath) }.map { it.data.id }.toSet()
+                    editor.selection=editor.history.forPage(pageId).filter { PenGeometry.selectedBy(it.data.samples.map { s -> s.toP() },lassoPath) }.map { it.data.id }.toSet()
                 }
                 lassoPointer=-1; lassoPage=-1; lassoPath.clear(); dragFrom=null; dragDelta=0f to 0f
                 refresh()
@@ -651,7 +666,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         contact=false; pointer=-1
         if(working!=null) commitWorking()
         editor.busy=false
-        inkTiles.clear(); activeInk.release()
+        inkTiles.close(); activeInk.release()
         super.onDetachedFromWindow()
     }
     companion object {

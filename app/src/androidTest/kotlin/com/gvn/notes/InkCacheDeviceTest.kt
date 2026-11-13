@@ -23,6 +23,42 @@ class InkCacheDeviceTest {
         }
         assertTrue("Önbellek çizimi özgün mürekkepten saptı: ${error.toDouble()/(aa.size*3)}",error.toDouble()/(aa.size*3)<tolerance)
     }
+    @Test fun asynchronousZoomKeepsFallbackInkAndEventuallyMatchesExactTiles() {
+        val inst=androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+        val page=Page(noteId="async",order=0,width=1000f,height=800f)
+        val strokes=List(120) { n -> RenderedStroke(PageStroke(pageId=page.id,tool=Tool.PEN,color=Color.BLACK,width=4f,
+            samples=List(96) { k -> Sample(30f+k*9f,40f+n*5f,.8f,0f,0f,k.toLong()) })) }
+        val cache=InkTileCache(async=true); val sync=InkTileCache()
+        val a=Bitmap.createBitmap(1000,800,Bitmap.Config.ARGB_8888); val b=a.copy(Bitmap.Config.ARGB_8888,true)
+        fun frame(scale:Float):Boolean {
+            a.eraseColor(Color.WHITE); val canvas=Canvas(a); canvas.scale(scale,scale)
+            cache.beginFrame(scale); cache.draw(canvas,page,strokes,RectF(0f,0f,1000f/scale,800f/scale),scale,true)
+            return cache.settled
+        }
+        fun settle(scale:Float) {
+            val until=android.os.SystemClock.uptimeMillis()+20_000
+            while(android.os.SystemClock.uptimeMillis()<until) {
+                var done=false; inst.runOnMainSync { done=frame(scale) }
+                if(done) return
+                android.os.SystemClock.sleep(16)
+            }
+            fail("Arka plan karoları tamamlanmadı")
+        }
+        try {
+            settle(1f)
+            inst.runOnMainSync {
+                frame(1.5f)
+                val pixels=IntArray(a.width*a.height); a.getPixels(pixels,0,a.width,0,0,a.width,a.height)
+                assertTrue("Yakınlaştırma sırasında mürekkep kayboldu",pixels.count { it!=Color.WHITE }>10_000)
+            }
+            settle(1.5f)
+            inst.runOnMainSync {
+                b.eraseColor(Color.WHITE); val canvas=Canvas(b); canvas.scale(1.5f,1.5f)
+                sync.draw(canvas,page,strokes,RectF(0f,0f,1000f/1.5f,800f/1.5f),1.5f,true)
+                compare(a,b,.01)
+            }
+        } finally { inst.runOnMainSync { cache.close(); sync.close(); a.recycle(); b.recycle() } }
+    }
     @Test fun tilesPreserveInkThroughAppendEraseUndoRecolorAndPan() {
         val page=Page(noteId="cache",order=0,width=1000f,height=800f)
         var strokes=List(50) { i -> RenderedStroke(PageStroke(pageId=page.id,

@@ -1,4 +1,37 @@
-# Yoğun mürekkep performansı — 0.15.0
+# Yoğun mürekkep performansı — 0.16.0
+
+## Yeni depolama ve yakınlaştırma
+
+Şema 6 SQLite kayıt yalnız değişen sayfa/çizgiyi günceller. Noktalar sayfa gerektiğinde IO'da yüklenir; aktif sayfa ve bütçeye sığan komşuları hazırlanır. Ekran karoları arka planda üretilir; zoom sırasında en yakın hazır ölçekteki mürekkep görüntüsü kullanılır. Yeni ölçek netleşince karolar yerini alır. Eski görüntünün yalnız kesişen parçaları çizilir. Kalem geometrisi ve PDF vektör çıktısı aynı kaynaktan üretilmeye devam eder.
+
+Aynı SM-X810 tablette son kontrollü yazılım Canvas ölçümü (`logs/ink-0.16.0-final.json`):
+
+| İş | Süre |
+|---|---:|
+| Yoğun sayfa sıcak çizim, 2000 × 96 nokta | 6,14 ms ortanca |
+| Yoğun sayfa + 12.000 noktalık aktif kalem | 7,29 ms ortanca |
+| 80 adımlık zoom taraması, ana kare | 8,56 ms ortanca / 13,66 ms en yüksek |
+| 100 sayfa / 952.320 nokta, ilk kayıt (IO) | 2843 ms |
+| Değişmeyen noktalarla sonraki kayıt (IO) | 30,97 ms |
+| Noktaları yüklemeden metadata açılışı | 141,83 ms |
+| 2/3/51/52/100. sayfaya geçiş, ilk ana kare | 3,11–6,11 ms |
+| Aynı geçişlerde tam mürekkep hazırlığı | 152–185 ms |
+
+İlk büyük kayıt SQLite parça/hash/index maliyeti nedeniyle 0.15.0'dan daha yavaştır; IO'da çalışır. Tek sayfa eklemesinde bütün belge tekrar yazılmaz. Sıcak ölçümden önce background işler ve ana thread callback'leri tamamlanır; boş/eksik görüntü performans sonucu sayılmaz. Sayfa geçişi denemesi kasıtlı bekleme olmadan art arda yapılır; komşu hazırlığının tamamlanması garanti edilmez. Bu sayfalar 100 çizgi / 9600 nokta yoğunluğundadır; çok daha yoğun tek sayfanın hazırlığı daha uzun sürebilir.
+
+Bunlar CPU çizim/IO süreleridir; GPU FPS, fiziksel S Pen gecikmesi veya bir yıllık saha dayanıklılığı ölçümü değildir. Ana thread donmadan kısa bir soğuk sayfa hazırlığı olabilir. Nokta ve geometri LRU'ları toplam uygulama RAM sınırı değildir; tek aktif sayfa nokta bütçesini aşabilir.
+
+## Kapasite ve doğruluk
+
+100 sayfa / 30.000 çizgi / 2.880.000 nokta kaydet-aç testi geçti: eski 64 MiB/20k çizgi/2M nokta sınırları SQLite biçiminde uygulanmaz. Metadata açıldığında ilk/son sayfanın noktaları henüz yüklenmemiştir. Tek sayfaya 3 nokta eklemek 1 sayfa/3 nokta yazar; başlık değiştirmek 0 nokta yazar. Sayfa sayısı 2000 sınırı sürer; disk/RAM ve tek sayfanın yoğunluğu pratik sınırdır.
+
+Async karo testi zoom sırasında mürekkebin kaybolmadığını, hazır sonuçta senkron karolarla RGB ortalama farkın 0,01/255 altında olduğunu denetler. Önceki basınç/saydamlık/kalem/silgi/kement/vektör PDF ve process-restart kontrolleri korunur. Bozuk DB silinmez; SQL trigger ile başarısız transaction önceki revizyonu korur; eksik nokta kümesi geçerli çizgi sayılmaz.
+
+Aşağıdaki 0.15.0 sonuçları tarihsel karşılaştırmadır; oradaki şema 4 sınırları güncel SQLite biçimine uygulanmaz.
+
+---
+
+## Önceki 0.15.0 ölçümleri
 
 ## İş yükü ve yöntem
 

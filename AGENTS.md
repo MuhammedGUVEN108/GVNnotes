@@ -1,6 +1,6 @@
 # AGENTS.md — GVNnotes
 
-Bu dosya, bu projede çalışan yapay zekâ ajanları (Codex, Claude, Cursor, Gemini vb.) içindir. Güncel durum burada yazılıdır; başka bir belgeyle çelişirse **bu dosya ve kod** geçerlidir. Son güncelleme: 14 Kasım 2026, sürüm 0.15.0.
+Bu dosya, bu projede çalışan yapay zekâ ajanları (Codex, Claude, Cursor, Gemini vb.) içindir. Güncel durum burada yazılıdır; başka bir belgeyle çelişirse **bu dosya ve kod** geçerlidir. Son güncelleme: 14 Kasım 2026, sürüm 0.16.0.
 
 ## Proje ne?
 
@@ -21,6 +21,10 @@ Kullanıcı Türkçe konuşur. Arayüz metinleri, belgeler, kod yorumları ve co
 9. Samsung Notes yalnız davranış referansıdır; Samsung kodu, simgesi, görseli kopyalanmaz.
 
 Eskiyen kararlar (artık geçersiz): "GVNpen yalnız arayüz referansı, kodu taşınmaz" (10 Kasım); "çizim motoru Jetpack Ink" (0.1–0.9); "kütüphane Samsung Notes düzeninde" (0.2–0.10). Bu ifadeleri eski belgelerde görürsen uygulama.
+
+## 0.16.0 güncel mimari
+
+Kullanıcı mevcut notların test olduğunu belirterek sayfa bazlı mimariyi onayladı. PageStore artık SQLite şema 6 kullanır; eski slot sınırları yalnız LegacyPageStore içindir. PageInkDatabase değişen sayfa/çizgi yazımı, SampleHandle/SampleMemory lazy noktalar + bütçeli komşu hazırlığı, PageHistory değişen sayfa geçmişi sağlar. InkTileCache üretimde async çalışır; zoom sırasında hazır başka ölçekteki karolar kullanılır. 64 MiB karo / 300k geometri / 750k nokta LRU bütçeleri uygulamanın toplam RAM sınırı değildir; sabitlenen aktif sayfa nokta bütçesini aşabilir. Ayrıntı docs/KAYIT-MIMARISI.md. Alt çubuk yasağı ve sessiz kayıt kararı sürer.
 
 ## Kod haritası
 
@@ -45,7 +49,10 @@ app/src/main/kotlin/com/gvn/notes/
   InkPageView.kt              Yazma yüzeyi: GVNpen InkView akışı sayfa koordinatında; zoom/kaydırma, çok sayfa, kement
   EditorState.kt              Açık notun durumu (ViewModel), geri al/yinele, otomatik kayıt tetikleme
   StrokeBuild.kt              Kayıtlı çizgi ↔ GVNpen çizgisi dönüşümü
-  PageStore.kt                Not kaydı: iki slotlu atomik dosya, şema 4
+  PageStore.kt                SQLite şema 6; LegacyPageStore eski slot okuyucusu
+  PageInkDatabase.kt          Sayfa/çizgi transaction, değişmez nokta kümeleri ve checksum parçaları
+  SampleHandle.kt             Lazy noktalar, 750k örnek LRU ve aktif/komşu pin
+  PageHistory.kt              Sayfa listeleriyle 80 adımlı undo/redo
   NoteLibrary.kt              Not dizinleri, liste/kart önbelleği, oluşturma, taşıma, çöp; LibraryState (ViewModel)
   FolderSync.kt               Documents/GVNnotes SAF eşitlemesi, SyncIndex
   PdfPages.kt, ImageImport.kt PDF sayfa çizimi, resimden not
@@ -62,7 +69,7 @@ Ayrıntılı anlatım: [docs/KOD-REHBERI.md](docs/KOD-REHBERI.md). Kayıt yapıs
 
 - Paket kimliği `com.gvn.notes.prototype` — **değiştirme**; değişirse kullanıcının notları yeni uygulamada görünmez.
 - Kullanıcı verisi: `files/notebooks/<uuid>/` (document-a.gvn / document-b.gvn, preview.png, card.json, kaynak PDF/resim kopyası), `files/trash/`, `files/sync-index.json`, `files/sync-source.txt`, `files/settings.json`, `files/crash-log.txt`, GVNpen ayarları `shared_prefs/gvnpen.xml`.
-- Kayıt şeması 4 (`PageStore.SCHEMA`). Şema 1–3 okunur. Yeni alan eklerken şemayı artır, eskiyi okumaya devam et; daha eski APK yeni şemayı açamaz (veri silinmez).
+- Kayıt şeması 6 (`PageStore.SCHEMA`): SQLite. Şema 1–4 legacy okuyucuyla dönüştürülür. Daha eski APK yeni şemayı açamaz. Eski SaveEnvelope 64 MiB sınırı yeni DB sınırı değildir.
 - `PagePattern` kodları ve `Prefs.json()` anahtarları kayıtlı veridir; yalnız ekleme yap.
 - Yeni GVNpen varsayılanı gerekiyorsa `Prefs.load` içindeki `DefaultsVersion` göçünü kullan; kullanıcının kendi seçtiği değeri ezme.
 
@@ -116,4 +123,4 @@ Kütüphane sadeleşir: sık liste varsayılan, kart görünümü seçilebilir; 
 
 ## 0.15.0 performans doğrulaması
 
-100 sayfalık dosyanın bir yıl boyunca kalıcı mürekkeple doldurulması kullanıcı senaryosudur; GVNpen gibi anlık çizim varsayma. docs/PERFORMANS.md ölçümünü ve kayıt sınırlarını oku. Önbellek atılması mürekkebi silmez; model ve kayıt asıl kaynaktır. Kayıt şeması 4 kaldı. Tüm belge hâlâ snapshot olarak yazılır; sınırsız veya sayfa bazlı depolama iddiası yapma. 100 sayfa/952.320 nokta kaydet-aç ve 100 sayfa önbellek tahliye testleri geçti.
+100 sayfalık dosyanın bir yıl boyunca kalıcı mürekkeple doldurulması kullanıcı senaryosudur; GVNpen gibi anlık çizim varsayma. docs/PERFORMANS.md ölçümünü ve kayıt sınırlarını oku. Önbellek atılması mürekkebi silmez; model ve kayıt asıl kaynaktır. 0.16.0 ile kayıt şeması 6 / sayfa bazlı SQLite kullanılır. Noktalar gerektiğinde yüklenir; değişen sayfa/çizgi yazılır. 100 sayfa / 30.000 çizgi / 2.880.000 nokta kaydet-aç ve artımlı yazma testi geçti. Sınırsız kapasite iddiası yapma.

@@ -1,5 +1,18 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.16.0 — sayfa bazlı kayıt ve akıcı yakınlaştırma, 14 Kasım 2026
+
+Kullanıcı mevcut notların test olduğunu belirterek yeni kayıt mimarisini onayladı; sayfa geçişinde ve zoomda donma istemedi. SQLite şema 6: yalnız değişen sayfa/çizgi transaction içinde yazılır; değişmez noktalar küçük checksum parçalarında tutulur. Metadata açılışta, noktalar gereken sayfalar için IO'da yüklenir. Bütçeli komşu hazırlığı ve sayfa bazlı geri alma uygulanır. InkTileCache async raster yapar; zoomda hazır en yakın ölçekteki görüntü korunur. Mevcut sessiz kayıt/üst satır/alt çubuk yasağı/vektör PDF korunur; GVNpen projesi değişmedi.
+
+Çevrimdışı build + JVM testleri + test APK + lint başarılı (20 JVM testi, 0 lint hatası / 43 uyarı; yeni uyarılar çoğunlukla KTX kolaylık önerileri). 100 sayfa / 30.000 çizgi / 2.880.000 nokta kaydet-aç; ilk açılışta noktaların lazy kalması; 3 yeni nokta için 1 sayfa/3 nokta yazımı; başlık değişiminde 0 nokta yazımı doğrulandı. SQL trigger ile transaction hatası önceki revizyonu korur; bozuk DB silinmez; eksik nokta sayısı hata verir. Async zoomda fallback ink görünür ve bitmiş sonuç senkron karolarla eşleşir.
+
+Son SM-X810 sentetik ölçümü: yoğun sayfa sıcak çizim 6,14 ms; yoğun+uzun aktif kalem 7,29 ms; zoom 8,56 ms ortanca / 13,66 ms en yüksek ana kare. 100 sayfa/952.320 nokta ilk kayıt 2843 ms, sonraki kayıt 30,97 ms, metadata açılışı 141,83 ms. Sayfa geçişi ilk kare 3,11–6,11 ms; tam hazırlık 152–185 ms. İlk büyük kayıt önceki sürümden daha pahalıdır; IO'dadır, sonraki değişiklikler bütün notu yeniden yazmaz. Yöntem/sınırlar docs/PERFORMANS.md; logs/ink-0.16.0-final.json.
+
+Doğrulanmayan: fiziksel parmak/S Pen uçtan uca hissi ve bir yıllık saha kullanımı. Sıfır gecikme veya sınırsız kapasite garantisi yoktur. 2000 sayfa sınırı sürer; tek çok yoğun aktif sayfanın sabitlenen noktaları RAM bütçesini aşabilir. Eski şema 4 toplam çizgi/nokta/bayt sınırları yeni biçimde uygulanmaz. Hiçbir internet indirmesi/paket kurulumu/yayın yapılmadı.
+
+APK: dist/GVNnotes-0.16.0.apk, SHA256 `bcfeb105f3cc565af173046c6b670d2b7d24630bd8b51bbafad2aef68ef8d3df`. 17 cihaz test birimi son APK üzerinde başarılı; son iki kütüphane/klasör birimi ayrıca doğrulandı (logs/paged-final-library-device.log). Normal kullanıcı kütüphanesi açık; logs/ui-0.16.0/normal-app.png. Test uyanıklık ayarı 0 değerine geri alındı. Tablet test durumu docs/TEST-DURUMU.md. Kaynak loglar logs/paged-delivery-build.log ve logs/paged-delivery-device.log. Testler test-document/test-library ve cache verisini kullanır.
+
+
 > Sürüm sürüm doğrulama günlüğü; en yeni girdi en üstte. Eski girdiler o günün kararlarını yansıtır (ör. Jetpack Ink, Samsung Notes düzeni); güncel kurallar için [AGENTS.md](../AGENTS.md).
 
 ## 0.15.0 — Kalıcı yoğun mürekkep performansı, 14 Kasım 2026
