@@ -126,7 +126,7 @@ class EditorState(val directory:File) : ViewModel() {
                 "PDF kaydedildi (${pagesNow.size} sayfa)."
             } catch(e:Exception) {
                 if(e is CancellationException) throw e
-                "PDF kaydedilemedi. Depolama alanını kontrol edip yeniden deneyin."
+                "PDF kaydedilemedi. Kaynak PDF’yi ve hedef depolama alanını kontrol edip yeniden deneyin."
             } finally { exporting=null }
         }
     }

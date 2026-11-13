@@ -2,7 +2,7 @@
 
 ## Kullanıcı akışı
 
-Kalem kalktığında, silindiğinde, geri alındığında ya da sayfa işlemlerinde kayıt otomatik başlar. Düzenleyicinin alt ortasındaki adada Çiziliyor / Kaydediliyor / Kaydedildi görünür. "Kaydedildi", dosyanın yazılıp geri okunarak doğrulandığını bildirir. Kayıt hatasında hata ve "Tekrar dene" çıkar; bellekteki çizim atılmaz. Not kapatılırken (geri ya da Klasör adasından başka nota geçiş) kayıt bitene kadar beklenir; kaydedilemezse "Notta kal / Tekrar dene" sorulur.
+Kalem kalktığında, silindiğinde, geri alındığında ya da sayfa işlemlerinde kayıt otomatik başlar. 0.14.0 kullanıcı kararıyla kayıt sessiz çalışır; Kaydedildi/Çiziliyor/Kaydediliyor etiketleri gösterilmez. Dosya yazılıp geri okunarak doğrulanmaya devam eder. Kayıt hatasında hata ve "Tekrar dene" çıkar; bellekteki çizim atılmaz. Not kapatılırken (geri ya da Klasör adasından başka nota geçiş) kayıt bitene kadar beklenir; kaydedilemezse "Notta kal / Tekrar dene" sorulur.
 
 Not yeniden açılınca sayfalar, çizgiler, renkler, kalınlıklar ve basınç örnekleri yüklenir; not kapatıldığı sayfadan açılır. Geri al geçmişi yalnız oturum içindir.
 

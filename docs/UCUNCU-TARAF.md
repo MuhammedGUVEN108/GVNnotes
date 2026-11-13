@@ -25,3 +25,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ## Material Icons
 
 Uygulama çerçevesindeki simgeler: Google Material Icons (`androidx.compose.material:material-icons-extended`), Apache License 2.0.
+
+## PDF çıktısı (0.14.0)
+
+- PdfBox-Android 2.0.27.0, Apache License 2.0: https://github.com/TomRoush/PdfBox-Android
+- Bouncy Castle bcprov/bcpkix/bcutil-jdk15to18 1.72, Bouncy Castle lisansı: https://github.com/bcgit/bc-java/tree/r1rv72
+- Dört ikili paket Maven Central'dan alındı; `app/libs/` altında sabit sürümle tutulur. Toplam 14.296.843 bayt. Maven SHA1 değerleriyle doğrulandı; SHA256 listesi `app/libs/SHA256SUMS.txt`.
+- Lisans metinleri APK içinde `assets/third-party/` altında bulunur. Çalışma anında internet gerekmez.

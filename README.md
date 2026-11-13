@@ -4,20 +4,22 @@ Galaxy Tab S9+ ve S Pen için PDF, resim ve boş sayfalar üzerine el yazısıyl
 
 Yapay zekâ ajanları önce [AGENTS.md](AGENTS.md) dosyasını okumalı.
 
-## Mevcut durum — 0.12.0 (12 Kasım 2026)
+## Mevcut durum — 0.14.0 (14 Kasım 2026)
 
 - **0.12.0:** klasör silme (alt klasörleriyle), çöp kutusu 30 gün sonra kendiliğinden boşalır, Dosyalarım'dan silinen dosyanın notu çöpe gider (dosya geri gelirse döner). Tablet testleri yalnız ilgili kodu değişenleri çalıştırır ([durum tablosu](docs/TEST-DURUMU.md)).
 
 - **Yazma:** GVNpen ile aynı. Yüzen, sürüklenebilir araç şeridi: kalem, fosforlu, silgi (tüm çizgi / alan), 2B ve 3B şekiller, akıllı şekil, kalınlık, geri al / yinele, sayfayı temizle, hızlı renkler, renk paleti, gezinme ve okuma modu. S Pen yan düğmesi, kalem yaklaşınca açılan menüler, kalem imleci. GVNpen ayar ekranı.
-- **Arayüz: "Petrol Ada".** Kütüphanede solda kalıcı, yüzen klasör ağacı; önizlemeli not kartları; klasör kısayolları. Düzenleyicide başlıkta konum çipi → Klasör adası (aynı klasördeki notlar, klasöre git, bu klasörde yeni not); sağda kapatılabilir sayfa sıralayıcı; sağ üstte yakınlaştırma / tam ekran / dışa aktar; altta kayıt durumu ve sayfa sayacı. GVNpen şeridi de aynı renklerde.
+- **Arayüz: "Petrol Ada".** Kütüphanede solda kalıcı, yüzen klasör ağacı; önizlemeli not kartları; klasör kısayolları. Düzenleyicide başlıkta konum çipi → Klasör adası (aynı klasördeki notlar, klasöre git, bu klasörde yeni not); sağda kapatılabilir sayfa sıralayıcı; üst satırda sayfa/yakınlaştırma ve araçlar; PDF dışa aktarma üst menüde. GVNpen şeridi de aynı renklerde.
 - **Notlar:** PDF, resim (çoklu resim tek not) ve boş sayfa (Düz, Çizgili, Kareli, Noktalı); çok sayfa; kement seçimi; otomatik ve doğrulanmış kayıt; çöp kutusu; PDF olarak dışa aktarma.
 - **Klasör eşitleme:** `Documents/GVNnotes` alt klasörleriyle otomatik not olur; taşıma, yeni klasör ve çöp iki yönlü.
 
-Doğrulama: tablette 13 test biriminin hepsi geçti ([durum](docs/TEST-DURUMU.md)), ekranlar görüntüyle kontrol edildi. Kullanıcının S Pen ile elle denemesi bekleniyor. Geçmiş: [docs/DOGRULAMA.md](docs/DOGRULAMA.md).
+**0.14.0:** varsayılan sık liste ve kalıcı kart/liste seçimi; geniş ekranda tekrar eden klasör kartları kaldırıldı, dar ekranda kompakt klasör satırları. Sayfa sıralayıcı belgeyi örtmeyen ayrı yan panel; sayfa/yakınlaştırma bilgisi ve araçlar mevcut üst satırda; alt çubuk ve sürekli kayıt yazıları kaldırıldı. PDF çıktısı özgün PDF sayfalarını korur ve yazıları/şablonları vektör olarak ekler; tam sayfa rasterleştirme kaldırıldı.
+
+Doğrulama: çevrimdışı derleme, 17 JVM testi, lint (0 hata), 15 tablet test birimi geçti. Tablette kurulu; alt çubuksuz üst satır, ayrı sayfa paneli ve sık liste gerçek ekran görüntüleriyle kontrol edildi. Cihazdan alınan PDF çıktısında metin/sayfa sırası ve vektör çizimler PyMuPDF ile de doğrulandı. Ayrıntı: [doğrulama günlüğü](docs/DOGRULAMA.md).
 
 ## Sonraki adım
 
-Kullanıcının 0.12.0 denemesi ve geri bildirimi; ardından 1.0.0.
+Kullanıcının sadeleştirilmiş kütüphane ve üst satır düzenini günlük ders kullanımında denemesi. `./DEVICE-TEST.ps1 -Durum` yalnız test durum tablosunu yeniler, cihaza bağlanmaz.
 
 ## Belgeler
 

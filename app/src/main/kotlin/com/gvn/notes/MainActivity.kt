@@ -52,6 +52,7 @@ import com.gvn.notes.core.Tool
 class MainActivity:ComponentActivity() {
     override fun onCreate(savedInstanceState:Bundle?) {
         super.onCreate(savedInstanceState); enableEdgeToEdge()
+        com.tom_roush.pdfbox.android.PDFBoxResourceLoader.init(applicationContext)
         CrashLog.install(filesDir,runCatching { packageManager.getPackageInfo(packageName,0).versionName }.getOrNull() ?: "?")
         // Cihaz testleri kullanıcı notunu değiştirmeyen ayrı, yalnız debug'da seçilebilen klasör kullanır.
         val debuggable=(applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE)!=0
@@ -185,16 +186,24 @@ private val Divider=Ada.Line
     } }
     Column(Modifier.fillMaxSize().testTag("editor").background(Ada.Surface)
         .then(if(fullscreen) Modifier else Modifier.safeDrawingPadding())) {
-        if(!fullscreen) {
+        run {
             Row(Modifier.fillMaxWidth().height(68.dp).padding(horizontal=8.dp),verticalAlignment=Alignment.CenterVertically) {
                 if(onBack!=null) IconButton(onClick=onBack,enabled=!closing,modifier=Modifier.testTag("back-to-notes")) {
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Notlara dön",tint=Ink)
                 }
-                Text(if(revision>=0) editor.note.title else "",style=MaterialTheme.typography.titleLarge,color=Ink,maxLines=1,
-                    overflow=TextOverflow.Ellipsis,fontWeight=FontWeight.SemiBold,
-                    modifier=Modifier.widthIn(max=560.dp).padding(start=8.dp).clickable(enabled=canEdit,onClickLabel="Başlığı değiştir") { renaming=true })
+                Column(Modifier.weight(1f).padding(start=8.dp)) {
+                    Text(if(revision>=0) editor.note.title else "",style=MaterialTheme.typography.titleMedium,color=Ink,maxLines=1,
+                        overflow=TextOverflow.Ellipsis,fontWeight=FontWeight.SemiBold,
+                        modifier=Modifier.clickable(enabled=canEdit,onClickLabel="Başlığı değiştir") { renaming=true })
+                    Text("Sayfa ${editor.currentPage+1} / ${editor.pages.size} · ${(editor.viewport.scale*100).toInt()}%",
+                        color=Muted,style=MaterialTheme.typography.bodySmall,maxLines=1,
+                        modifier=Modifier.testTag("page-indicator")
+                            .semantics { contentDescription="Sayfa ${editor.currentPage+1} / ${editor.pages.size}" })
+                }
                 if(folder?.path!=null) FolderChip(folder.path,folderIsland,enabled=!closing) { folderIsland=!folderIsland }
-                Spacer(Modifier.weight(1f))
+                TopAction(Icons.Outlined.FitScreen,"Ekrana sığdır",false,canEdit) { pageView?.fit() }
+                TopAction(if(fullscreen) Icons.Outlined.FullscreenExit else Icons.Outlined.Fullscreen,
+                    if(fullscreen) "Tam ekrandan çık" else "Tam ekran",fullscreen,editor.ready) { fullscreen=!fullscreen }
                 TopAction(Icons.Outlined.Gesture,"Kement seçimi",editor.lassoMode,editor.ready) {
                     editor.lassoMode=!editor.lassoMode; editor.clearSelection(); pageView?.refresh() }
                 TopAction(Icons.Outlined.ViewSidebar,"Sayfa sıralayıcı",sorter,editor.ready) { sorter=!sorter }
@@ -205,7 +214,7 @@ private val Divider=Ada.Line
                 Box {
                     TopAction(Icons.Outlined.MoreHoriz,"Diğer seçenekler",false,true) { menu=true }
                     DropdownMenu(expanded=menu,onDismissRequest={menu=false}) {
-                        DropdownMenuItem(text={Text("Tam ekran")},enabled=editor.ready,onClick={menu=false; fullscreen=true},leadingIcon={Icon(Icons.Outlined.Fullscreen,null)})
+                        DropdownMenuItem(text={Text(if(fullscreen) "Tam ekrandan çık" else "Tam ekran")},enabled=editor.ready,onClick={menu=false; fullscreen=!fullscreen},leadingIcon={Icon(Icons.Outlined.Fullscreen,null)})
                         DropdownMenuItem(text={Text("Başlığı değiştir")},enabled=canEdit,onClick={menu=false; renaming=true})
                         DropdownMenuItem(text={Text("PDF olarak dışa aktar")},enabled=editor.ready&&editor.exporting==null,
                             onClick={menu=false; exportTo.launch("${editor.note.title}.pdf")},leadingIcon={Icon(Icons.Outlined.IosShare,null)})
@@ -238,37 +247,8 @@ private val Divider=Ada.Line
                     toolbar=bar
                     ink.onStateChanged={ bar.refreshSelection(); bar.refreshHistory() }
                     android.widget.FrameLayout(ctx).apply { addView(ink,-1,-1); addView(bar,-1,-1) }
-                },modifier=Modifier.fillMaxSize(),
+                },modifier=Modifier.fillMaxSize().testTag("writing-area"),
                     update={ if(revision>=0) { pageView?.refresh(); toolbar?.refreshHistory() } })
-                // Sağ üstte eylem adası: yakınlaştırma, sığdır, tam ekran, dışa aktar.
-                Pill(Modifier.align(Alignment.TopEnd).padding(top=14.dp,end=16.dp)) {
-                    Text("${(editor.viewport.scale*100).toInt()}%",color=Ink,style=MaterialTheme.typography.labelLarge,modifier=Modifier.padding(start=18.dp,end=4.dp))
-                    IconButton(onClick={ pageView?.fit() },enabled=canEdit,modifier=Modifier.size(48.dp)) { Icon(Icons.Outlined.FitScreen,"Ekrana sığdır",tint=Ink) }
-                    if(fullscreen) IconButton(onClick={fullscreen=false},modifier=Modifier.size(48.dp)) { Icon(Icons.Outlined.FullscreenExit,"Tam ekrandan çık",tint=Ink) }
-                    else IconButton(onClick={fullscreen=true},enabled=editor.ready,modifier=Modifier.size(48.dp)) { Icon(Icons.Outlined.Fullscreen,"Tam ekran",tint=Ink) }
-                    IconButton(onClick={ exportTo.launch("${editor.note.title}.pdf") },enabled=editor.ready&&editor.exporting==null,modifier=Modifier.size(48.dp)) {
-                        Icon(Icons.Outlined.IosShare,"PDF olarak dışa aktar",tint=Ink) }
-                    Spacer(Modifier.width(4.dp))
-                }
-                // Sayfa sıralayıcı adası: sağda, kapatılabilir.
-                if(sorter && !fullscreen) Island(Modifier.align(Alignment.TopEnd).padding(top=80.dp,end=16.dp,bottom=80.dp).width(212.dp).fillMaxHeight()) {
-                    PageSorter(editor,revision,canEdit,onClose={sorter=false}) { i -> pageView?.scrollToPage(i) }
-                }
-                // Alt orta ada: kayıt durumu + sayfa sayacı (sol alt GVNpen şeridine ait; orada kalırsa şeridin altına girer).
-                val status=if(closing) "Notlara dönülüyor…" else if(editor.busy) "Çiziliyor…" else editor.saveStatus
-                Pill(Modifier.align(Alignment.BottomCenter).padding(bottom=16.dp)) {
-                    if(status.isNotEmpty()) {
-                        Icon(Icons.Outlined.CloudDone,null,tint=Accent,modifier=Modifier.padding(start=16.dp).size(16.dp))
-                        Text(status,color=Muted,style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(start=8.dp,end=12.dp))
-                        Box(Modifier.width(1.dp).height(24.dp).background(Divider))
-                    }
-                    Text("Sayfa ${editor.currentPage+1} / ${editor.pages.size}",color=Ink,style=MaterialTheme.typography.labelLarge,
-                        modifier=Modifier.padding(start=18.dp,end=6.dp).testTag("page-indicator")
-                            .semantics { contentDescription="Sayfa ${editor.currentPage+1} / ${editor.pages.size}" })
-                    IconButton(onClick={ val added=editor.insertBlankPageAfter(editor.currentPage)
-                        if(added>=0) pageView?.let { v -> v.post { v.refresh(); v.scrollToPage(added) } } },enabled=canEdit,modifier=Modifier.size(44.dp)) {
-                        Icon(Icons.Outlined.Add,"Arkasına boş sayfa ekle",tint=Ink) }
-                }
                 // Kement seçimi araç çubuğu.
                 if(editor.selection.isNotEmpty()) Surface(Modifier.align(Alignment.TopCenter).padding(top=14.dp).testTag("selection-bar"),
                     shape=RoundedCornerShape(24.dp),color=Ada.Surface,shadowElevation=6.dp) {
@@ -282,7 +262,7 @@ private val Divider=Ada.Line
                     }
                 }
                 (editor.exporting ?: editor.exportResult)?.let { message ->
-                    Surface(Modifier.align(Alignment.BottomCenter).padding(bottom=76.dp),shape=RoundedCornerShape(24.dp),
+                    Surface(Modifier.align(Alignment.BottomCenter).padding(bottom=16.dp),shape=RoundedCornerShape(24.dp),
                         color=Ada.Surface,shadowElevation=6.dp) {
                         Row(Modifier.padding(start=18.dp,end=6.dp),verticalAlignment=Alignment.CenterVertically) {
                             if(editor.exporting!=null) CircularProgressIndicator(Modifier.size(18.dp),strokeWidth=2.dp,color=Accent)
@@ -300,6 +280,10 @@ private val Divider=Ada.Line
                         }
                     }
                 }
+            }
+            // Yan panel kendi yerini ayırır; PDF ve araç şeridinin üzerine binmez.
+            if(sorter && !fullscreen) Island(Modifier.padding(top=12.dp,end=12.dp,bottom=12.dp).width(184.dp).fillMaxHeight()) {
+                PageSorter(editor,revision,canEdit,onClose={sorter=false}) { i -> pageView?.scrollToPage(i) }
             }
         }
     }
@@ -320,17 +304,13 @@ private val Divider=Ada.Line
     }
 }
 
-@Composable private fun Pill(modifier:Modifier=Modifier,content:@Composable RowScope.()->Unit) {
-    Surface(modifier,shape=RoundedCornerShape(28.dp),color=Ada.Surface.copy(alpha=.97f),shadowElevation=6.dp) {
-        Row(verticalAlignment=Alignment.CenterVertically,content=content)
-    }
-}
+
 
 /** Başlıktaki konum çipi: "Tıp Fakültesi › Fizyoloji". Dokununca Klasör adası açılır. */
 @Composable private fun FolderChip(path:String,open:Boolean,enabled:Boolean,onClick:()->Unit) {
     Surface(onClick=onClick,enabled=enabled,shape=RoundedCornerShape(24.dp),color=Ada.Soft,
         border=if(open) BorderStroke(2.dp,Accent) else null,
-        modifier=Modifier.padding(start=16.dp).height(44.dp).widthIn(max=420.dp).testTag("folder-chip")
+        modifier=Modifier.padding(start=16.dp).height(44.dp).widthIn(max=200.dp).testTag("folder-chip")
             .semantics { contentDescription="Konum: ${if(path.isEmpty()) "Klasör dışı" else path.replace("/"," › ")}. Klasör adasını aç" }) {
         Row(Modifier.padding(start=14.dp,end=12.dp),verticalAlignment=Alignment.CenterVertically) {
             Icon(Icons.Outlined.Folder,null,tint=Ada.Petrol,modifier=Modifier.size(20.dp))

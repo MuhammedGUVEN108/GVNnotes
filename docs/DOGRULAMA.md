@@ -2,6 +2,25 @@
 
 > Sürüm sürüm doğrulama günlüğü; en yeni girdi en üstte. Eski girdiler o günün kararlarını yansıtır (ör. Jetpack Ink, Samsung Notes düzeni); güncel kurallar için [AGENTS.md](../AGENTS.md).
 
+## 0.14.0 — Sık liste, sessiz kayıt ve vektör PDF, 14 Kasım 2026
+
+Kullanıcı kütüphane/klasör ekranındaki alan tekrarının azaltılmasını, sık listeyi, belgeyi örtmeyen panelleri ve PDF çıktısının düzeltilmesini istedi. Eklenen kalın alt çubuğu açıkça reddetti; son uygulamada bu çubuk kaldırıldı. Sayfa/yakınlaştırma bilgisi ile sığdırma/tam ekran mevcut üst satırda; PDF dışa aktarma üst menüde. Sürekli Kaydedildi/Çiziliyor yazıları yok, otomatik kayıt ve hata korumaları sürüyor. Yedekleme ve koyu tema özellikleri kapsam dışında.
+
+- Sık liste varsayılan; sağ üstten kart görünümü, cihazda kalıcı seçim. Geniş ekranda klasör ağacının tekrarı olan kartlar kaldırıldı; dar ekranda kompakt klasör satırları. Ağaç 248 dp, daha dar girintiler.
+- Sayfa sıralayıcı 184 dp ayrı yan sütun; tuval üzerine binmez. Boyut değişince açık sayfa korunarak sığdırılır. Altta sabit çubuk/boşluk ayrılmaz. Tam ekran sistem çubuklarını gizler; üst uygulama kontrolleri erişilebilir kalır.
+- PDF: PdfBox-Android ile özgün PDF sayfası/metni/görselleri korunur; aynı GVNpen geometrisi Android PDF Canvas üzerinden vektör katman olarak eklenir. Boş sayfa şablonları da vektördür. Döndürme, kırpma ve değiştirilmiş sayfa sırası desteklenir. OCR, kaynak yer imleri/formları/dijital imzaları tam olarak yeniden kurma kapsamda değildir.
+- Yeni PDF paketleri Maven Central'dan boyutları önceden kontrol edilerek alındı; toplam 14.296.843 bayt. Her biri Maven SHA1 ile doğrulandı, SHA256 listesi app/libs/SHA256SUMS.txt. Sonraki derlemeler çevrimdışı. Kullanıcının 100 MB üzeri internet indirmesi için ön izin kuralı kaydedildi.
+
+**Doğrulama:** çevrimdışı son birleşik derleme + test APK, 17 JVM testi (4 döndürme/kırpma köşelerini denetleyen yeni test dahil) geçti. Lint 0 hata / 33 uyarı (3 uyarı yeni bcpkix bağımlılığının kullanılmayan TLS yardımcılarına ait; uygulamanın internet izni yok). SM-X810 üzerinde 15 cihaz biriminin tümü başarılı; son üst satır değişikliğinde etkilenen birimler yeniden çalıştı, değişmeyenler parmak iziyle atlandı. Durum docs/TEST-DURUMU.md; loglar logs/build-final.log ve logs/*.txt.
+
+Yeni VectorExportDeviceTest: dört dönüş + kırpma, sayfa yeniden sıralama, araya kareli boş sayfa, kaynak dosyasının SHA256 ile değişmezliği, görünür kaynak siyah şekilleri ve kalemin konumu. İlk metin testi döndürülmüş yazıda okuyucunun eklediği satır sonlarından dolayı durdu; boşluklar normalize edilince geçti. Cihazdan alınan source.pdf/result.pdf ayrıca PyMuPDF ile açıldı: 4→5 sayfa, doğru sıra, dört SOURCE metni, sıfır gömülü resim, vektör çizimler; 1/2/3. sayfalar görsel incelendi (logs/pdf-export-0.14.0).
+
+Son UI kontrolü: liste/kart geçişi, yatay/dikey kütüphane cihaz testleri; alt çubuğun ve sürekli kayıt yazılarının yokluğu, tam ekrandan geri çıkış ve ayrı sayfa paneli gerçek UI üzerinden denetlendi. Son ekranlar logs/ui-0.14.0/04-son-ust-satir.png, 05-son-yan-panel.png ve 06-son-kullanici-kutuphanesi.png. Önceki 01–03 görüntüleri reddedilen ara tasarımdır. Testlerden sonra normal kullanıcı kütüphanesi açıldı. Gerçek kullanıcı S Pen hissi/uzun süreli ders kullanımı ve gerçek SAF klasör silme elle bu oturumda sınanmadı.
+
+Kurulum öncesi cihazın files/shared_prefs kopyası yedek/tablet-0.14.0-oncesi-20261114-010241.tar (446 arşiv girdisi, 259.174.400 bayt). Testler yalnız test verilerini kullandı; kullanıcı notları üzerinde çizim/silme yapılmadı.
+
+APK: dist/GVNnotes-0.14.0.apk; SHA256 `6c56eb0c7dbcad50e2a3c781acee0d45cecdeb2d4b7bcfcb1a329fc722403f0e`; tablette kurulu.
+
 ## 0.13.0 — GVNpen şeridi yatay da olabilir, 12 Kasım 2026
 
 Kullanıcı: "GVNpen'i yukarıdan aşağı pozisyonun yanında soldan sağa pozisyona da ekleyebilir miyiz… ayarlardan olmasın, arayüzde küçük bir tuş olsun"; "döndür simgesini internetten al"; "yataya geçince boyalar sığmamış, yatayda biraz küçült".

@@ -22,15 +22,19 @@ Dosyalarım'daki `Documents/GVNnotes` klasörüne eklenen PDF/resimleri klasör 
 - Silme `.GVNnotes-çöp` klasörüne taşıma; uygulama kullanıcı dosyasını silmez. Aynı ad varsa reddet; iki klasörde aynı içerik ayrı not; kaynak çatışmada kazanır.
 - Dosyalarım'dan silinen kaynağın notu çöp kutusuna gider (dosya geri gelirse döner); içerik değişen kaynak yeni not olur.
 - Çöp kutusu 30 gün; sonra kalıcı silme. Klasör silme alt klasörleriyle birlikte.
-- Dışa aktarma: zemin + şablon + yazılar, ~180 dpi görüntü PDF (seçilebilir metin yok).
+- Dışa aktarma: özgün PDF sayfaları/metin/görseller korunur; yazılar ve boş sayfa şablonları vektör eklenir. Kaynakta metin yoksa OCR üretilmez.
 - Arka planda anlık algılama yok; tarama uygulama açılınca / öne gelince yapılır.
 - Veriler yalnız tablette, uygulamanın kendi alanında; internet ve bulut yok. Uygulamayı kaldırmak notları siler.
 
 ## Operating Context
-Proje `D:/Sanal Desktop/GVNnotes`, Windows + PowerShell 5.1, yerel Gradle. Tablet USB ile bağlanır (seri `TABLET-SERI-NO`). Paket kimliği `com.gvn.notes.prototype` notları korumak için sabit. Güncel sürüm 0.12.0: tablette otomatik testler geçti, kullanıcı denemesi bekleniyor.
+Proje `D:/Sanal Desktop/GVNnotes`, Windows + PowerShell 5.1, yerel Gradle. Tablet USB ile bağlanır (seri `TABLET-SERI-NO`). Paket kimliği `com.gvn.notes.prototype` notları korumak için sabit. Güncel sürüm 0.14.0: sık liste, belgeyi örtmeyen yan panel ve üst satırda kontroller; 15 tablet test birimi ve görsel doğrulama geçti; tablette kurulu.
 
 ## Brand Commitments
 Kalem tarafı GVNpen kimliğini taşır (şerit düzeni, simgeler, GVNpen markası). Uygulama çerçevesi Petrol Ada: açık mavi-gri masa, yüzen yumuşak gölgeli adalar, indigo seçim, petrol mavisi klasör. Samsung Notes yalnız davranış referansı; Samsung kodu/görselleri kopyalanmaz.
 
 ## Evidence on Hand
 Tablet testleri ve kullanıcı onayları `docs/DOGRULAMA.md`; ekran görüntüleri `logs/ui-0.11.0/`; tasarım sheet'leri `D:/Sanal Desktop/GVNnotes Arayüz Sheetleri/`; Samsung Notes incelemesi `research/samsung-notes-4.3.831/RAPOR.md`. Sürümlerin doğrulama kapsamları birbirine genellenmez.
+
+## 14 Kasım 2026 kapsamı
+
+Kullanıcı kütüphanede alan tekrarını ve düzenleyicide panellerin sayfayı örtmesini azaltmayı, sık listeyi ve kaliteli PDF çıktısını onayladı. Yedekleme öncelikli değil, koyu tema kapsam dışında.

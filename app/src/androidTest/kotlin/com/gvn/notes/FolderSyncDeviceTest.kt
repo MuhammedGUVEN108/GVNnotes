@@ -63,16 +63,16 @@ class FolderSyncDeviceTest {
         val activity=inst.startActivitySync(Intent(inst.targetContext,MainActivity::class.java)
             .putExtra("gvnnotes.testLibrary",true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as MainActivity
         waitFor { compose.onAllNodesWithText("3 not",substring=true).fetchSemanticsNodes().isNotEmpty() }
-        waitFor { compose.onAllNodesWithTag("folder-1. KURUL").fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithTag("folder-Boş klasör").assertExists()
+        waitFor { compose.onAllNodes(hasTestTag("folder-1. KURUL") or hasTestTag("tree-folder-1. KURUL")).fetchSemanticsNodes().isNotEmpty() }
+        compose.onAllNodes(hasTestTag("folder-Boş klasör") or hasTestTag("tree-folder-Boş klasör")).onFirst().assertExists()
         compose.onAllNodesWithTag("folder-.GVNnotes-çöp").assertCountEquals(0)
         shot("01-all-notes-folders")
-        compose.onNodeWithTag("folder-1. KURUL").performClick()
-        waitFor { compose.onAllNodesWithTag("folder-Histoloji").fetchSemanticsNodes().isNotEmpty() }
+        compose.onAllNodes(hasTestTag("folder-1. KURUL") or hasTestTag("tree-folder-1. KURUL")).onFirst().performClick()
+        waitFor { compose.onAllNodes(hasTestTag("folder-Histoloji") or hasTestTag("tree-folder-Histoloji")).fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("biyokimya").assertExists()
         compose.onAllNodesWithText("hucre").assertCountEquals(0)
         shot("02-folder-1-kurul")
-        compose.onNodeWithTag("folder-Histoloji").performClick()
+        compose.onAllNodes(hasTestTag("folder-Histoloji") or hasTestTag("tree-folder-Histoloji")).onFirst().performClick()
         waitFor { compose.onAllNodesWithText("hucre").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithContentDescription("Üst klasör").performClick()
         compose.onNodeWithContentDescription("Üst klasör").performClick()

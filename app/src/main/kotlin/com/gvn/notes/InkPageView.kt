@@ -263,7 +263,11 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         fun axis(pos: Float, size: Float, view: Float): Float { val a = view - size - m; return pos.coerceIn(min(a, m), max(a, m)) }
         return v.copy(x = axis(v.x, docWidth * v.scale, width.toFloat()), y = axis(v.y, docHeight * v.scale, height.toFloat()))
     }
-    override fun onSizeChanged(w:Int,h:Int,oldw:Int,oldh:Int) { super.onSizeChanged(w,h,oldw,oldh); refresh() }
+    override fun onSizeChanged(w:Int,h:Int,oldw:Int,oldh:Int) {
+        super.onSizeChanged(w,h,oldw,oldh)
+        // Sayfa paneli açıldığında yeni çalışma genişliğine sığdır; açık sayfayı koru.
+        if(oldw>0 && oldh>0 && editor.ready && !editor.busy) fit() else refresh()
+    }
     /** İlk sığdırma: not diskten yüklendikten sonra yapılır. */
     private fun fitIfNeeded(w:Int,h:Int) {
         if (editor.fitted || !editor.ready || w<=0 || h<=0) return

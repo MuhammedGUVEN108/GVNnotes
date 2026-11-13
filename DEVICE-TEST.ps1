@@ -1,4 +1,4 @@
-param([string]$Serial='TABLET-SERI-NO',[switch]$Hepsi,[string[]]$Sadece)
+﻿param([string]$Serial='TABLET-SERI-NO',[switch]$Hepsi,[string[]]$Sadece,[switch]$Durum)
 # Tablet testleri. Her test biriminin ilgili kaynak dosyalari vardir; o dosyalar son basarili calistirmadan beri
 # degismediyse birim atlanir (docs/TEST-DURUMU.md'de tikli). -Hepsi her seyi calistirir; -Sadece ad1,ad2 yalniz onlari.
 $ErrorActionPreference='Stop'
@@ -18,6 +18,7 @@ $common=@('app/src/main/AndroidManifest.xml','app/build.gradle.kts','core/src/ma
 $units=[ordered]@{
   'persistence-codec-device'=@{ tests=,@('PageStoreDeviceTest',''); files=@("${K}PageStore.kt",'core/src/main/kotlin/com/gvn/notes/core/SaveEnvelope.kt',"${T}PageStoreDeviceTest.kt") }
   'persistence-ink-regression'=@{ tests=,@('InkPageRegressionTest',''); files=@("${K}InkPageView.kt","${K}EditorState.kt","${K}StrokeBuild.kt","${K}PageStore.kt",'app/src/main/java/com/gvn/notes/pen/',"${T}InkPageRegressionTest.kt") }
+  'vector-export'=@{ tests=,@('VectorExportDeviceTest',''); files=@("${K}Export.kt","${K}PagePattern.kt","${K}StrokeBuild.kt",'app/src/main/java/com/gvn/notes/pen/PenRenderer.java',"${K}PdfPages.kt","${T}VectorExportDeviceTest.kt",'app/libs/') }
   'pdf-note'=@{ tests=,@('PdfNoteDeviceTest',''); files=@("${K}PdfPages.kt","${K}NoteLibrary.kt","${K}PageStore.kt","${K}EditorState.kt","${K}InkPageView.kt","${K}MainActivity.kt","${K}LibraryScreen.kt","${K}Export.kt","${T}PdfNoteDeviceTest.kt") }
   'folder-sync'=@{ tests=,@('FolderSyncDeviceTest',''); files=@("${K}FolderSync.kt","${K}NoteLibrary.kt","${K}LibraryScreen.kt","${K}MainActivity.kt","${K}PdfPages.kt","${T}FolderSyncDeviceTest.kt") }
   'note-management'=@{ tests=,@('NoteManagementDeviceTest',''); files=@("${K}NoteLibrary.kt","${K}LibraryScreen.kt","${K}MainActivity.kt","${K}EditorState.kt","${K}Export.kt","${K}FolderSync.kt","${K}PageStore.kt","${T}NoteManagementDeviceTest.kt") }
@@ -79,6 +80,8 @@ foreach($n in $units.Keys){
     $todo+=$n
 }
 if($todo.Count -eq 0){SaveLedger;Write-Output 'Calistirilacak test yok: hepsi guncel. Zorlamak icin -Hepsi.';return}
+SaveLedger
+if($Durum){Write-Output 'Yalniz durum tablosu guncellendi; cihaz testi calistirilmadi.';return}
 Adb @('install','-r',"$root/app/build/outputs/apk/debug/app-debug.apk") | Out-Null
 Adb @('install','-r',"$root/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk") | Out-Null
 $failed=$null

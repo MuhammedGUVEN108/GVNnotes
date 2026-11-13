@@ -1,86 +1,92 @@
 {
     "persistence-codec-device":  {
                                      "result":  "passed",
-                                     "fingerprint":  "d3fa2d15811992e8",
-                                     "date":  "2026-11-12 12:11",
-                                     "version":  "0.12.0"
+                                     "fingerprint":  "b780da7a9cbed0f5",
+                                     "date":  "2026-11-14 01:03",
+                                     "version":  "0.14.0"
                                  },
     "persistence-ink-regression":  {
                                        "result":  "passed",
-                                       "fingerprint":  "1f1b6a5a9367619a",
-                                       "date":  "2026-11-12 15:42",
-                                       "version":  "0.13.0"
+                                       "fingerprint":  "bf17a303408ebc52",
+                                       "date":  "2026-11-14 01:03",
+                                       "version":  "0.14.0"
                                    },
+    "vector-export":  {
+                          "result":  "passed",
+                          "fingerprint":  "48f88ddbe9b56278",
+                          "date":  "2026-11-14 01:04",
+                          "version":  "0.14.0"
+                      },
     "pdf-note":  {
                      "result":  "passed",
-                     "fingerprint":  "dda978bbd5d5a02a",
-                     "date":  "2026-11-12 15:42",
-                     "version":  "0.13.0"
+                     "fingerprint":  "133de754d8dcfc53",
+                     "date":  "2026-11-14 01:10",
+                     "version":  "0.14.0"
                  },
     "folder-sync":  {
                         "result":  "passed",
-                        "fingerprint":  "3a524d3718d3cddf",
-                        "date":  "2026-11-12 12:12",
-                        "version":  "0.12.0"
+                        "fingerprint":  "a1003886f0ee1982",
+                        "date":  "2026-11-14 01:10",
+                        "version":  "0.14.0"
                     },
     "note-management":  {
                             "result":  "passed",
-                            "fingerprint":  "6646f985c5bdcf5e",
-                            "date":  "2026-11-12 12:12",
-                            "version":  "0.12.0"
+                            "fingerprint":  "fe907c7d7493e52e",
+                            "date":  "2026-11-14 01:10",
+                            "version":  "0.14.0"
                         },
     "two-way":  {
                     "result":  "passed",
-                    "fingerprint":  "5a1b1968569a3d29",
-                    "date":  "2026-11-12 12:12",
-                    "version":  "0.12.0"
+                    "fingerprint":  "7f5bcc04b30c3bd2",
+                    "date":  "2026-11-14 01:05",
+                    "version":  "0.14.0"
                 },
     "pen-tools":  {
                       "result":  "passed",
-                      "fingerprint":  "98e9dd98cb16f21a",
-                      "date":  "2026-11-12 15:42",
-                      "version":  "0.13.0"
+                      "fingerprint":  "3681381ccf604a53",
+                      "date":  "2026-11-14 01:05",
+                      "version":  "0.14.0"
                   },
     "lasso":  {
                   "result":  "passed",
-                  "fingerprint":  "6082a399906879f8",
-                  "date":  "2026-11-12 15:42",
-                  "version":  "0.13.0"
+                  "fingerprint":  "c62b89a6f283324a",
+                  "date":  "2026-11-14 01:11",
+                  "version":  "0.14.0"
               },
     "folder-delete":  {
                           "result":  "passed",
-                          "fingerprint":  "e3f585e0c7193a8c",
-                          "date":  "2026-11-12 12:12",
-                          "version":  "0.12.0"
+                          "fingerprint":  "1adb97e6f49c1ffa",
+                          "date":  "2026-11-14 01:05",
+                          "version":  "0.14.0"
                       },
     "cursor-size":  {
                         "result":  "passed",
-                        "fingerprint":  "fa1a885a91d1d2a5",
-                        "date":  "2026-11-12 16:02",
-                        "version":  "0.13.0"
+                        "fingerprint":  "6ba17b87e29abf9d",
+                        "date":  "2026-11-14 01:05",
+                        "version":  "0.14.0"
                     },
     "templates":  {
                       "result":  "passed",
-                      "fingerprint":  "140d46b83ac1d6f6",
-                      "date":  "2026-11-12 15:42",
-                      "version":  "0.13.0"
+                      "fingerprint":  "44c9c236d9786c4a",
+                      "date":  "2026-11-14 01:05",
+                      "version":  "0.14.0"
                   },
     "finger-draw":  {
                         "result":  "passed",
-                        "fingerprint":  "dcbe52d9001d67de",
-                        "date":  "2026-11-12 15:42",
-                        "version":  "0.13.0"
+                        "fingerprint":  "f5ad464e74de9d0c",
+                        "date":  "2026-11-14 01:05",
+                        "version":  "0.14.0"
                     },
     "persistence-restart":  {
                                 "result":  "passed",
-                                "fingerprint":  "a7063090516fe661",
-                                "date":  "2026-11-12 15:43",
-                                "version":  "0.13.0"
+                                "fingerprint":  "e516c8e94e31fb0d",
+                                "date":  "2026-11-14 01:11",
+                                "version":  "0.14.0"
                             },
     "library":  {
                     "result":  "passed",
-                    "fingerprint":  "ce3c53b868d83c5f",
-                    "date":  "2026-11-12 12:13",
-                    "version":  "0.12.0"
+                    "fingerprint":  "b828772ea5cbeaea",
+                    "date":  "2026-11-14 01:11",
+                    "version":  "0.14.0"
                 }
 }

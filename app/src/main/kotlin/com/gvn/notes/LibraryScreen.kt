@@ -15,7 +15,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -94,6 +93,8 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
     var sortByName by rememberSaveable { mutableStateOf(false) }
     val collapsed=remember { mutableStateListOf<String>() }
     val context=LocalContext.current
+    val displayPrefs=remember { context.getSharedPreferences("library-display",0) }
+    var compact by rememberSaveable { mutableStateOf(displayPrefs.getBoolean("compact",true)) }
     val drawer=rememberDrawerState(DrawerValue.Closed)
     val scope=rememberCoroutineScope()
     fun openNew(location:String) { title=""; pattern=state.settings.defaultPattern; newIn=location; state.clearCreationError(); showNew=true }
@@ -162,7 +163,7 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
             if(!wide) ModalDrawerSheet(Modifier.width(320.dp),drawerContainerColor=Ada.Surface) { tree() }
         }) {
         Row(Modifier.fillMaxSize()) {
-            if(wide) Island(Modifier.padding(start=16.dp,top=16.dp,bottom=16.dp).width(288.dp).fillMaxHeight().testTag("folder-tree")) { tree() }
+            if(wide) Island(Modifier.padding(start=12.dp,top=12.dp,bottom=12.dp).width(248.dp).fillMaxHeight().testTag("folder-tree")) { tree() }
             Box(Modifier.weight(1f).fillMaxHeight()) {
                 if(showSettings) SettingsView(state,onBack={showSettings=false},onPickFolder={pickFolder.launch(SuggestedFolder)})
                 else if(showTrash) TrashView(state,onBack={showTrash=false},onDelete={deletingKey=it}) else Column(Modifier.fillMaxSize()) {
@@ -185,6 +186,11 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
                                     modifier=Modifier.testTag("sync-status"))
                             }
                             IconButton(onClick={searching=true}) { Icon(Icons.Outlined.Search,"Ara",tint=Ada.Ink) }
+                            IconButton(onClick={compact=!compact; displayPrefs.edit().putBoolean("compact",compact).apply()},
+                                modifier=Modifier.testTag("library-view-toggle")) {
+                                Icon(if(compact) Icons.Outlined.GridView else Icons.Outlined.ViewList,
+                                    if(compact) "Kart görünümüne geç" else "Sık liste görünümüne geç",tint=Ada.Ink)
+                            }
                             Box {
                                 IconButton(onClick={menu=true}) { Icon(Icons.Outlined.MoreHoriz,"Diğer seçenekler",tint=Ada.Ink) }
                                 DropdownMenu(expanded=menu,onDismissRequest={menu=false}) {
@@ -221,9 +227,9 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
                                 Text(state.error!!); Button(onClick={state.refresh()}){Text("Yeniden dene")}
                             }
                         }
-                        else -> LazyVerticalGrid(GridCells.Adaptive(212.dp),Modifier.fillMaxSize(),
+                        else -> LazyVerticalGrid(if(compact) GridCells.Fixed(1) else GridCells.Adaptive(212.dp),Modifier.fillMaxSize(),
                             contentPadding=PaddingValues(start=24.dp,end=24.dp,top=4.dp,bottom=48.dp),
-                            horizontalArrangement=Arrangement.spacedBy(22.dp),verticalArrangement=Arrangement.spacedBy(22.dp)) {
+                            horizontalArrangement=Arrangement.spacedBy(22.dp),verticalArrangement=Arrangement.spacedBy(if(compact) 4.dp else 22.dp)) {
                             val full:(androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope)->GridItemSpan={ GridItemSpan(it.maxLineSpan) }
                             if(query.isBlank()) item(span=full) {
                                 Row(horizontalArrangement=Arrangement.spacedBy(12.dp)) {
@@ -240,12 +246,12 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
                             if(state.source==null && current==null && query.isBlank()) item(span=full) {
                                 LinkCard { pickFolder.launch(SuggestedFolder) }
                             }
-                            if(query.isBlank() && childFolders.isNotEmpty()) item(span=full) {
-                                LazyRow(horizontalArrangement=Arrangement.spacedBy(14.dp),contentPadding=PaddingValues(vertical=6.dp)) {
-                                    items(childFolders,key={it}) { p -> FolderTile(nameOf(p),countUnder(p),allFolders.count { parentOf(it)==p },onDelete={ deletingFolder=p }) { folder=p } }
-                                }
+                            // Geniş ekranda ağaç zaten görünür; aynı klasörleri ikinci kez büyük kartlarla tekrarlama.
+                            if(query.isBlank() && childFolders.isNotEmpty() && (!wide || current=="")) items(childFolders.size,span={full(this)}) { index ->
+                                val p=childFolders[index]
+                                FolderTile(nameOf(p),countUnder(p),allFolders.count { parentOf(it)==p },onDelete={deletingFolder=p}) { folder=p }
                             }
-                            if(visible.isEmpty()) item(span=full) {
+                            if(visible.isEmpty() && (childFolders.isEmpty() || query.isNotBlank() || current==null)) item(span=full) {
                                 Box(Modifier.fillMaxWidth().padding(top=64.dp),contentAlignment=Alignment.Center) {
                                     Text(when {
                                         query.isNotBlank() -> "Eşleşen not yok"
@@ -256,7 +262,9 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
                             }
                             items(visible.size,key={ visible[it].key }) { i ->
                                 val note=visible[i]
-                                NoteTile(note,state.sourceStates[note.key],showFolder=current==null || query.isNotBlank(),
+                                if(compact) CompactNoteRow(note,state.sourceStates[note.key],showFolder=current==null || query.isNotBlank(),
+                                    onRename={renamingKey=note.key},onMove={movingKey=note.key},onTrash={state.moveToTrash(note.key)}) { state.open(note.key) }
+                                else NoteTile(note,state.sourceStates[note.key],showFolder=current==null || query.isNotBlank(),
                                     onRename={renamingKey=note.key},onMove={movingKey=note.key},onTrash={state.moveToTrash(note.key)}) { state.open(note.key) }
                             }
                         }
@@ -370,7 +378,7 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
             allFolders.filter { p -> generateSequence(parentOf(p)) { parentOf(it) }.takeWhile { it.isNotEmpty() }.none { it in collapsed } }.forEach { p ->
                 val hasChildren=allFolders.any { parentOf(it)==p }
                 TreeRow(if(current==p && home) Icons.Outlined.FolderOpen else Icons.Outlined.Folder,nameOf(p),countUnder(p),home && current==p,p.count { it=='/' }+1,
-                    expanded=if(hasChildren) p !in collapsed else null,onToggle={ if(p in collapsed) collapsed.remove(p) else collapsed.add(p) }) { onSelect(p) }
+                    tag="tree-folder-${nameOf(p)}",expanded=if(hasChildren) p !in collapsed else null,onToggle={ if(p in collapsed) collapsed.remove(p) else collapsed.add(p) }) { onSelect(p) }
             }
             HorizontalDivider(Modifier.padding(horizontal=24.dp,vertical=8.dp),color=Ada.Line)
             TreeRow(Icons.Outlined.Delete,"Çöp kutusu",state.trash.size,showTrash,0,Ada.Muted,onClick=onTrash)
@@ -397,9 +405,9 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
         .background(if(selected) Ada.Soft else Color.Transparent).clickable(onClick=onClick)
         .semantics { contentDescription=if(count==null) label else "$label, $count not"; this.selected=selected }
         .then(if(tag!=null) Modifier.testTag(tag) else Modifier)
-        .padding(start=(4+depth*18).dp,end=14.dp),
+        .padding(start=(4+depth*12).dp,end=14.dp),
         verticalAlignment=Alignment.CenterVertically) {
-        Box(Modifier.size(36.dp).then(if(expanded!=null) Modifier.clip(CircleShape).clickable(onClick=onToggle) else Modifier),contentAlignment=Alignment.Center) {
+        Box(Modifier.size(24.dp).then(if(expanded!=null) Modifier.clip(CircleShape).clickable(onClick=onToggle) else Modifier),contentAlignment=Alignment.Center) {
             if(expanded!=null) Icon(if(expanded) Icons.Outlined.ExpandMore else Icons.Outlined.ChevronRight,
                 if(expanded) "$label daralt" else "$label genişlet",tint=Ada.Muted,modifier=Modifier.size(20.dp))
         }
@@ -420,10 +428,10 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
 }
 
 @Composable private fun FolderTile(name:String,count:Int,subfolders:Int,onDelete:()->Unit,onClick:()->Unit) {
-    Surface(onClick=onClick,shape=RoundedCornerShape(20.dp),color=Ada.Surface,shadowElevation=3.dp,
-        modifier=Modifier.width(264.dp).semantics { contentDescription="Klasör, $name, $count not" }.testTag("folder-$name")) {
+    Surface(onClick=onClick,shape=RoundedCornerShape(12.dp),color=Ada.Surface,
+        modifier=Modifier.fillMaxWidth().semantics { contentDescription="Klasör, $name, $count not" }.testTag("folder-$name")) {
         Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
-            Box(Modifier.size(44.dp).background(Ada.Desk,RoundedCornerShape(14.dp)),contentAlignment=Alignment.Center) {
+            Box(Modifier.size(32.dp).background(Ada.Desk,RoundedCornerShape(8.dp)),contentAlignment=Alignment.Center) {
                 Icon(Icons.Outlined.Folder,null,tint=Ada.Petrol)
             }
             Column(Modifier.padding(start=12.dp).weight(1f)) {
@@ -463,6 +471,24 @@ private val timeFormat=SimpleDateFormat("HH:mm",Locale("tr"))
 internal fun shortDate(time:Long)=if(DateUtils.isToday(time)) timeFormat.format(time) else dayFormat.format(time)
 internal fun metaOf(note:NoteCard)=if(note.unreadable) "Kayıt açılamadı · açıp yeniden deneyin"
     else listOfNotNull(shortDate(note.modified),"${note.pageCount} sayfa",if(note.isPdf) "PDF" else null).joinToString(" · ")
+
+/** Sık görünüm: tek satırda başlık ve bilgi; önizleme için bütün satırı büyütmez. */
+@Composable private fun CompactNoteRow(note:NoteCard,source:SourceState?,showFolder:Boolean,
+    onRename:()->Unit,onMove:()->Unit,onTrash:()->Unit,onClick:()->Unit) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Ada.Surface)
+        .clickable(onClick=onClick).testTag("note-${note.key}").padding(start=14.dp,end=4.dp,top=6.dp,bottom=6.dp),
+        verticalAlignment=Alignment.CenterVertically) {
+        Icon(if(note.isPdf) Icons.Outlined.PictureAsPdf else Icons.Outlined.Description,null,
+            tint=Ada.Petrol,modifier=Modifier.size(28.dp))
+        Column(Modifier.weight(1f).padding(horizontal=14.dp),verticalArrangement=Arrangement.spacedBy(2.dp)) {
+            Text(note.title,color=Ada.Ink,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis)
+            Text(listOfNotNull(metaOf(note),note.folderPath.takeIf { showFolder && it.isNotEmpty() }?.replace("/"," › ")).joinToString(" · "),
+                style=MaterialTheme.typography.bodySmall,color=Ada.Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
+            SourceWarning(source)
+        }
+        NoteMenu(note,onRename,onMove,onTrash)
+    }
+}
 
 private data class PreviewState(val bitmap:Bitmap?,val loaded:Boolean)
 @Composable private fun rememberPreview(note:NoteCard):PreviewState {

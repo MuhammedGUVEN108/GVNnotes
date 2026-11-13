@@ -30,9 +30,8 @@ Kurallar:
 
 - **Üst çubuk:** ←, başlık (dokun → değiştir), **konum çipi** (ör. "art"), sağda **Kement**, **Sayfa sıralayıcı**, **+** (bu sayfanın arkasına boş sayfa), **⋯** (Tam ekran, Başlığı değiştir, PDF olarak dışa aktar, Fare ile çizim).
 - **Konum çipi → Klasör paneli:** aynı klasördeki notlar; birine dokununca mevcut not kaydedilip o not açılır. **Klasöre git** kütüphanede o klasörü açar; **Bu klasörde yeni** o klasörde yeni not penceresini açar.
-- **Sağ üst:** yakınlaştırma yüzdesi, Ekrana sığdır, Tam ekran, PDF olarak dışa aktar.
+- **Üst satır:** başlık altında sayfa ve yakınlaştırma bilgisi; Ekrana sığdır ve Tam ekran düğmeleri. PDF dışa aktarma üstteki ⋯ menüsündedir. Kalıcı alt çubuk ve sürekli kayıt yazısı yoktur; kayıt hatası olursa uyarı görünür.
 - **Sayfa sıralayıcı (sağ panel):** küçük resme dokun → o sayfaya git. Küçük resmin ⋮ menüsü: Yukarı/Aşağı taşı, Arkasına boş sayfa ekle, Şablon (boş sayfalarda), Sayfayı sil. En alttaki kutu sona sayfa ekler. ✕ ile kapanır.
-- **Alt orta:** kayıt durumu ("Kaydedildi") ve sayfa sayacı; **+** sayfa ekler.
 - **Tuval:** parmakla kaydır, iki parmakla yakınlaştır. Not, kapattığın sayfadan açılır.
 - **Kement:** yazıların etrafına döngü çiz → seçilir; çerçevenin içinden sürükle → taşınır. Üstteki çubuk: Sil, Çoğalt, Rengi uygula, Seçimi kaldır.
 
@@ -54,5 +53,9 @@ GVNpen'deki şeridin aynısıdır; üstteki noktalı tutamaktan sürükleyip ist
 ## Bilmen gerekenler
 
 - Uygulamayı kaldırmak notları siler. Önemli notları **PDF olarak dışa aktar**.
-- Dışa aktarma sayfaları yaklaşık 180 dpi görüntü olarak yazar (seçilebilir metin yoktur).
+- PDF dışa aktarmada özgün metin ve görseller korunur; yazılar/şablonlar vektör eklenir. Taranmış belgelere kendiliğinden metin tanıma yapılmaz.
 - Klasör taraması uygulama açıkken / öne gelince yapılır; uygulama kapalıyken arka planda tarama yoktur.
+
+## Sık liste (0.14.0)
+
+Kütüphane sık listeyle açılır. Sağ üstteki görünüm düğmesiyle kartlara geçebilir, tekrar listeye dönebilirsin; seçimin saklanır. Geniş ekranda klasörleri soldaki ağaçtan aç. Sayfa sıralayıcı açıkken belge ayrı alana sığar; panel belgeyi örtmez.

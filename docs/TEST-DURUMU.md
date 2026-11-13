@@ -4,17 +4,18 @@
 
 | Durum | Test | Son geçtiği | Sürüm | Parmak izi |
 |---|---|---|---|---|
-| ✅ | persistence-codec-device | 2026-11-12 12:11 | 0.12.0 | `d3fa2d15811992e8` |
-| ⬜ | persistence-ink-regression | 2026-11-12 15:42 | 0.13.0 | `6ad4d223ff5057fc` |
-| ✅ | pdf-note | 2026-11-12 15:42 | 0.13.0 | `dda978bbd5d5a02a` |
-| ✅ | folder-sync | 2026-11-12 12:12 | 0.12.0 | `3a524d3718d3cddf` |
-| ✅ | note-management | 2026-11-12 12:12 | 0.12.0 | `6646f985c5bdcf5e` |
-| ✅ | two-way | 2026-11-12 12:12 | 0.12.0 | `5a1b1968569a3d29` |
-| ⬜ | pen-tools | 2026-11-12 15:42 | 0.13.0 | `ca6a6f4480ccf861` |
-| ✅ | lasso | 2026-11-12 15:42 | 0.13.0 | `6082a399906879f8` |
-| ✅ | folder-delete | 2026-11-12 12:12 | 0.12.0 | `e3f585e0c7193a8c` |
-| ✅ | cursor-size | 2026-11-12 16:02 | 0.13.0 | `fa1a885a91d1d2a5` |
-| ✅ | templates | 2026-11-12 15:42 | 0.13.0 | `140d46b83ac1d6f6` |
-| ✅ | finger-draw | 2026-11-12 15:42 | 0.13.0 | `dcbe52d9001d67de` |
-| ✅ | persistence-restart | 2026-11-12 15:43 | 0.13.0 | `a7063090516fe661` |
-| ✅ | library | 2026-11-12 12:13 | 0.12.0 | `ce3c53b868d83c5f` |
+| ✅ | persistence-codec-device | 2026-11-14 01:03 | 0.14.0 | `b780da7a9cbed0f5` |
+| ✅ | persistence-ink-regression | 2026-11-14 01:03 | 0.14.0 | `bf17a303408ebc52` |
+| ✅ | vector-export | 2026-11-14 01:04 | 0.14.0 | `48f88ddbe9b56278` |
+| ✅ | pdf-note | 2026-11-14 01:10 | 0.14.0 | `133de754d8dcfc53` |
+| ✅ | folder-sync | 2026-11-14 01:10 | 0.14.0 | `a1003886f0ee1982` |
+| ✅ | note-management | 2026-11-14 01:10 | 0.14.0 | `fe907c7d7493e52e` |
+| ✅ | two-way | 2026-11-14 01:05 | 0.14.0 | `7f5bcc04b30c3bd2` |
+| ✅ | pen-tools | 2026-11-14 01:05 | 0.14.0 | `3681381ccf604a53` |
+| ✅ | lasso | 2026-11-14 01:11 | 0.14.0 | `c62b89a6f283324a` |
+| ✅ | folder-delete | 2026-11-14 01:05 | 0.14.0 | `1adb97e6f49c1ffa` |
+| ✅ | cursor-size | 2026-11-14 01:05 | 0.14.0 | `6ba17b87e29abf9d` |
+| ✅ | templates | 2026-11-14 01:05 | 0.14.0 | `44c9c236d9786c4a` |
+| ✅ | finger-draw | 2026-11-14 01:05 | 0.14.0 | `f5ad464e74de9d0c` |
+| ✅ | persistence-restart | 2026-11-14 01:11 | 0.14.0 | `e516c8e94e31fb0d` |
+| ✅ | library | 2026-11-14 01:11 | 0.14.0 | `b828772ea5cbeaea` |

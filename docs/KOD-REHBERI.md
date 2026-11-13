@@ -27,7 +27,7 @@ Güncel genel kurallar: [AGENTS.md](../AGENTS.md). Bu belge, kodu ilk kez okuyan
 ## Akışlar
 
 - **Not açma:** kart → `LibraryState.open(key)` → eşitleme sürüyorsa bitince açılır → `EditorState` kaydı yükler → `InkPageView` + `PenToolbar` oluşturulur.
-- **Yazma:** S Pen olayı → `InkPageView` (GVNpen akışı) → kalem kalkınca çizgi `EditorState`'e → geçmiş + otomatik kayıt → "Kaydedildi".
+- **Yazma:** S Pen olayı → `InkPageView` (GVNpen akışı) → kalem kalkınca çizgi `EditorState`'e → geçmiş + sessiz otomatik kayıt → dosyayı geri okuyarak doğrulama (sürekli durum etiketi yok).
 - **Klasör adasından başka nota geçiş:** `AfterClose.Open(key)` → kayıt bitince düzenleyici kapanır → `libraryState.open(key)`.
 - **Eşitleme:** uygulama açılınca/öne gelince ve not kapanınca (`LibraryState.sync`); not açıkken çalışmaz, açık notun kaydıyla yarışmasın diye.
 

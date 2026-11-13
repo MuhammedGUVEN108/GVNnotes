@@ -110,6 +110,11 @@ class LibraryDeviceTest {
         compose.onNodeWithText("Kayıt testi").assertExists()
         if(phase=="seed") {
             screenshot("01-existing-note-listed")
+            // Her iki görünümde aynı not açılabilmeli; görünüm seçimi not verisini değiştirmez.
+            compose.onNodeWithTag("library-view-toggle").performClick()
+            compose.onNodeWithText("Kayıt testi").assertExists()
+            screenshot("01b-alternate-view")
+            compose.onNodeWithTag("library-view-toggle").performClick()
             compose.onNodeWithText("Kayıt testi").performClick(); waitEditor()
             inst.runOnMainSync { assertEquals(1,editor().second.history.items.size) }
             back(); assertEquals(oldHashes,hashes(File(root,"main")))

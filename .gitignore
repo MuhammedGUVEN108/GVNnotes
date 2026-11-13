@@ -6,3 +6,5 @@ local.properties
 logs/
 dist/
 yedek/
+
+.kotlin/

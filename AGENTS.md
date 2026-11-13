@@ -1,6 +1,6 @@
 # AGENTS.md — GVNnotes
 
-Bu dosya, bu projede çalışan yapay zekâ ajanları (Codex, Claude, Cursor, Gemini vb.) içindir. Güncel durum burada yazılıdır; başka bir belgeyle çelişirse **bu dosya ve kod** geçerlidir. Son güncelleme: 12 Kasım 2026, sürüm 0.12.0.
+Bu dosya, bu projede çalışan yapay zekâ ajanları (Codex, Claude, Cursor, Gemini vb.) içindir. Güncel durum burada yazılıdır; başka bir belgeyle çelişirse **bu dosya ve kod** geçerlidir. Son güncelleme: 14 Kasım 2026, sürüm 0.14.0.
 
 ## Proje ne?
 
@@ -47,7 +47,7 @@ app/src/main/kotlin/com/gvn/notes/
   FolderSync.kt               Documents/GVNnotes SAF eşitlemesi, SyncIndex
   PdfPages.kt, ImageImport.kt PDF sayfa çizimi, resimden not
   PagePattern.kt              Sayfa şablonları (Düz, Çizgili, Kareli, Noktalı; kod değerleri kayıtta, değiştirme)
-  Export.kt                   PDF dışa aktarma (~180 dpi görüntü)
+  Export.kt                   PDF dışa aktarma (özgün sayfa + vektör yazı)
   AppSettings.kt              Uygulama ayarları (settings.json) + CrashLog
 app/src/test/java/.../pen/    GVNpen'in kendi JVM testleri (GeometryTests, EraseTests)
 app/src/androidTest/          Tablet testleri (aşağıda)
@@ -106,3 +106,7 @@ gradle -p . :app:assembleDebugAndroidTest --offline   # build.ps1'deki gradle.ba
 | [docs/TASARIM.md](docs/TASARIM.md) | Klasör eşitleme ve veri modeli gerekçeleri (tarihsel, kısmen geçerli) |
 | [docs/GVNPEN-INCELEME.md](docs/GVNPEN-INCELEME.md) | GVNpen kaynak incelemesi (tarihsel) |
 | `research/` | Samsung Notes ve Ink API incelemeleri (tarihsel) |
+
+## 0.14.0 kullanıcı kararı — 14 Kasım 2026
+
+Kütüphane sadeleşir: sık liste varsayılan, kart görünümü seçilebilir; geniş ekranda klasör ağacı aynı klasör kartlarıyla tekrar edilmez. Düzenleyicide sayfa paneli kendi yerini ayırır, sayfa/yakınlaştırma bilgisi ve eylemler mevcut üst satırdadır. Kalıcı alt çubuk ve Kaydedildi/Çiziliyor gibi sürekli durum yazıları kullanıcı tarafından reddedildi; yalnız hatalar görünür. GVNpen şeridi davranışı korunur. PDF çıktısı özgün metin/görselleri korur, yazılar vektör eklenir. Yedekleme ve koyu tema bu sürümün dışında. İnternetten 100 MB üzeri indirme için kullanıcıdan önceden açık izin alınır.

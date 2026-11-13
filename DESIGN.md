@@ -116,3 +116,13 @@ Ada 24 dp, kart 20 dp, satır 16 dp, hap (pill) 28 dp köşe. GVNpen şeridi ve 
 - **Don't** GVNpen şeridinin araçlarını, sırasını, simgelerini, zamanlamalarını veya davranışını değiştirme; yalnız renk/şekil uyarlanabilir.
 - **Don't** Sol alt köşeye kalıcı öge koyma (GVNpen şeridiyle çakışır).
 - **Don't** Samsung Notes kodu, simgesi veya görselini kopyalama.
+
+## 0.14.0 — alanı sadeleştirme (14 Kasım 2026)
+
+Kullanıcı kararı bu bölümde eski yerleşim ölçülerinin önüne geçer. Petrol Ada renkleri ve GVNpen davranışı korunur.
+
+- Klasör ağacı genişliği 248 dp; derinlik girintisi 12 dp, açma/kapatma alanı 24 dp. Klasörler yalnız ağacın olmadığı dar ekranda veya açık Klasörler görünümünde kompakt satırlarla listelenir.
+- Sık liste varsayılan; başlık, tarih/sayfa/tür ve gerektiğinde klasör yolu tek kompakt satır grubundadır. Sağ üstte liste/kart düğmesi; seçim cihazda saklanır. Kart görünümü korunur.
+- Sayfa paneli 184 dp genişlikte ayrı yan sütundur. Tuval boyutu değişince aynı açık sayfa yeni genişliğe sığdırılır.
+- Kullanıcı yeni alt adayı açıkça reddetti. Kalıcı alt çubuk yoktur; tuval altta boşluk ayırmaz. Sayfa ve yakınlaştırma bilgisi üst satırda başlığın altında; sığdırma/tam ekran üst eylemlerde, PDF dışa aktarma üst menüdedir. Kaydedildi/Çiziliyor gibi sürekli durum yazıları gösterilmez. Hatalar ve geçici dışa aktarma bildirimi korunur. Tam ekran sistem çubuklarını gizler, üst uygulama satırı erişilebilir kalır.
+- Son düzenin cihaz görüntüleri: logs/ui-0.14.0/04-son-ust-satir.png, 05-son-yan-panel.png, 06-son-kullanici-kutuphanesi.png. Aynı klasördeki 01–03 görüntüleri kullanıcı tarafından reddedilen ara alt çubuğu içerir; güncel kanıt sayılmaz.
