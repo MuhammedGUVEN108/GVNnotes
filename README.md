@@ -4,7 +4,7 @@ Galaxy Tab S9+ ve S Pen için PDF, resim ve boş sayfalar üzerine el yazısıyl
 
 Yapay zekâ ajanları önce [AGENTS.md](AGENTS.md) dosyasını okumalı.
 
-## Mevcut durum — 0.14.0 (14 Kasım 2026)
+## Mevcut durum — 0.15.0 (14 Kasım 2026)
 
 - **0.12.0:** klasör silme (alt klasörleriyle), çöp kutusu 30 gün sonra kendiliğinden boşalır, Dosyalarım'dan silinen dosyanın notu çöpe gider (dosya geri gelirse döner). Tablet testleri yalnız ilgili kodu değişenleri çalıştırır ([durum tablosu](docs/TEST-DURUMU.md)).
 
@@ -15,7 +15,7 @@ Yapay zekâ ajanları önce [AGENTS.md](AGENTS.md) dosyasını okumalı.
 
 **0.14.0:** varsayılan sık liste ve kalıcı kart/liste seçimi; geniş ekranda tekrar eden klasör kartları kaldırıldı, dar ekranda kompakt klasör satırları. Sayfa sıralayıcı belgeyi örtmeyen ayrı yan panel; sayfa/yakınlaştırma bilgisi ve araçlar mevcut üst satırda; alt çubuk ve sürekli kayıt yazıları kaldırıldı. PDF çıktısı özgün PDF sayfalarını korur ve yazıları/şablonları vektör olarak ekler; tam sayfa rasterleştirme kaldırıldı.
 
-Doğrulama: çevrimdışı derleme, 17 JVM testi, lint (0 hata), 15 tablet test birimi geçti. Tablette kurulu; alt çubuksuz üst satır, ayrı sayfa paneli ve sık liste gerçek ekran görüntüleriyle kontrol edildi. Cihazdan alınan PDF çıktısında metin/sayfa sırası ve vektör çizimler PyMuPDF ile de doğrulandı. Ayrıntı: [doğrulama günlüğü](docs/DOGRULAMA.md).
+Doğrulama: çevrimdışı derleme, 20 JVM testi, lint (0 hata), 17 tablet test birimi geçti. Tablette kurulu; alt çubuksuz üst satır, ayrı sayfa paneli ve sık liste gerçek ekran görüntüleriyle kontrol edildi. Cihazdan alınan PDF çıktısında metin/sayfa sırası ve vektör çizimler PyMuPDF ile de doğrulandı. Ayrıntı: [doğrulama günlüğü](docs/DOGRULAMA.md).
 
 ## Sonraki adım
 
@@ -36,3 +36,5 @@ Kullanıcının sadeleştirilmiş kütüphane ve üst satır düzenini günlük 
 `./build.ps1 -Offline` JVM testlerini, debug APK'yı ve Android lint'i çalıştırır; APK `dist/GVNnotes-<sürüm>.apk` olarak kopyalanır. JDK 21, Android SDK 35 ve yerel Gradle 8.11.1 kullanılır. Tablet testleri: [docs/TABLET-TESTI.md](docs/TABLET-TESTI.md).
 
 APK debug imzalıdır, yerel kurulum içindir. Paket kimliği `com.gvn.notes.prototype` mevcut notları korumak için değiştirilmez.
+
+**0.15.0 — yoğun mürekkep:** görünen sayfa parçaları için 64 MiB bütçeli önbellek, uzun kalem çizgisinin 128 noktalık canlı ucu, kimlik tabanlı önbellekler ve büyük notlarda akışlı kayıt. Aynı tablette 100 sayfa / 952.320 nokta ile ölçüldü; yoğun çizim 365 → 11 ms, uzun canlı çizgi 491 → 12 ms. [Ölçüm ve sınırlar](docs/PERFORMANS.md).

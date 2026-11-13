@@ -2,6 +2,16 @@
 
 > Sürüm sürüm doğrulama günlüğü; en yeni girdi en üstte. Eski girdiler o günün kararlarını yansıtır (ör. Jetpack Ink, Samsung Notes düzeni); güncel kurallar için [AGENTS.md](../AGENTS.md).
 
+## 0.15.0 — Kalıcı yoğun mürekkep performansı, 14 Kasım 2026
+
+Kullanıcının 100 sayfalık dosyayı bir yıl boyunca doldurma senaryosu esas alındı. InkTileCache (64 MiB görünen parça LRU), ActiveInkCache (128 noktalık canlı uç), WeakIdentityCache (derin nokta hashCode maliyetini kaldırır), bütçeli geometri ve akışlı atomik kayıt eklendi. Küçük resimler sayfa bazında geçersizleştirilir. Şema 4 ve kayıt/geri alma/PDF/GVNpen davranışları korunur. Arayüzde yeni durum yazısı veya alt çubuk yoktur.
+
+Aynı tablette sentetik 100 sayfa/952.320 nokta: yoğun çizim 365,03 → 11,39 ms, uzun canlı kalem 491,00 → 11,65 ms; kodlama önbelleğiyle tekrar kayıt 468,92 → 150,78 ms. CPU/sıcak yazılım çizimi ölçümüdür; FPS/fiziksel gecikme veya gerçek bir yıl saha ölçümü değildir. [Yöntem, doğrulama ve kapasite sınırları](PERFORMANS.md).
+
+Doğrulama: çevrimdışı derleme/test APK/lint (0 hata, 36 uyarı), 20 JVM testi ve 17 cihaz birimi başarılı. 100 sayfa kaydet-aç ile 952.320 nokta eksiksiz; 100 sayfa önbellek tahliye testi geçti. Yeni dosyalar DEVICE-TEST.ps1 parmak izlerine eklendi. Başarılı, değişmeyen testler tekrar edilmedi. Uykuya bağlı siyah ekran kontrolü geçici uyanık tutularak tekrarlandı; sistem ayarı geri yüklendi. Gerçek 97 sayfalık kullanıcı PDF'si yazı eklenmeden açılıp görüntülendi: logs/ui-0.15.0/01-gercek-pdf.png. Kullanıcı S Pen hissi onayı ve çok uzun süreli saha testi henüz yoktur.
+
+Kayıt sınırları sürer (64 MiB, 20.000 çizgi, 2.000.000 nokta); bu sürüm sınırsız/sayfa bazlı depolama vaat etmez. Yeni indirme/yayın yok. APK dist/GVNnotes-0.15.0.apk tablette kurulu; SHA256 `84a6b32e634622a6a60ffea933e1ab7c9ca0466dff8c54227471e4888e7dc016`.
+
 ## 0.14.0 — Sık liste, sessiz kayıt ve vektör PDF, 14 Kasım 2026
 
 Kullanıcı kütüphane/klasör ekranındaki alan tekrarının azaltılmasını, sık listeyi, belgeyi örtmeyen panelleri ve PDF çıktısının düzeltilmesini istedi. Eklenen kalın alt çubuğu açıkça reddetti; son uygulamada bu çubuk kaldırıldı. Sayfa/yakınlaştırma bilgisi ile sığdırma/tam ekran mevcut üst satırda; PDF dışa aktarma üst menüde. Sürekli Kaydedildi/Çiziliyor yazıları yok, otomatik kayıt ve hata korumaları sürüyor. Yedekleme ve koyu tema özellikleri kapsam dışında.

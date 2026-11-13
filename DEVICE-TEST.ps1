@@ -14,22 +14,24 @@ function Adb([string[]]$Arguments){
 $K='app/src/main/kotlin/com/gvn/notes/'
 $T='app/src/androidTest/kotlin/com/gvn/notes/'
 # Her birimde ortak: manifest, gradle (surum satirlari haric), core modeli ve test yardimcisi.
-$common=@('app/src/main/AndroidManifest.xml','app/build.gradle.kts','core/src/main/kotlin/com/gvn/notes/core/Model.kt',"${T}TestPen.kt")
+$common=@('app/src/main/AndroidManifest.xml','app/build.gradle.kts','core/src/main/kotlin/com/gvn/notes/core/Model.kt',"${T}TestPen.kt", "${K}WeakIdentityCache.kt")
 $units=[ordered]@{
+  'ink-cache'=@{ tests=,@('InkCacheDeviceTest',''); files=@("${K}InkTileCache.kt","${K}ActiveInkCache.kt","${K}StrokeBuild.kt","${K}EditorState.kt",'app/src/main/java/com/gvn/notes/pen/PenRenderer.java',"${T}InkCacheDeviceTest.kt") }
+  'ink-performance'=@{ tests=,@('InkPerformanceDeviceTest',''); files=@("${K}InkTileCache.kt","${K}ActiveInkCache.kt","${K}InkPageView.kt","${K}InkTileCache.kt","${K}ActiveInkCache.kt","${K}PageStore.kt","${K}EditorState.kt","${K}StrokeBuild.kt",'core/src/main/kotlin/com/gvn/notes/core/SaveEnvelope.kt',"${T}InkPerformanceDeviceTest.kt") }
   'persistence-codec-device'=@{ tests=,@('PageStoreDeviceTest',''); files=@("${K}PageStore.kt",'core/src/main/kotlin/com/gvn/notes/core/SaveEnvelope.kt',"${T}PageStoreDeviceTest.kt") }
-  'persistence-ink-regression'=@{ tests=,@('InkPageRegressionTest',''); files=@("${K}InkPageView.kt","${K}EditorState.kt","${K}StrokeBuild.kt","${K}PageStore.kt",'app/src/main/java/com/gvn/notes/pen/',"${T}InkPageRegressionTest.kt") }
+  'persistence-ink-regression'=@{ tests=,@('InkPageRegressionTest',''); files=@("${K}InkPageView.kt","${K}InkTileCache.kt","${K}ActiveInkCache.kt","${K}EditorState.kt","${K}StrokeBuild.kt","${K}PageStore.kt",'app/src/main/java/com/gvn/notes/pen/',"${T}InkPageRegressionTest.kt") }
   'vector-export'=@{ tests=,@('VectorExportDeviceTest',''); files=@("${K}Export.kt","${K}PagePattern.kt","${K}StrokeBuild.kt",'app/src/main/java/com/gvn/notes/pen/PenRenderer.java',"${K}PdfPages.kt","${T}VectorExportDeviceTest.kt",'app/libs/') }
-  'pdf-note'=@{ tests=,@('PdfNoteDeviceTest',''); files=@("${K}PdfPages.kt","${K}NoteLibrary.kt","${K}PageStore.kt","${K}EditorState.kt","${K}InkPageView.kt","${K}MainActivity.kt","${K}LibraryScreen.kt","${K}Export.kt","${T}PdfNoteDeviceTest.kt") }
+  'pdf-note'=@{ tests=,@('PdfNoteDeviceTest',''); files=@("${K}PdfPages.kt","${K}NoteLibrary.kt","${K}PageStore.kt","${K}EditorState.kt","${K}InkPageView.kt","${K}InkTileCache.kt","${K}ActiveInkCache.kt","${K}MainActivity.kt","${K}LibraryScreen.kt","${K}Export.kt","${T}PdfNoteDeviceTest.kt") }
   'folder-sync'=@{ tests=,@('FolderSyncDeviceTest',''); files=@("${K}FolderSync.kt","${K}NoteLibrary.kt","${K}LibraryScreen.kt","${K}MainActivity.kt","${K}PdfPages.kt","${T}FolderSyncDeviceTest.kt") }
   'note-management'=@{ tests=,@('NoteManagementDeviceTest',''); files=@("${K}NoteLibrary.kt","${K}LibraryScreen.kt","${K}MainActivity.kt","${K}EditorState.kt","${K}Export.kt","${K}FolderSync.kt","${K}PageStore.kt","${T}NoteManagementDeviceTest.kt") }
   'two-way'=@{ tests=,@('TwoWayDeviceTest',''); files=@("${K}FolderSync.kt","${K}NoteLibrary.kt","${K}ImageImport.kt","${K}EditorState.kt","${K}PageStore.kt","${T}TwoWayDeviceTest.kt") }
-  'pen-tools'=@{ tests=,@('PenToolsDeviceTest',''); files=@('app/src/main/java/com/gvn/notes/pen/',"${K}InkPageView.kt","${K}StrokeBuild.kt","${K}EditorState.kt",'core/src/main/kotlin/com/gvn/notes/core/PenGeometry.kt',"${T}PenToolsDeviceTest.kt") }
-  'lasso'=@{ tests=,@('LassoDeviceTest',''); files=@("${K}InkPageView.kt","${K}EditorState.kt","${K}StrokeBuild.kt","${K}MainActivity.kt",'core/src/main/kotlin/com/gvn/notes/core/PenGeometry.kt',"${T}LassoDeviceTest.kt") }
+  'pen-tools'=@{ tests=,@('PenToolsDeviceTest',''); files=@('app/src/main/java/com/gvn/notes/pen/',"${K}InkPageView.kt","${K}InkTileCache.kt","${K}ActiveInkCache.kt","${K}StrokeBuild.kt","${K}EditorState.kt",'core/src/main/kotlin/com/gvn/notes/core/PenGeometry.kt',"${T}PenToolsDeviceTest.kt") }
+  'lasso'=@{ tests=,@('LassoDeviceTest',''); files=@("${K}InkPageView.kt","${K}InkTileCache.kt","${K}ActiveInkCache.kt","${K}EditorState.kt","${K}StrokeBuild.kt","${K}MainActivity.kt",'core/src/main/kotlin/com/gvn/notes/core/PenGeometry.kt',"${T}LassoDeviceTest.kt") }
   'folder-delete'=@{ tests=,@('FolderDeleteDeviceTest',''); files=@("${K}FolderSync.kt","${K}NoteLibrary.kt","${K}PageStore.kt","${T}FolderDeleteDeviceTest.kt") }
-  'cursor-size'=@{ tests=,@('CursorSizeDeviceTest',''); files=@("${K}InkPageView.kt",'app/src/main/res/drawable/pencil_cursor.png',"${T}CursorSizeDeviceTest.kt") }
-  'templates'=@{ tests=,@('TemplateDeviceTest',''); files=@("${K}PagePattern.kt","${K}NoteLibrary.kt","${K}EditorState.kt","${K}InkPageView.kt","${K}PageStore.kt","${T}TemplateDeviceTest.kt") }
-  'finger-draw'=@{ tests=,@('FingerDrawDeviceTest',''); files=@("${K}InkPageView.kt","${K}AppSettings.kt",'app/src/main/java/com/gvn/notes/pen/Prefs.java',"${T}FingerDrawDeviceTest.kt") }
-  'persistence-restart'=@{ tests=@(@('PersistenceRestartTest','seed'),@('PersistenceRestartTest','verify'),@('PersistenceRestartTest','deleted')); files=@("${K}PageStore.kt","${K}EditorState.kt","${K}InkPageView.kt","${K}MainActivity.kt",'core/src/main/kotlin/com/gvn/notes/core/SaveEnvelope.kt',"${T}PersistenceRestartTest.kt") }
+  'cursor-size'=@{ tests=,@('CursorSizeDeviceTest',''); files=@("${K}InkPageView.kt","${K}InkTileCache.kt","${K}ActiveInkCache.kt",'app/src/main/res/drawable/pencil_cursor.png',"${T}CursorSizeDeviceTest.kt") }
+  'templates'=@{ tests=,@('TemplateDeviceTest',''); files=@("${K}PagePattern.kt","${K}NoteLibrary.kt","${K}EditorState.kt","${K}InkPageView.kt","${K}InkTileCache.kt","${K}ActiveInkCache.kt","${K}PageStore.kt","${T}TemplateDeviceTest.kt") }
+  'finger-draw'=@{ tests=,@('FingerDrawDeviceTest',''); files=@("${K}InkPageView.kt","${K}InkTileCache.kt","${K}ActiveInkCache.kt","${K}AppSettings.kt",'app/src/main/java/com/gvn/notes/pen/Prefs.java',"${T}FingerDrawDeviceTest.kt") }
+  'persistence-restart'=@{ tests=@(@('PersistenceRestartTest','seed'),@('PersistenceRestartTest','verify'),@('PersistenceRestartTest','deleted')); files=@("${K}PageStore.kt","${K}EditorState.kt","${K}InkPageView.kt","${K}InkTileCache.kt","${K}ActiveInkCache.kt","${K}MainActivity.kt",'core/src/main/kotlin/com/gvn/notes/core/SaveEnvelope.kt',"${T}PersistenceRestartTest.kt") }
   'library'=@{ tests=@(@('LibraryDeviceTest','seed'),@('LibraryDeviceTest','verify')); files=@("${K}LibraryScreen.kt","${K}MainActivity.kt","${K}NoteLibrary.kt","${K}PageStore.kt","${K}EditorState.kt","${K}Theme.kt","${T}LibraryDeviceTest.kt") }
 }
 function FilesOf([string[]]$paths){

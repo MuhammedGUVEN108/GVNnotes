@@ -27,7 +27,7 @@ Dosyalarım'daki `Documents/GVNnotes` klasörüne eklenen PDF/resimleri klasör 
 - Veriler yalnız tablette, uygulamanın kendi alanında; internet ve bulut yok. Uygulamayı kaldırmak notları siler.
 
 ## Operating Context
-Proje `D:/Sanal Desktop/GVNnotes`, Windows + PowerShell 5.1, yerel Gradle. Tablet USB ile bağlanır (seri `TABLET-SERI-NO`). Paket kimliği `com.gvn.notes.prototype` notları korumak için sabit. Güncel sürüm 0.14.0: sık liste, belgeyi örtmeyen yan panel ve üst satırda kontroller; 15 tablet test birimi ve görsel doğrulama geçti; tablette kurulu.
+Proje `D:/Sanal Desktop/GVNnotes`, Windows + PowerShell 5.1, yerel Gradle. Tablet USB ile bağlanır (seri `TABLET-SERI-NO`). Paket kimliği `com.gvn.notes.prototype` notları korumak için sabit. Güncel sürüm 0.15.0: sık liste, belgeyi örtmeyen yan panel ve üst satırda kontroller; 17 tablet test birimi ve görsel doğrulama geçti; tablette kurulu.
 
 ## Brand Commitments
 Kalem tarafı GVNpen kimliğini taşır (şerit düzeni, simgeler, GVNpen markası). Uygulama çerçevesi Petrol Ada: açık mavi-gri masa, yüzen yumuşak gölgeli adalar, indigo seçim, petrol mavisi klasör. Samsung Notes yalnız davranış referansı; Samsung kodu/görselleri kopyalanmaz.
@@ -38,3 +38,7 @@ Tablet testleri ve kullanıcı onayları `docs/DOGRULAMA.md`; ekran görüntüle
 ## 14 Kasım 2026 kapsamı
 
 Kullanıcı kütüphanede alan tekrarını ve düzenleyicide panellerin sayfayı örtmesini azaltmayı, sık listeyi ve kaliteli PDF çıktısını onayladı. Yedekleme öncelikli değil, koyu tema kapsam dışında.
+
+## Kalıcı birikim ve performans
+
+Hedef kullanım: aynı 100 sayfalık ders dosyası aylar/yıl boyunca mürekkeple dolar. Görünmeyen sayfalar için bitmap ayrılmaz; görünen karolar 64 MiB bütçede tutulur. 100 sayfa/952.320 nokta senaryosu kaydetme/yeniden açmayla doğrulandı. Bu gerçek bir yıl boyunca saha testi değildir; mevcut şema-4 kayıt sınırları (64 MiB, 20.000 çizgi, 2.000.000 nokta) sürer.

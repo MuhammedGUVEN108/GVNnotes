@@ -7,7 +7,6 @@ import com.gvn.notes.core.Sample
 import com.gvn.notes.core.Tool
 import com.gvn.notes.core.newId
 import com.gvn.notes.pen.Geometry
-import java.util.WeakHashMap
 
 /** Kayıtlı çizginin GVNpen çizim/silgi görünümü: sayfa koordinatında noktalar, basınç katsayısı (0,15..1,5). */
 fun PageStroke.toGeo():Geometry.Stroke = Geometry.Stroke(color,width,tool==Tool.HIGHLIGHTER).also { g ->
@@ -26,10 +25,10 @@ fun RenderedStroke.withSamples(samples:List<Sample>)=RenderedStroke(data.copy(id
 /** Şekil kenarı: sabit basınçlı, düzenli zamanlı örnekler. */
 fun shapeSamples(points:List<PenGeometry.P>)=points.mapIndexed { i,p -> Sample(p.x,p.y,1f,0f,0f,i*8L) }
 
-private val boundsCache=WeakHashMap<PageStroke,RectF>()
+private val boundsCache=WeakIdentityCache<PageStroke,RectF>()
 /** Çizginin sayfa koordinatındaki sınırı (önbellekli). Silgi ve kement ön elemesi için. */
-fun PageStroke.bounds():RectF = boundsCache.getOrPut(this) {
+fun PageStroke.bounds():RectF = boundsCache[this] ?: run {
     val r=RectF(Float.MAX_VALUE,Float.MAX_VALUE,-Float.MAX_VALUE,-Float.MAX_VALUE)
     samples.forEach { r.left=minOf(r.left,it.x); r.top=minOf(r.top,it.y); r.right=maxOf(r.right,it.x); r.bottom=maxOf(r.bottom,it.y) }
-    r
+    boundsCache[this]=r; r
 }

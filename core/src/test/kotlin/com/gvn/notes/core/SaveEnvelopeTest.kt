@@ -27,4 +27,15 @@ class SaveEnvelopeTest {
         assertFalse(h.canUndo); assertFalse(h.canRedo)
         h.replace(listOf(4)); h.undo(); assertEquals(listOf(4,5),h.items)
     }
+    @Test fun streamingEnvelopeUsesSameBytesAndRejectsTruncatedOrTrailingData() {
+        val payload=ByteArray(200_000) { (it%251).toByte() }
+        val output=java.io.ByteArrayOutputStream()
+        val hash=SaveEnvelopeCodec.write(42,payload.inputStream(),payload.size,output)
+        assertArrayEquals(SaveEnvelopeCodec.encode(42,payload),output.toByteArray())
+        val verified=SaveEnvelopeCodec.verify(output.toByteArray().inputStream())
+        assertEquals(42L,verified.first); assertArrayEquals(hash,verified.second)
+        assertArrayEquals(payload,SaveEnvelopeCodec.read(output.toByteArray().inputStream()).payload)
+        assertTrue(runCatching { SaveEnvelopeCodec.verify(output.toByteArray().dropLast(1).toByteArray().inputStream()) }.isFailure)
+        assertTrue(runCatching { SaveEnvelopeCodec.verify((output.toByteArray()+byteArrayOf(1)).inputStream()) }.isFailure)
+    }
 }

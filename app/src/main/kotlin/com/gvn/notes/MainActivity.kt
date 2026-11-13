@@ -400,9 +400,9 @@ private val Divider=Ada.Line
             verticalArrangement=Arrangement.spacedBy(16.dp)) {
             items(editor.pages.size,key={ editor.pages[it].id }) { i ->
                 val page=editor.pages[i]
-                val own=strokes.filter { it.data.pageId==page.id }
-                val signature="${page.id}:${own.size}:${own.lastOrNull()?.data?.id}:$revision"
-                val thumb by produceState<Bitmap?>(null,signature) {
+                val own=remember(strokes,page.id) { strokes.filter { it.data.pageId==page.id } }
+                // Başka sayfadaki yeni mürekkep bu küçük resmi yeniden üretmez.
+                val thumb by produceState<Bitmap?>(null,page,own) {
                     value=withContext(Dispatchers.IO) { runCatching { renderPage(editor.directory,page,own,240) }.getOrNull() }
                 }
                 val current=i==editor.currentPage

@@ -10,8 +10,11 @@ import kotlinx.coroutines.channels.Channel
 
 /** Kayıtlı çizgi. GVNpen çizim görünümü (Geometry.Stroke) ilk kullanımda üretilir; çizgiler kayıttan sonra değişmez. */
 data class RenderedStroke(val data: PageStroke) {
-    val geo: com.gvn.notes.pen.Geometry.Stroke by lazy { data.toGeo() }
+    val geo: com.gvn.notes.pen.Geometry.Stroke get()=geometryCache[this] ?: data.toGeo().also { geometryCache[this]=it }
 }
+
+// Gezilen her sayfanın ikinci nokta kopyasını yıl boyunca bellekte tutma.
+private val geometryCache=WeakIdentityCache<RenderedStroke,com.gvn.notes.pen.Geometry.Stroke>(300_000) { it.points.size }
 
 
 class EditorState(val directory:File) : ViewModel() {

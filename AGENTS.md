@@ -1,6 +1,6 @@
 # AGENTS.md — GVNnotes
 
-Bu dosya, bu projede çalışan yapay zekâ ajanları (Codex, Claude, Cursor, Gemini vb.) içindir. Güncel durum burada yazılıdır; başka bir belgeyle çelişirse **bu dosya ve kod** geçerlidir. Son güncelleme: 14 Kasım 2026, sürüm 0.14.0.
+Bu dosya, bu projede çalışan yapay zekâ ajanları (Codex, Claude, Cursor, Gemini vb.) içindir. Güncel durum burada yazılıdır; başka bir belgeyle çelişirse **bu dosya ve kod** geçerlidir. Son güncelleme: 14 Kasım 2026, sürüm 0.15.0.
 
 ## Proje ne?
 
@@ -39,6 +39,9 @@ app/src/main/kotlin/com/gvn/notes/
   MainActivity.kt             Giriş, tema, kütüphane ↔ düzenleyici geçişi, düzenleyici ekranı (konum çipi, Klasör adası, sayfa sıralayıcı adası, alt adalar)
   LibraryScreen.kt            Kütüphane: klasör ağacı adası, not kartları, çöp, ayarlar, yeni not penceresi
   Theme.kt                    Petrol Ada renkleri (Ada.*), AdaColors, Island, PatternPreview
+  InkTileCache.kt             Görünen sayfa karoları; 64 MiB LRU, artımlı ekleme ve bölgesel geçersizleştirme
+  ActiveInkCache.kt           Uzun kalemin kesinleşen başı + 128 noktalık canlı uç
+  WeakIdentityCache.kt        Derin nokta hashCode maliyeti olmayan, bütçeli zayıf kimlik önbelleği
   InkPageView.kt              Yazma yüzeyi: GVNpen InkView akışı sayfa koordinatında; zoom/kaydırma, çok sayfa, kement
   EditorState.kt              Açık notun durumu (ViewModel), geri al/yinele, otomatik kayıt tetikleme
   StrokeBuild.kt              Kayıtlı çizgi ↔ GVNpen çizgisi dönüşümü
@@ -110,3 +113,7 @@ gradle -p . :app:assembleDebugAndroidTest --offline   # build.ps1'deki gradle.ba
 ## 0.14.0 kullanıcı kararı — 14 Kasım 2026
 
 Kütüphane sadeleşir: sık liste varsayılan, kart görünümü seçilebilir; geniş ekranda klasör ağacı aynı klasör kartlarıyla tekrar edilmez. Düzenleyicide sayfa paneli kendi yerini ayırır, sayfa/yakınlaştırma bilgisi ve eylemler mevcut üst satırdadır. Kalıcı alt çubuk ve Kaydedildi/Çiziliyor gibi sürekli durum yazıları kullanıcı tarafından reddedildi; yalnız hatalar görünür. GVNpen şeridi davranışı korunur. PDF çıktısı özgün metin/görselleri korur, yazılar vektör eklenir. Yedekleme ve koyu tema bu sürümün dışında. İnternetten 100 MB üzeri indirme için kullanıcıdan önceden açık izin alınır.
+
+## 0.15.0 performans doğrulaması
+
+100 sayfalık dosyanın bir yıl boyunca kalıcı mürekkeple doldurulması kullanıcı senaryosudur; GVNpen gibi anlık çizim varsayma. docs/PERFORMANS.md ölçümünü ve kayıt sınırlarını oku. Önbellek atılması mürekkebi silmez; model ve kayıt asıl kaynaktır. Kayıt şeması 4 kaldı. Tüm belge hâlâ snapshot olarak yazılır; sınırsız veya sayfa bazlı depolama iddiası yapma. 100 sayfa/952.320 nokta kaydet-aç ve 100 sayfa önbellek tahliye testleri geçti.

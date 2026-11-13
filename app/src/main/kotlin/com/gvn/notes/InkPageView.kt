@@ -45,6 +45,9 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     private val handler = Handler(Looper.getMainLooper())
     private val strokePath = Path()
     private val wetPath = Path()
+    private val inkTiles=InkTileCache()
+    private val activeInk=ActiveInkCache()
+    private val localClip=Rect()
 
     // --- Kalem teması (GVNpen InkView alanları; noktalar temas sayfasının yerel koordinatında) ---
     private var pointer = -1
@@ -88,6 +91,8 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     private var docWidth = 1f
     private var docHeight = 1f
     private var groupedFor: List<RenderedStroke>? = null
+    private var groupedCount = -1
+    private var groupedLast: RenderedStroke? = null
     private var grouped: Map<String,List<RenderedStroke>> = emptyMap()
 
     // --- İmleç (GVNpen: kalem bitmap'i veya silgi halkası) ---
@@ -121,10 +126,14 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
                 canvas.concat(m)
                 drawPattern(canvas,page)
                 val dragging = dragFrom!=null && lassoPage==i
-                strokes[page.id]?.forEach {
-                    if (dragging && it.data.id in editor.selection) {
-                        val k=canvas.save(); canvas.translate(dragDelta.first,dragDelta.second); drawGeo(canvas,it.geo); canvas.restoreToCount(k)
-                    } else drawGeo(canvas,it.geo)
+                val own=strokes[page.id].orEmpty()
+                canvas.getClipBounds(localClip)
+                val settled=if(dragging) own.filter { it.data.id !in editor.selection } else own
+                inkTiles.draw(canvas,page,settled,RectF(localClip),editor.viewport.scale,prefs.smooth)
+                if(dragging) {
+                    val k=canvas.save(); canvas.translate(dragDelta.first,dragDelta.second)
+                    own.filter { it.data.id in editor.selection }.forEach { drawGeo(canvas,it.geo) }
+                    canvas.restoreToCount(k)
                 }
                 drawSelection(canvas,i,page.id)
                 canvas.restoreToCount(save)
@@ -139,8 +148,10 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
             val page = editor.pages[i]
             wetMatrix.set(pageMatrix(i))
             rect.set(0f,0f,page.width,page.height); wetMatrix.mapRect(rect)
-            val save = c.save(); c.clipRect(rect); c.concat(wetMatrix)
+            val save = c.save(); c.clipRect(rect)
             val shape = preview; val stroke = active
+            if(shape==null && stroke!=null && !stroke.marker) activeInk.drawHead(c,stroke,wetMatrix,width,height,prefs.smooth)
+            c.concat(wetMatrix)
             if (shape != null) {
                 val f = if (smartSnapped) min(1f,(SystemClock.uptimeMillis()-snapStart)/120f) else 1f
                 if (f < 1f && stroke != null) {
@@ -150,7 +161,10 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
                 val layer = c.saveLayerAlpha(null,Math.round(255*f))
                 PenRenderer.drawStrokes(c,shape,paint,prefs.smooth); c.restoreToCount(layer)
                 if (f < 1f) postInvalidateOnAnimation()
-            } else if (stroke != null) PenRenderer.drawStroke(c,stroke,0,stroke.points.size,paint,prefs.smooth,wetPath,null)
+            } else if (stroke != null) {
+                if(stroke.marker) PenRenderer.drawStroke(c,stroke,0,stroke.points.size,paint,prefs.smooth,wetPath,null)
+                else activeInk.drawTail(c,stroke,prefs.smooth)
+            }
             val p = predicted
             if (p != null && prefs.predict && shape == null && stroke != null) PenRenderer.drawStroke(c,p,0,p.points.size,paint,false,wetPath,null)
             c.restoreToCount(save)
@@ -209,9 +223,13 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         pages.forEachIndexed { i, p -> tops[i] = y; y += p.height + GAP }
         docHeight = y - GAP
         laidOut = pages
+        inkTiles.retainPages(pages.map { it.id }.toSet())
     }
     private fun byPage(list: List<RenderedStroke>): Map<String,List<RenderedStroke>> {
-        if (list !== groupedFor) { grouped = list.groupBy { it.data.pageId }; groupedFor = list }
+        if (list !== groupedFor || list.size!=groupedCount || list.lastOrNull()!==groupedLast) {
+            grouped = list.groupBy { it.data.pageId }; groupedFor = list
+            groupedCount=list.size; groupedLast=list.lastOrNull()
+        }
         return grouped
     }
     private fun pageToScreen() = viewMatrix.apply { val v=editor.viewport; setScale(v.scale,v.scale); postTranslate(v.x,v.y) }
@@ -424,7 +442,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
                 tool=if(g.marker) Tool.HIGHLIGHTER else Tool.PEN,color=g.color,width=g.width,samples=g.toSamples())) }
             finished.invalidate()
         }
-        preview=null; active=null; smartSnapped=false
+        preview=null; active=null; smartSnapped=false; activeInk.reset()
     }
     private fun workingList():MutableList<RenderedStroke> = working ?: editor.history.items.toMutableList().also { working=it }
     /** Temas/silme bitti: değişiklik tek geri alma adımı olarak kaydedilir. */
@@ -462,7 +480,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     }
     /** Temas iptali (sistem iptali, araç değişimi). Yarım çizgi kaydedilmez; silinenler korunur. */
     fun cancel() {
-        active=null; preview=null; predicted=null; smartSnapped=false
+        active=null; preview=null; predicted=null; smartSnapped=false; activeInk.reset()
         contact=false; pointer=-1; last=null; erasing=false; fingerStroke=false
         handler.removeCallbacks(smartTick); handler.removeCallbacks(buttonTick)
         if(working!=null) commitWorking() else editor.busy=false
@@ -633,6 +651,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         contact=false; pointer=-1
         if(working!=null) commitWorking()
         editor.busy=false
+        inkTiles.clear(); activeInk.release()
         super.onDetachedFromWindow()
     }
     companion object {

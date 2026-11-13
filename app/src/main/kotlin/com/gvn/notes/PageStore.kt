@@ -3,7 +3,6 @@ package com.gvn.notes
 import android.util.AtomicFile
 import com.gvn.notes.core.*
 import java.io.*
-import java.util.WeakHashMap
 
 /** Nota bağlı özgün PDF'nin uygulama içi kopyası. Hash içerik kimliğidir; not kimliği UUID kalır. */
 data class NoteSource(val sha256:String,val displayName:String,val pageCount:Int)
@@ -21,27 +20,32 @@ data class OpenedPage(val snapshot:PageSnapshot?,val recovered:Boolean=false)
 class PageStore(private val directory:File) {
     private val slots=listOf("document-a.gvn","document-b.gvn").map { AtomicFile(File(directory,it)) }
     /** Değişmeyen çizgilerin kodlanmış hali yeniden üretilmez (çizgiler kayıttan sonra değiştirilmez). */
-    private val encoded=WeakHashMap<PageStroke,ByteArray>()
+    private val encoded=WeakIdentityCache<PageStroke,ByteArray>(64L*1024*1024) { it.size }
     fun open():OpenedPage {
         var hadFiles=false; var damaged=false
         val valid=slots.mapNotNull { slot ->
             val file=slot.baseFile
             if(!file.exists() && !File(file.path+".bak").exists() && !File(file.path+".new").exists()) return@mapNotNull null
             hadFiles=true
-            try {
-                val bytes=slot.openRead().use { readLimited(it,SaveEnvelopeCodec.MAX_BYTES+52) }
-                val envelope=SaveEnvelopeCodec.decode(bytes)
-                decode(envelope)
-            } catch(e:NewerSaveFormatException) { throw e }
-              catch(e:Exception) { damaged=true; null }
+            try { slot to slot.openRead().use { SaveEnvelopeCodec.verify(it).first } }
+            catch(e:NewerSaveFormatException) { throw e }
+            catch(e:Exception) { damaged=true; null }
+        }.sortedByDescending { it.second }
+        // İki slotun bütün nokta nesnelerini aynı anda üretme: yalnız açılacak sağlam kaydı çöz.
+        for((slot,_) in valid) {
+            try { return OpenedPage(decode(slot.openRead().use { SaveEnvelopeCodec.read(it) }),damaged) }
+            catch(e:NewerSaveFormatException) { throw e }
+            catch(e:Exception) { damaged=true }
         }
-        if(hadFiles && valid.isEmpty()) throw IOException("Sağlam kayıt bulunamadı; mevcut dosyalar korundu.")
-        return OpenedPage(valid.maxByOrNull { it.revision },damaged)
+        if(hadFiles) throw IOException("Sağlam kayıt bulunamadı; mevcut dosyalar korundu.")
+        return OpenedPage(null)
     }
+
     fun save(snapshot:PageSnapshot) {
         check(directory.isDirectory || directory.mkdirs()) { "Kayıt klasörü oluşturulamadı." }
-        val payload=ByteArrayOutputStream()
-        DataOutputStream(payload).use { out ->
+        val payload=File.createTempFile("save-",".payload",directory)
+        try {
+        DataOutputStream(BufferedOutputStream(FileOutputStream(payload))).use { out ->
             out.writeInt(SCHEMA) // 4: GVNpen çizgileri (Ink verisi yok); 3: şablon; 2: çok sayfa + PDF; 1–3 okunur.
             out.writeUTF(snapshot.folder.id); out.writeUTF(snapshot.folder.name); out.writeUTF(snapshot.folder.relativePath)
             out.writeUTF(snapshot.note.id); out.writeUTF(snapshot.note.title)
@@ -58,24 +62,26 @@ class PageStore(private val directory:File) {
             snapshot.source?.let { out.writeUTF(it.sha256); out.writeUTF(it.displayName); out.writeInt(it.pageCount) }
             val pageIds=snapshot.pages.map { it.id }.toSet()
             require(snapshot.strokes.size<=20000 && snapshot.strokes.all { it.data.pageId in pageIds })
+            require(snapshot.strokes.sumOf { it.data.samples.size.toLong() }<=2_000_000) { "Not nokta sınırını aşıyor; değişiklikler bellekte korunuyor." }
             out.writeInt(snapshot.strokes.size)
             snapshot.strokes.forEach { stroke ->
                 val bytes=encoded[stroke.data] ?: encode(stroke).also { encoded[stroke.data]=it }
                 out.blob(bytes)
-                require(payload.size()<=SaveEnvelopeCodec.MAX_BYTES) { "Not kayıt sınırını aşıyor." }
+                require(out.size()<=SaveEnvelopeCodec.MAX_BYTES) { "Not kayıt sınırını aşıyor." }
             }
         }
-        val bytes=SaveEnvelopeCodec.encode(snapshot.revision,payload.toByteArray())
         val slot=slots[(snapshot.revision%2).toInt()]
         var output:FileOutputStream?=null
         try {
-            output=slot.startWrite(); output.write(bytes); output.flush(); output.fd.sync()
-            slot.finishWrite(output)
-            // AtomicFile bazı rename/sync hatalarını yalnız loglayabilir; arayüze başarı bildirmeden doğrula.
-            check(slot.openRead().use { readLimited(it,SaveEnvelopeCodec.MAX_BYTES+52) }.contentEquals(bytes)) { "Kayıt geri okunamadı." }
-        }
-        catch(e:Exception) { output?.let { slot.failWrite(it) }; throw e }
+            output=slot.startWrite()
+            val expected=payload.inputStream().buffered().use { SaveEnvelopeCodec.write(snapshot.revision,it,payload.length().toInt(),output) }
+            output.flush(); output.fd.sync(); slot.finishWrite(output)
+            val verified=slot.openRead().buffered().use { SaveEnvelopeCodec.verify(it) }
+            check(verified.first==snapshot.revision && verified.second.contentEquals(expected)) { "Kayıt geri okunamadı." }
+        } catch(e:Exception) { output?.let { slot.failWrite(it) }; throw e }
+        } finally { payload.delete() }
     }
+
     private fun encode(stroke:RenderedStroke):ByteArray = ByteArrayOutputStream().also { bytes ->
         DataOutputStream(bytes).use { out ->
             val s=stroke.data

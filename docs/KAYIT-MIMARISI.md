@@ -1,4 +1,4 @@
-# Kayıt ve kurtarma — 0.12.0
+# Kayıt ve kurtarma — 0.15.0
 
 ## Kullanıcı akışı
 
@@ -36,8 +36,12 @@ Bulut ya da dış yedek yoktur. Uygulamayı kaldırmak bu verileri siler; öneml
 
 - Kayıt şeması **4** (`PageStore.SCHEMA`, 0.10.0): Jetpack Ink verisi yok; basınç GVNpen katsayısı (0,15–1,5) olarak saklanır. Şema 1–3 okunur (ham basınç ×1,4; eski yarı saydam fosforlu tam renge çevrilir).
 - Daha eski bir APK'ya dönülürse şema 4 notlar açılmaz (veri silinmez).
-- Sınırlar: kayıt başına 64 MiB, 2000 sayfa.
+- Sınırlar: kayıt başına 64 MiB, 2000 sayfa, 20.000 çizgi ve 2.000.000 nokta. Bu sürüm bu kapasite sınırlarını kaldırmaz; nokta sınırı artık yazmadan önce de denetlenir.
 
 ## Doğrulama
 
 `DEVICE-TEST.ps1` içindeki kayıt aşamaları: zarf kodlama, çizgi/piksel regresyonu, bozulan son slot, iki slotun bozuk olması, başarısız commit ve gerçek force-stop / yeniden açma döngüsü (seed → reopen → deletion-reopen). Testler `files/test-document` kullanır; kullanıcı notlarına dokunmaz.
+
+## 0.15.0: büyük not kaydında bellek
+
+Payload geçici dosyaya akışla yazılır, zarf ve SHA256 slot dosyasına aktarılır; geri okuma da akışla doğrulanır. Eski dosyayla aynı bayt biçimi korunur. Kayıt açılırken iki slotun bütün nokta nesneleri birden oluşturulmaz; bütünlükleri akışla doğrulandıktan sonra en yeni sağlam slot çözülür. Kodlanmış çizgi önbelleği WeakIdentityCache ile nokta listesinin hashCode’unu dolaşmadan erişilir ve 64 MiB ile sınırlıdır. Kayıt hâlâ tüm not snapshot’ıdır; sayfa bazlı/delta depolama değildir. Ayrı depolama mimarisi olmadan sınırları sadece büyütme.

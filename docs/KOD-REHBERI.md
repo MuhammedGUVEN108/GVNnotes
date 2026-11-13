@@ -35,3 +35,7 @@ Güncel genel kurallar: [AGENTS.md](../AGENTS.md). Bu belge, kodu ilk kez okuyan
 
 - JVM: `core/src/test` (model, geometri, kayıt zarfı) ve `app/src/test/java/.../pen` (GVNpen'in kendi GeometryTests ve EraseTests'i).
 - Tablet: `app/src/androidTest` → `DEVICE-TEST.ps1`, `LIBRARY-TEST.ps1` (bkz. [TABLET-TESTI.md](TABLET-TESTI.md)).
+
+## 0.15.0 yoğun ve kalıcı mürekkep
+
+InkTileCache yalnız görünen sayfanın 512 piksel parçalarını ölçek kademeleriyle üretir; aynı görüntüyü tekrar çizmez, yeni çizgiyi mevcut parçalara ekler. Silgi/geri alma/renk değişikliği etkilenen parçaları geçersiz kılar. LRU bütçesi 64 MiB; atılan parça modelden yeniden üretilir. ActiveInkCache uzun kalemin kesinleşmiş başını ekran bitmap’ine ekler; canlı uç en çok 129 segmenttir. Fosforlu tek yol kalır, yarı saydam ek yeri oluşturulmaz. Geometri önbelleği 300.000 noktayla sınırlıdır. WeakIdentityCache nesne kimliği kullanır; PageStroke’un binlerce noktayı dolaşan hashCode’unu çağırmaz. Küçük resimler artık başka sayfadaki yeni çizgi yüzünden tekrar üretilmez.
