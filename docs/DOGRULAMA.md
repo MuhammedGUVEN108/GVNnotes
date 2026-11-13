@@ -1,5 +1,16 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.16.1 — yeni sayfada ilk çizginin yanıp sönmesi, 14 Kasım 2026
+
+Kullanıcı sayfa değiştirince ilk yazının yanıp söndüğünü bildirdi. Kalem kalktığında canlı katman temizleniyor, henüz karosu olmayan sayfanın tamamlanmış çizgisi arka plan işçisini bekliyordu; araya boş kare giriyordu. Hazır noktaları toplam 4096'yı aşmayan hafif sayfaların eksik karoları aynı karede hazırlanır. Yoğun/soğuk sayfalarda arka plan raster ve zoom fallback sürer. Aynı karede tamamlanan karo eksik sayılmaz; yeniden açmada hazır durumu gereksiz yeni kareyi beklemez.
+
+InkCacheDeviceTest'e ilk çizgi handoff regresyonu eklendi: boş sayfa → ilk çizgi, ana thread'den ayrılmadan kalem ve yarı saydam fosforlu için piksel sonucu senkron referansla eşit; çizgi bölgesi beyaz değil ve cache hazır. Önceki asenkron zoom/doğruluk ve önbellek tahliye testleri korunur. İlk yeniden açma denemesi hazır sayacındaki boş-kare beklemesini yakaladı; sayaç düzeltildi ve son APK tekrar denendi.
+
+Son APK üzerinde ilgili 10 tablet birimi geçti; kalan 7 birimin kaynak parmak izi değişmedi ve önceki başarı geçerli. Lint 0 hata/43 uyarı, JVM kontrolleri başarılı. Yeniden açılan mürekkep ekranı görsel incelendi (logs/ui-0.16.1/reopened-ink.png); test uyanıklığı 0 değerine geri alındı. Çevrimdışı APK/test APK/lint ve ilgili tablet testleri: logs/first-ink-final-build.log, logs/first-ink-check.log, logs/first-ink-final-device.log. Değişmeyen kayıt/PDF/klasör birimleri önceki başarılı parmak izini korur. Fiziksel S Pen ile kullanıcının his onayı henüz yoktur. İnternetten indirme yapılmadı.
+
+APK dist/GVNnotes-0.16.1.apk; SHA256 `dd03d57402172c8d563f9ede975e1c4192a4440362c8e253e4b00026bf9a7f6c`. Tablette aynı paket kimliğiyle yerinde güncelleme.
+
+
 ## 0.16.0 — sayfa bazlı kayıt ve akıcı yakınlaştırma, 14 Kasım 2026
 
 Kullanıcı mevcut notların test olduğunu belirterek yeni kayıt mimarisini onayladı; sayfa geçişinde ve zoomda donma istemedi. SQLite şema 6: yalnız değişen sayfa/çizgi transaction içinde yazılır; değişmez noktalar küçük checksum parçalarında tutulur. Metadata açılışta, noktalar gereken sayfalar için IO'da yüklenir. Bütçeli komşu hazırlığı ve sayfa bazlı geri alma uygulanır. InkTileCache async raster yapar; zoomda hazır en yakın ölçekteki görüntü korunur. Mevcut sessiz kayıt/üst satır/alt çubuk yasağı/vektör PDF korunur; GVNpen projesi değişmedi.

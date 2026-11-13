@@ -89,6 +89,9 @@ internal class InkTileCache(private val budget:Long=64L*1024*1024,private val as
     fun draw(canvas:Canvas,page:Page,strokes:List<RenderedStroke>,visible:RectF,scale:Float,smooth:Boolean,allowRasterize:Boolean=true) {
         sync(page.id,strokes,smooth)
         if(strokes.isEmpty()) return
+        // İlk kısa çizgi canlı katmandan kalktığı karede hazır olmalı. Büyük sayfalar IO/raster işçisinde kalır.
+        val immediate=allowRasterize && strokes.sumOf { it.data.samples.size.toLong() }<=4096 &&
+            strokes.all { (it.data.samples as SampleHandle).ready() }
         val level=ceil(log2(scale.coerceIn(.125f,8f))).toInt()
         val r=resolution(level)
         val x0=floor(max(0f,visible.left)*r/SIDE).toInt()
@@ -99,12 +102,11 @@ internal class InkTileCache(private val budget:Long=64L*1024*1024,private val as
             val key=Key(page.id,level,x,y)
             var bitmap=tiles[key]
             if(bitmap==null) {
-                frameMissing++
-                if(async) { if(allowRasterize) schedule(key,smooth); fallback(canvas,key) }
+                if(async && !immediate) { frameMissing++; if(allowRasterize) schedule(key,smooth); fallback(canvas,key) }
                 else if(allowRasterize) {
                     bitmap=Bitmap.createBitmap(SIDE+GUTTER*2,SIDE+GUTTER*2,Bitmap.Config.ARGB_8888)
                     rasterizedStrokes+=drawInto(bitmap,key,strokes,smooth); put(key,bitmap)
-                }
+                } else frameMissing++
             }
             bitmap?.let { drawTile(canvas,key,it) }
         }

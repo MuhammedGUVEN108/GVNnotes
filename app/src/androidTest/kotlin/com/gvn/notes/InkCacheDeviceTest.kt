@@ -23,6 +23,28 @@ class InkCacheDeviceTest {
         }
         assertTrue("Önbellek çizimi özgün mürekkepten saptı: ${error.toDouble()/(aa.size*3)}",error.toDouble()/(aa.size*3)<tolerance)
     }
+    @Test fun firstStrokeOnNewPageIsVisibleInTheHandoffFrame() {
+        val inst=androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+        inst.runOnMainSync {
+            for(tool in listOf(Tool.PEN,Tool.HIGHLIGHTER)) {
+                val page=Page(noteId="first-ink",order=0,width=1000f,height=800f)
+                val stroke=RenderedStroke(PageStroke(pageId=page.id,tool=tool,color=0x9f1832b0.toInt(),width=12f,
+                    samples=List(90) { k -> Sample(100f+k*6f,200f,.8f,0f,0f,k.toLong()) }))
+                val cache=InkTileCache(async=true); val direct=InkTileCache()
+                val a=Bitmap.createBitmap(1000,800,Bitmap.Config.ARGB_8888); val b=a.copy(Bitmap.Config.ARGB_8888,true)
+                try {
+                    // Boş sayfa → kalem kalkışı. Ana thread'den çıkmadan ilk bitmiş kareyi doğrula.
+                    cache.beginFrame(1f); cache.draw(Canvas(a),page,emptyList(),RectF(0f,0f,1000f,800f),1f,true)
+                    a.eraseColor(Color.WHITE); b.eraseColor(Color.WHITE)
+                    cache.beginFrame(1f); cache.draw(Canvas(a),page,listOf(stroke),RectF(0f,0f,1000f,800f),1f,true)
+                    direct.draw(Canvas(b),page,listOf(stroke),RectF(0f,0f,1000f,800f),1f,true)
+                    compare(a,b,.01)
+                    assertNotEquals(Color.WHITE,a.getPixel(300,200))
+                    assertTrue(cache.settled)
+                } finally { cache.close(); direct.close(); a.recycle(); b.recycle() }
+            }
+        }
+    }
     @Test fun asynchronousZoomKeepsFallbackInkAndEventuallyMatchesExactTiles() {
         val inst=androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
         val page=Page(noteId="async",order=0,width=1000f,height=800f)

@@ -1,5 +1,7 @@
 # Yoğun mürekkep performansı — 0.16.0
 
+0.16.1 düzeltmesi: yeni sayfada ilk kısa çizgi canlı katmandan çıkarken boş kare oluşmaması için hazır ≤4096 noktalı hafif sayfanın eksik karoları aynı karede hazırlanır. Yoğun sayfa/zoom işi background'da kalır. İlk kare kalem/fosforlu piksel regresyonu ve hazır sayacı denetlenir.
+
 ## Yeni depolama ve yakınlaştırma
 
 Şema 6 SQLite kayıt yalnız değişen sayfa/çizgiyi günceller. Noktalar sayfa gerektiğinde IO'da yüklenir; aktif sayfa ve bütçeye sığan komşuları hazırlanır. Ekran karoları arka planda üretilir; zoom sırasında en yakın hazır ölçekteki mürekkep görüntüsü kullanılır. Yeni ölçek netleşince karolar yerini alır. Eski görüntünün yalnız kesişen parçaları çizilir. Kalem geometrisi ve PDF vektör çıktısı aynı kaynaktan üretilmeye devam eder.

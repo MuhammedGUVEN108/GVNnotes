@@ -1,12 +1,14 @@
 # GVNnotes
 
+0.16.1: yeni sayfanın ilk kısa çizgisinde canlı → kalıcı katman geçişindeki boş kare giderildi. Hafif mürekkep aynı karede hazırlanır; yoğun sayfalar arka planda kalır.
+
 0.16.0: sayfa bazlı SQLite kayıt, gerektiğinde nokta yükleme, komşu sayfa hazırlığı ve arka planda mürekkep karoları. Yakınlaştırmada hazır görüntü korunur; yeni netlik arka planda tamamlanır. [Kayıt mimarisi](docs/KAYIT-MIMARISI.md).
 
 Galaxy Tab S9+ ve S Pen için PDF, resim ve boş sayfalar üzerine el yazısıyla not uygulaması. Proje merkezi: `D:/Sanal Desktop/GVNnotes`.
 
 Yapay zekâ ajanları önce [AGENTS.md](AGENTS.md) dosyasını okumalı.
 
-## Mevcut durum — 0.16.0 (14 Kasım 2026)
+## Mevcut durum — 0.16.1 (14 Kasım 2026)
 
 - **0.12.0:** klasör silme (alt klasörleriyle), çöp kutusu 30 gün sonra kendiliğinden boşalır, Dosyalarım'dan silinen dosyanın notu çöpe gider (dosya geri gelirse döner). Tablet testleri yalnız ilgili kodu değişenleri çalıştırır ([durum tablosu](docs/TEST-DURUMU.md)).
 
