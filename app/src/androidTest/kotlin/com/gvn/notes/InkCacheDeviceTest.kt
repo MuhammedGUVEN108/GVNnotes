@@ -9,6 +9,8 @@ import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import kotlin.math.sin
+import kotlin.math.max
+import kotlin.math.min
 
 @RunWith(AndroidJUnit4::class)
 class InkCacheDeviceTest {
@@ -266,6 +268,62 @@ class InkCacheDeviceTest {
             } finally { a.recycle(); b.recycle(); cache.release() }
         }
     }
+    /**
+     * 14 Kasım 2026 kullanıcı hatası: yatay tablette ~%200 üstü ölçekte mürekkep sürekli yanıp söndü, ölçek değişince geçti.
+     * Gerçek ekran boyunda (2800×1568) iki yoğun sayfanın sınırı görünürken görünen karo sayısı 64 MiB bütçesini aşar;
+     * her yeni karo görünen başka karoyu atıp sonsuz yeniden çizim döngüsü oluşturuyordu. Önceki testler 1000×800 alan kullandığı için yakalamadı.
+     */
+    @Test fun realScreenZoomBandSettlesWithoutEvictingVisibleTiles() {
+        val inst=androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+        val w=2800; val h=1568; val gap=32f
+        val pages=List(2) { Page(id="band-$it",noteId="band",order=it,width=1000f,height=1414f) }
+        // Sayfayı baştan sona kaplayan yoğun çizgiler: sayfa başına 70 × 120 = 8400 nokta (>4096, arka plan yolu).
+        val ink=pages.associate { page -> page.id to List(70) { n -> RenderedStroke(PageStroke(pageId=page.id,tool=Tool.PEN,
+            color=Color.BLACK,width=3f,samples=List(120) { k -> Sample(10f+k*8.3f,10f+n*20f,.8f,0f,0f,k.toLong()) })) } }
+        val image=Bitmap.createBitmap(w,h,Bitmap.Config.ARGB_8888)
+        for(scale in listOf(1.6f,2.05f,2.3f,3.1f,4.1f,4.6f,6.2f,8f)) {
+            val cache=InkTileCache(async=true)
+            // Yatayda ortalı, iki sayfanın sınırı ekranın ortasında.
+            val vx=(w-1000f*scale)/2; val vy=h/2f-(1414f+gap/2)*scale
+            fun frame():Boolean {
+                image.eraseColor(Color.WHITE)
+                cache.beginFrame(scale)
+                pages.forEachIndexed { i,page ->
+                    val top=i*(1414f+gap)
+                    val left=max(0f,-vx/scale); val right=min(page.width,(w-vx)/scale)
+                    val upper=max(0f,(-vy/scale)-top); val lower=min(page.height,(h-vy)/scale-top)
+                    if(right<=left || lower<=upper) return@forEachIndexed
+                    val canvas=Canvas(image); canvas.translate(vx,vy+top*scale); canvas.scale(scale,scale)
+                    canvas.clipRect(left,upper,right,lower)
+                    cache.draw(canvas,page,ink.getValue(page.id),RectF(left,upper,right,lower),scale,false)
+                }
+                return cache.settled
+            }
+            try {
+                val deadline=android.os.SystemClock.uptimeMillis()+20_000
+                var settled=false
+                while(!settled && android.os.SystemClock.uptimeMillis()<deadline) {
+                    inst.runOnMainSync { settled=frame() }
+                    if(!settled) android.os.SystemClock.sleep(16)
+                }
+                assertTrue("%${(scale*100).toInt()} ölçekte karolar hiç oturmadı (görünen karolar birbirini atıyor)",settled)
+                var before=0L; inst.runOnMainSync { before=cache.rasterizedStrokes }
+                // Oturduktan sonra ekran durağan: yeni karo üretilmez, her kare hazır.
+                repeat(40) {
+                    inst.runOnMainSync { assertTrue("%${(scale*100).toInt()} ölçekte oturmuş görüntü yeniden boşaldı",frame()) }
+                    android.os.SystemClock.sleep(16)
+                }
+                inst.runOnMainSync { assertEquals("Durağan ekranda karolar yeniden çizildi",before,cache.rasterizedStrokes) }
+                inst.runOnMainSync {
+                    android.util.Log.i("GVNnotesTest","zoom-band %${(scale*100).toInt()} karo bellegi ${cache.retainedBytes/1048576} MiB")
+                    // Görünen alan kadar geçici aşım kabul; yatay tam ekranda bile sınırlı kalmalı.
+                    assertTrue("Karo belleği sınırsız büyüdü: ${cache.retainedBytes}",cache.retainedBytes<=160L*1024*1024)
+                }
+            } finally { inst.runOnMainSync { cache.close() } }
+        }
+        image.recycle()
+    }
+
     @Test fun visitingOneHundredPagesKeepsCacheBoundedAndRebuildsEvictedInk() {
         val cache=InkTileCache(3L*1024*1024)
         val image=Bitmap.createBitmap(600,600,Bitmap.Config.ARGB_8888)

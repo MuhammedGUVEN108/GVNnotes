@@ -33,7 +33,18 @@ internal class InkTileCache(private val budget:Long=64L*1024*1024,private val as
     private var viewKey:Any?=null
     private var frameMissing=0
     val settled get()=pending.isEmpty() && frameMissing==0
-    fun beginFrame(key:Any) { if(viewKey!=key) { viewKey=key; epoch++ }; frameMissing=0 }
+    /**
+     * Ekranda gereken karolar bütçe yüzünden atılmaz (14 Kasım 2026 hatası): yatay tablette ~%400 gibi ölçeklerde görünen
+     * karo sayısı bütçeyi aşınca her yeni karo görünen başka bir karoyu atıyor, o yeniden çiziliyor; ekran hiç durulmuyor ve
+     * mürekkep yanıp sönüyordu. Bu ve önceki karede istenen karolar korunur; bütçe yalnız ekranda olmayanlardan geri alınır.
+     * Görünen alanın gerektirdiği kadar geçici aşım olur (yatay tam ekranda en çok ~110 karo ≈ 115 MiB yerel bellek).
+     */
+    private var frameKeys=HashSet<Key>()
+    private var lastFrameKeys=HashSet<Key>()
+    fun beginFrame(key:Any) {
+        if(viewKey!=key) { viewKey=key; epoch++ }; frameMissing=0
+        lastFrameKeys=frameKeys; frameKeys=HashSet()
+    }
 
     private fun resolution(level:Int)=2.0.pow(level).toFloat()
     private fun touches(stroke:RenderedStroke,key:Key):Boolean {
@@ -101,6 +112,7 @@ internal class InkTileCache(private val budget:Long=64L*1024*1024,private val as
         val y1=ceil(min(page.height,visible.bottom)*r/SIDE).toInt()
         for(y in y0 until y1) for(x in x0 until x1) {
             val key=Key(page.id,level,x,y)
+            if(async) frameKeys+=key
             var bitmap=tiles[key]
             if(bitmap==null || key in dirty) {
                 if(async && !immediate) { frameMissing++; if(allowRasterize) schedule(key,smooth); if(bitmap==null) fallback(canvas,key) }
@@ -116,7 +128,12 @@ internal class InkTileCache(private val budget:Long=64L*1024*1024,private val as
         if(stale) dirty.add(key) else dirty.remove(key)
         used-=tiles.remove(key)?.byteCount ?: 0; tiles[key]=bitmap; used+=bitmap.byteCount
         val iterator=tiles.entries.iterator()
-        while(used>budget && iterator.hasNext()) { val entry=iterator.next(); used-=entry.value.byteCount; dirty.remove(entry.key); iterator.remove() }
+        while(used>budget && iterator.hasNext()) {
+            val entry=iterator.next()
+            // Yeni karo ve ekranda gereken karolar atılmaz (yalnız arka plan modunda; senkron kullanım önceki gibi sıkı bütçeli).
+            if(entry.key==key || (async && (entry.key in frameKeys || entry.key in lastFrameKeys))) continue
+            used-=entry.value.byteCount; dirty.remove(entry.key); iterator.remove()
+        }
     }
     private fun drawTile(canvas:Canvas,key:Key,bitmap:Bitmap) {
         val r=resolution(key.level)
@@ -169,7 +186,7 @@ internal class InkTileCache(private val budget:Long=64L*1024*1024,private val as
         states.remove(page)
     }
     fun retainPages(ids:Set<String>) { states.keys.toList().filter { it !in ids }.forEach { removePage(it) } }
-    fun clear() { tiles.clear(); dirty.clear(); states.clear(); used=0 }
+    fun clear() { tiles.clear(); dirty.clear(); states.clear(); frameKeys.clear(); lastFrameKeys.clear(); used=0 }
     fun close() { closed=true; epoch++; clear() }
     companion object {
         private const val SIDE=512; private const val GUTTER=2

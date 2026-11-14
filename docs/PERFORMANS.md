@@ -1,5 +1,7 @@
 # Yoğun mürekkep performansı — 0.16.0
 
+0.17.2: görünen karolar bütçe yüzünden atılmaz; yatay tam ekranda %410 ölçekte karo belleği 85 MiB ölçüldü (64 MiB bütçe + görünen alan kadar geçici aşım).
+
 0.16.2: silgi/geri al/kement sırasında etkilenen karolar aynı bellek bütçesinde yenisi hazır olana kadar korunur; yoğun sayfa raster işi arka planda kalır, ana thread'e senkron yeniden çizim eklenmez.
 
 0.16.2 aynı tablette yazılım Canvas kontrolü: yoğun sıcak çizim 6,06 ms ortanca / 6,68 ms en yüksek; zoom ana kare 8,74 / 14,54 ms (logs/ink-0.16.2.json). Silgi regresyonunda arka plan callback'i gelmeden art arda değişikliklerin raster sayacı artmaz; silgiye özgü GPU kare süresi ölçülmedi.

@@ -23,7 +23,9 @@ Kullanıcı Türkçe konuşur. Arayüz metinleri, belgeler, kod yorumları ve co
 
 Eskiyen kararlar (artık geçersiz): "GVNpen yalnız arayüz referansı, kodu taşınmaz" (10 Kasım); "çizim motoru Jetpack Ink" (0.1–0.9); "kütüphane Samsung Notes düzeninde" (0.2–0.10). Bu ifadeleri eski belgelerde görürsen uygulama.
 
-## 0.17.1 güncel mimari
+## 0.17.2 güncel mimari
+
+0.17.2: InkTileCache arka plan modunda bu ve önceki karede istenen karoları bütçe yüzünden atmaz (görünen alan kadar geçici aşım). Gerçek ekran boyunda (2800×1568) çizmeyen önbellek testi bu tür hataları kaçırır; yeni testleri gerçek boyutta yaz.
 
 0.17.1: InkPageView gezinme sonunda yalnız konumu düzeltir; sığdırmanın altındaki ölçek de korunur. Kısa PDF/resim/çok sayfalı belge de dikey ortalanır. İlk 0.17.0 denemesinin zorla büyütmesi kullanıcı tarafından reddedildi. fit/scrollToPage/yeniden boyutlandırma bekleyen hareketi keser. InkTileCache aynı örnek ve zoom fallback akışıyla kullanılır; animasyon karelerinde önbellek temizlenmez. GVNpen yazma motoru değişmedi.
 
