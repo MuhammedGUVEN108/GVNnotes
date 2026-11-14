@@ -100,6 +100,9 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
     var movingKeys by rememberSaveable { mutableStateOf<List<String>?>(null) }
     var trashingKeys by rememberSaveable { mutableStateOf<List<String>?>(null) }
     val selecting=selectedKeys.isNotEmpty()
+    // Seçim çubuğu solarak kapanırken "0 not seçili" görünmesin: son sayı tutulur.
+    var shownCount by remember { mutableStateOf(1) }
+    if(selecting) shownCount=selectedKeys.size
     fun toggle(key:String) { selectedKeys=if(key in selectedKeys) selectedKeys-key else selectedKeys+key }
     var sortByName by rememberSaveable { mutableStateOf(false) }
     val collapsed=remember { mutableStateListOf<String>() }
@@ -189,7 +192,7 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
                         if(selectMode) {
                             // Seçim çubuğu mevcut başlık satırında; ayrı alt çubuk yok.
                             IconButton(onClick={selectedKeys=emptyList()},modifier=Modifier.testTag("selection-close")) { Icon(Icons.Outlined.Close,"Seçimi kapat",tint=Ada.Ink) }
-                            Text("${selectedKeys.size} not seçili",Modifier.weight(1f).padding(start=8.dp).testTag("selection-count"),
+                            Text("$shownCount not seçili",Modifier.weight(1f).padding(start=8.dp).testTag("selection-count"),
                                 fontSize=24.sp,fontWeight=FontWeight.SemiBold,color=Ada.Ink,maxLines=1)
                             val all=visible.map { it.key }
                             TextButton(onClick={ selectedKeys=if(selectedKeys.containsAll(all)) emptyList() else all },modifier=Modifier.testTag("selection-all")) {
