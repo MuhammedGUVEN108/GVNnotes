@@ -1,5 +1,18 @@
 # Yoğun mürekkep performansı — 0.16.0
 
+## Kullanıcının gerçek kullanımıyla ölçüm — 0.18.0, 15 Kasım 2026
+
+Kullanıcı SM-X810'da gerçek PDF notlarında S Pen ve parmakla dört senaryo yaptı; her senaryodan önce `dumpsys gfxinfo` sıfırlandı (ham çıktı: logs/manuel-olcum/). Ekran o sırada 60 Hz bildirdi (kare bütçesi 16,7 ms).
+
+| Senaryo | Kare | Geciken kare | %50 | %90 | %95 | %99 | >700 ms donma |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Yazma | 3207 | 35 (%1,1) | 7 ms | 10 ms | 11 ms | 26 ms | 0 |
+| Silgi | 1922 | 13 (%0,7) | 7 ms | 11 ms | 14 ms | 18 ms | 0 |
+| Yakınlaştırma/kaydırma | 2888 | 53 (%1,8) | 7 ms | 11 ms | 15 ms | 38 ms | 0 |
+| Sayfa geçişi/atlama | 1058 | 18 (%1,7) | 7 ms | 11 ms | 17 ms | 40 ms | 0 |
+
+GPU kare süresi her senaryoda 3–5 ms. En yavaş %1 karelerin çoğu "slow bitmap upload" (mürekkep karoları ve PDF sayfa görüntülerinin GPU'ya ilk yüklenmesi): yazma 27, yakınlaştırma 47, sayfa geçişi 15. Bellek (PSS) ~740 MB: Graphics 359 MB, Native 258 MB (karo önbelleği + PDF sayfa önbelleği 160 MB bütçe), Java 26 MB. gfxinfo'nun "High input latency" sayacı sürekli kalem girdisinde hemen her kareyi işaretler; kalemden mürekkebe gerçek gecikme bu yöntemle ölçülemez (yüksek hızlı kamera gerekir).
+
 0.17.2: görünen karolar bütçe yüzünden atılmaz; yatay tam ekranda %410 ölçekte karo belleği 85 MiB ölçüldü (64 MiB bütçe + görünen alan kadar geçici aşım).
 
 0.16.2: silgi/geri al/kement sırasında etkilenen karolar aynı bellek bütçesinde yenisi hazır olana kadar korunur; yoğun sayfa raster işi arka planda kalır, ana thread'e senkron yeniden çizim eklenmez.
