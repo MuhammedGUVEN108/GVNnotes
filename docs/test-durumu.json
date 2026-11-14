@@ -1,4 +1,10 @@
 {
+    "zoom-idle":  {
+                      "result":  "passed",
+                      "fingerprint":  "78fc5f15451425bb",
+                      "date":  "2026-11-14 23:25",
+                      "version":  "0.17.2"
+                  },
     "viewport":  {
                      "result":  "passed",
                      "fingerprint":  "5f6328652e2afb53",

@@ -4,7 +4,7 @@
 
 Kullanıcı tablette (yatay, ölçek %150'nin üstünde) mürekkebin bir anda sürekli yanıp sönmeye başladığını, ölçek değişince geçip aynı ölçeğe dönünce geri geldiğini bildirdi.
 
-**Kök neden:** InkTileCache 512 px'lik karoları 64 MiB bütçeyle (≈63 karo) tutuyor. Karo çözünürlüğü `2^ceil(log2(ölçek))` olduğundan bazı ölçeklerde (özellikle %400 civarı; sayfa sınırı ekrandayken %200 civarı da) görünen karo sayısı bütçeyi aşıyordu. Her tamamlanan karo `put()` sırasında ekranda görünen başka bir karoyu atıyor, atılan karo yeniden planlanıyor, `onReady` yeniden çizdiriyordu: sonsuz döngü. Arka plan yoluna (sayfa >4096 nokta) geçince görünür oldu; "bir anda" başlaması buna uyar.
+**Kök neden:** InkTileCache 512 px'lik karoları 64 MiB bütçeyle (≈63 karo) tutuyor. Karo çözünürlüğü `2^ceil(log2(ölçek))` olduğundan bazı ölçeklerde görünen karo sayısı bütçeyi aşıyordu. Her tamamlanan karo `put()` sırasında ekranda görünen başka bir karoyu atıyor, atılan karo yeniden planlanıyor, `onReady` yeniden çizdiriyordu: sonsuz döngü. Arka plan yoluna (sayfa >4096 nokta) geçince görünür oldu; "bir anda" başlaması buna uyar.
 
 **Neden testler kaçırdı:** önceki önbellek testleri 1000×800 alan çiziyordu; gerçek ekran (2800×1568) boyutunda görünen karo sayısı hiç sınanmamıştı.
 
@@ -12,7 +12,9 @@ Kullanıcı tablette (yatay, ölçek %150'nin üstünde) mürekkebin bir anda s�
 
 **Doğrulama:** yeni `realScreenZoomBandSettlesWithoutEvictingVisibleTiles` testi gerçek ekran boyunda iki yoğun sayfanın sınırını %160–%800 arası 8 ölçekte çizer; oturduktan sonra 40 karede durağanlık (yeniden çizim yok) ve bellek sınırı denetlenir. **Düzeltmesiz kodla %410'da kaldı** ("karolar hiç oturmadı"; logs/zoomband-old.txt), düzeltmeyle 8 önbellek testinin hepsi geçti (logs/zoomband-new.txt). Ölçülen karo belleği: %205/%230'da 56 MiB, %410'da 85 MiB, %460'ta 71 MiB. DEVICE-TEST: ilgili 11 birim geçti, değişmeyen 7 birim atlandı. Lint ve JVM testleri geçti.
 
-**Doğrulanmayan:** kullanıcının tam ölçeği bilinmiyor (yalnız "%150'den fazla, yatay"); test %410'da yeniden üretti, %205'te bu sayfa yerleşiminde üretmedi. Fiziksel kullanımda kullanıcı onayı bekleniyor. Geçici bellek aşımı (≈+20 MiB) yerel bitmap belleğidir.
+**Gerçek uygulama ekranında ölçülen bant (yeni ZoomIdleDeviceTest):** yatay tam ekran InkPageView, yoğun mürekkepli yatay PDF (3 sayfa, sayfa sınırı ekranın ortasında), %150–%500 arası 0,1 adımlı 36 ölçek; her ölçekte durulduktan sonra 1 s'de çizim sayısı sayılır. **Düzeltmesiz kodla** sürekli yeniden çizim: %200, %210, %240 ve %410–%500 (saniyede 43–61 çizim; logs/zoomidle-old.txt). **Düzeltmeyle** 36 ölçeğin hepsi durgun (0 çizim; logs/zoomidle-new.txt). Test PDF arka planı ve sayfa hazırlama yeniden çizimlerini de kapsar; ikisi döngü üretmedi.
+
+**Doğrulanmayan:** kullanıcının tam ölçeği bilinmiyor (yalnız "%150'den fazla, yatay"); ölçülen bant buna uyuyor ama kullanıcının ekranındaki tam durum doğrudan gözlenmedi. Dik ekran ve farklı sayfa yerleşimlerinde bant kayabilir; düzeltme ölçeğe bağlı değildir. Geçici bellek aşımı (≈+20 MiB) yerel bitmap belleğidir.
 
 APK: dist/GVNnotes-0.17.2.apk, SHA256 `3ffd45b3094768a30f8303c66921349b17cc82b55c913bfd87a4f55d5bc6ef15`. Tablette kurulu.
 

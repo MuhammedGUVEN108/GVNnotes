@@ -14,7 +14,7 @@ Yapay zekâ ajanları önce [AGENTS.md](AGENTS.md) dosyasını okumalı.
 
 ## Mevcut durum — 0.17.2 (14 Kasım 2026)
 
-0.17.2: bazı ölçeklerde (özellikle ~%400) ekranda gereken mürekkep karoları birbirini bellekten atıp sürekli yanıp sönüyordu; görünen karolar artık atılmıyor.
+0.17.2: yatay ekranda bazı ölçeklerde (ölçülen: %200–%240 ve %410–%500) ekranda gereken mürekkep karoları birbirini bellekten atıp sürekli yanıp sönüyordu; görünen karolar artık atılmıyor.
 
 0.17.1 doğrulaması: PDF ve boş notta sığdırma altı/0.15× ölçek korunması, iki eksende ortalama ve kenara dönüş geçti; ekran görüntüleri incelendi. 20 JVM testi ve ilgili 11 tablet birimi başarılı; değişmeyen 7 birim atlandı. APK tablette kurulu. Fiziksel S Pen hissi ve uzun kullanım doğrulanmadı. Ayrıntı ve sınırlar: [doğrulama](docs/DOGRULAMA.md).
 
