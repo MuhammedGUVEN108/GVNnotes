@@ -149,6 +149,8 @@ class PenToolsDeviceTest {
             walk(activity.window.decorView); return b!! }
         fun f(name:String):Any? { val t=bar(); return com.gvn.notes.pen.PenToolbar::class.java.getDeclaredField(name).apply { isAccessible=true }.get(t) }
         fun icon(name:String)=(f("icons") as Map<*,*>)[name] as View
+        // Kullanıcının kayıtlı yatay/dikey tercihinden bağımsız başlangıç; diske yazılmaz.
+        ui { page.prefs.horizontal=false; bar().buildBar() }
         val before=(f("icons") as Map<*,*>).keys.toSet()
         // Döndür düğmesi ayarı kaydeder (kullanıcı ayarı); testte kaydetmeden aynı yerleşimi kurarız.
         ui { assertFalse(page.prefs.horizontal); assertNotNull(icon("rotate")); page.prefs.horizontal=true; bar().buildBar() }

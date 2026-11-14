@@ -1,5 +1,9 @@
 # Yoğun mürekkep performansı — 0.16.0
 
+0.16.2: silgi/geri al/kement sırasında etkilenen karolar aynı bellek bütçesinde yenisi hazır olana kadar korunur; yoğun sayfa raster işi arka planda kalır, ana thread'e senkron yeniden çizim eklenmez.
+
+0.16.2 aynı tablette yazılım Canvas kontrolü: yoğun sıcak çizim 6,06 ms ortanca / 6,68 ms en yüksek; zoom ana kare 8,74 / 14,54 ms (logs/ink-0.16.2.json). Silgi regresyonunda arka plan callback'i gelmeden art arda değişikliklerin raster sayacı artmaz; silgiye özgü GPU kare süresi ölçülmedi.
+
 0.16.1 düzeltmesi: yeni sayfada ilk kısa çizgi canlı katmandan çıkarken boş kare oluşmaması için hazır ≤4096 noktalı hafif sayfanın eksik karoları aynı karede hazırlanır. Yoğun sayfa/zoom işi background'da kalır. İlk kare kalem/fosforlu piksel regresyonu ve hazır sayacı denetlenir.
 
 ## Yeni depolama ve yakınlaştırma

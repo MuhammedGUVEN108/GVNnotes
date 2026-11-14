@@ -18,6 +18,7 @@ internal class InkTileCache(private val budget:Long=64L*1024*1024,private val as
     private data class State(var list:List<RenderedStroke>,var shown:List<RenderedStroke>,val smooth:Boolean,var generation:Long)
     private val tiles=LinkedHashMap<Key,Bitmap>(16,.75f,true)
     private val states=HashMap<String,State>()
+    private val dirty=HashSet<Key>()
     private var used=0L
     private val bitmapPaint=Paint(Paint.FILTER_BITMAP_FLAG)
     private val source=Rect(GUTTER,GUTTER,GUTTER+SIDE,GUTTER+SIDE)
@@ -69,18 +70,18 @@ internal class InkTileCache(private val budget:Long=64L*1024*1024,private val as
             val added=strokes.subList(common,strokes.size)
             // Normal yazmada tamamlanmış sayfa yeniden çizilmez; yalnız yeni çizgi eklenir.
             val ready=added.all { (it.data.samples as SampleHandle).ready() }
-            if(ready) { for((key,bitmap) in tiles) if(key.page==page) rasterizedStrokes+=drawInto(bitmap,key,added,smooth) }
-            else removePageTiles(page)
+            if(ready) { for((key,bitmap) in tiles) if(key.page==page && key !in dirty) rasterizedStrokes+=drawInto(bitmap,key,added,smooth) }
+            else dirty.addAll(tiles.keys.filter { it.page==page })
         } else {
             val before=Collections.newSetFromMap(IdentityHashMap<RenderedStroke,Boolean>()).apply { addAll(old.shown) }
             val after=Collections.newSetFromMap(IdentityHashMap<RenderedStroke,Boolean>()).apply { addAll(strokes) }
             val changed=old.shown.filter { it !in after }+strokes.filter { it !in before }
             val iterator=tiles.entries.iterator()
-            // Silgi/geri alma/renk/kement yalnız değişen çizgilerin değdiği parçaları geçersiz kılar.
+            // Silgi/geri alma/kement: yenisi hazır olana kadar eski karo görünür kalır.
             while(iterator.hasNext()) {
                 val entry=iterator.next()
                 if(entry.key.page==page && changed.any { touches(it,entry.key) }) {
-                    used-=entry.value.byteCount; iterator.remove()
+                    dirty.add(entry.key)
                 }
             }
         }
@@ -101,8 +102,8 @@ internal class InkTileCache(private val budget:Long=64L*1024*1024,private val as
         for(y in y0 until y1) for(x in x0 until x1) {
             val key=Key(page.id,level,x,y)
             var bitmap=tiles[key]
-            if(bitmap==null) {
-                if(async && !immediate) { frameMissing++; if(allowRasterize) schedule(key,smooth); fallback(canvas,key) }
+            if(bitmap==null || key in dirty) {
+                if(async && !immediate) { frameMissing++; if(allowRasterize) schedule(key,smooth); if(bitmap==null) fallback(canvas,key) }
                 else if(allowRasterize) {
                     bitmap=Bitmap.createBitmap(SIDE+GUTTER*2,SIDE+GUTTER*2,Bitmap.Config.ARGB_8888)
                     rasterizedStrokes+=drawInto(bitmap,key,strokes,smooth); put(key,bitmap)
@@ -112,9 +113,10 @@ internal class InkTileCache(private val budget:Long=64L*1024*1024,private val as
         }
     }
     private fun put(key:Key,bitmap:Bitmap) {
+        dirty.remove(key)
         used-=tiles.remove(key)?.byteCount ?: 0; tiles[key]=bitmap; used+=bitmap.byteCount
         val iterator=tiles.entries.iterator()
-        while(used>budget && iterator.hasNext()) { used-=iterator.next().value.byteCount; iterator.remove() }
+        while(used>budget && iterator.hasNext()) { val entry=iterator.next(); used-=entry.value.byteCount; dirty.remove(entry.key); iterator.remove() }
     }
     private fun drawTile(canvas:Canvas,key:Key,bitmap:Bitmap) {
         val r=resolution(key.level)
@@ -156,14 +158,14 @@ internal class InkTileCache(private val budget:Long=64L*1024*1024,private val as
     }
     private fun removePageTiles(page:String) {
         val iterator=tiles.entries.iterator()
-        while(iterator.hasNext()) { val entry=iterator.next(); if(entry.key.page==page) { used-=entry.value.byteCount; iterator.remove() } }
+        while(iterator.hasNext()) { val entry=iterator.next(); if(entry.key.page==page) { used-=entry.value.byteCount; dirty.remove(entry.key); iterator.remove() } }
     }
     private fun removePage(page:String) {
         removePageTiles(page)
         states.remove(page)
     }
     fun retainPages(ids:Set<String>) { states.keys.toList().filter { it !in ids }.forEach { removePage(it) } }
-    fun clear() { tiles.clear(); states.clear(); used=0 }
+    fun clear() { tiles.clear(); dirty.clear(); states.clear(); used=0 }
     fun close() { closed=true; epoch++; clear() }
     companion object {
         private const val SIDE=512; private const val GUTTER=2

@@ -12,6 +12,74 @@ import kotlin.math.sin
 
 @RunWith(AndroidJUnit4::class)
 class InkCacheDeviceTest {
+    @Test fun denseAsyncEditsKeepUnchangedInkInEveryFrame() {
+        val inst=androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+        val page=Page(noteId="erase-flicker",order=0,width=1000f,height=800f)
+        val original=List(120) { n -> RenderedStroke(PageStroke(pageId=page.id,tool=Tool.PEN,
+            color=0xc0182230.toInt(),width=4f,samples=List(96) { k ->
+                Sample(30f+k*9f,40f+n*5f,.8f,0f,0f,k.toLong()) })) }
+        var strokes=original
+        val cache=InkTileCache(async=true); val reference=InkTileCache()
+        val image=Bitmap.createBitmap(1000,800,Bitmap.Config.ARGB_8888)
+        val expected=image.copy(Bitmap.Config.ARGB_8888,true)
+        var checkInk=false
+        fun frame():Boolean {
+            image.eraseColor(Color.WHITE)
+            cache.beginFrame(1f)
+            cache.draw(Canvas(image),page,strokes,RectF(0f,0f,1000f,800f),1f,true)
+            if(checkInk) {
+                // Silinmeyen çizgi her iki yatay karoda da görünmeli; saydam zemin de sınanır.
+                for(x in listOf(200,700)) assertNotEquals("Silgi sırasında boş kare",Color.WHITE,image.getPixel(x,50))
+            }
+            return cache.settled
+        }
+        fun settle() {
+            val deadline=android.os.SystemClock.uptimeMillis()+20_000
+            while(android.os.SystemClock.uptimeMillis()<deadline) {
+                var done=false; inst.runOnMainSync { done=frame() }
+                if(done) return
+                android.os.SystemClock.sleep(16)
+            }
+            fail("Silgi karoları tamamlanmadı")
+        }
+        fun exact() {
+            inst.runOnMainSync {
+                expected.eraseColor(Color.WHITE)
+                reference.draw(Canvas(expected),page,strokes,RectF(0f,0f,1000f,800f),1f,true)
+                assertTrue("Son görüntü senkron referanstan farklı",image.sameAs(expected))
+            }
+        }
+        try {
+            settle(); checkInk=true
+            // Tüm çizgi, alan parçalama, geri al/yinele, kement taşı/sil ve kirli karoya ekleme.
+            val erased=original.filterIndexed { i,_ -> i !in 20..35 }
+            val split=erased.flatMapIndexed { i,s -> if(i==45) listOf(
+                s.withSamples(s.data.samples.take(30)),s.withSamples(s.data.samples.drop(60))) else listOf(s) }
+            val moved=original.mapIndexed { i,s -> if(i in 60..70)
+                s.withSamples(s.data.samples.map { it.copy(y=it.y+80) }) else s }
+            for(target in listOf(erased,split,original,split,moved,erased)) {
+                inst.runOnMainSync {
+                    strokes=target
+                    val work=cache.rasterizedStrokes
+                    // İşçinin callback'i çalışmadan art arda silgi örnekleri: her kare dolu kalmalı.
+                    repeat(4) { step ->
+                        strokes=strokes.filterIndexed { i,_ -> i!=80-step }
+                        frame()
+                    }
+                    strokes=target; frame()
+                    assertEquals("Yoğun silgi ana thread'de rasterleşti",work,cache.rasterizedStrokes)
+                }
+                settle(); exact()
+            }
+            inst.runOnMainSync {
+                strokes=original; frame()
+                strokes=erased; frame()
+                strokes=erased+original[60].withSamples(original[60].data.samples.map { it.copy(y=it.y+110) })
+                frame()
+            }
+            settle(); exact()
+        } finally { inst.runOnMainSync { cache.close(); reference.close(); image.recycle(); expected.recycle() } }
+    }
     private fun compare(a:Bitmap,b:Bitmap,tolerance:Double=1.5) {
         val aa=IntArray(a.width*a.height); val bb=IntArray(aa.size)
         a.getPixels(aa,0,a.width,0,0,a.width,a.height); b.getPixels(bb,0,b.width,0,0,b.width,b.height)

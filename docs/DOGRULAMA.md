@@ -1,5 +1,19 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.16.2 — silgi sırasında mürekkebin yanıp sönmesi, 14 Kasım 2026
+
+Kök neden: silgi/geri al/kement, değişen çizgilere değen hazır karoları hemen kaldırıyordu. Yoğun sayfalarda asenkron yeniden üretim bitene kadar bu bölgeler boş veya farklı ölçekten çiziliyordu. InkTileCache artık karoyu kirli işaretler ve yenisi hazır olana kadar aynı görüntüyü gösterir. Güncel revizyon kontrolü korunur; kirli karoya artımlı ekleme yapılmaz. Bütçe/tahliye/temizle işlemleri kirli işaretleri de yönetir. GVNpen geometrisi, yan düğme, arayüz ve kayıt biçimi değiştirilmedi.
+
+Yeni InkCacheDeviceTest regresyonu: 120 × 96 = 11.520 noktalı asenkron sayfada tüm çizgi silme, alan parçalama, geri al/yinele, kement taşıma/silme ve yenileme sürerken ekleme durumları. Her çizilen karede iki karodaki silinmeyen çizgi beyaz olmamalı; art arda değişikliklerde ana thread raster sayacı artmamalı; işler oturunca saydam mürekkep dahil sonuç senkron referansla piksel piksel aynı olmalı. Değişen InkTileCache.kt ve InkCacheDeviceTest.kt zaten DEVICE-TEST.ps1 parmak izi listelerindedir.
+
+Çevrimdışı build.ps1 -Offline ve test APK derlemesi başarılı; 20 JVM testi, lint 0 hata / 43 uyarı. Son APK üzerinde ilgili 10 tablet birimi geçti; diğer 7 birim değişmeyen kaynak parmak izi nedeniyle atlandı. Yeni önbellek regresyonu dahil 6 önbellek testi başarılı; son görüntü ARGB olarak senkron referansla birebir aynı. Mevcut pen-tools testi kayıtlı yatay şerit tercihini dikey varsaydığı için ilk denemede takıldı; başlangıç yönü yalnız bellekte belirlenerek test kullanıcı tercihinden bağımsızlaştırıldı, tekrar geçti (dosya zaten parmak izi listesindedir). İlk eşzamanlı Gradle denemesindeki önbellek çakışması sonrasında derlemeler sırayla başarılı tamamlandı. Loglar: logs/build.log, logs/test-build-0.16.2-final.log, logs/device-0.16.2.log ve logs/device-0.16.2-final.log.
+
+Aynı tablette yoğun sıcak çizim 6,06 ms ortanca / 6,68 ms en yüksek; zoom ana kare 8,74 / 14,54 ms (yazılım Canvas CPU ölçümü, logs/ink-0.16.2.json). Silgi değişiklikleri ana thread'de yeniden rasterleşmediği sayaçla doğrulandı. Testler sentetik test-document/test-library verilerinde çalıştı; gerçek kullanıcı notlarında çizim/silme yapılmadı. Geçici USB uyanıklığı önceki 0 değerine geri alındı.
+
+APK: dist/GVNnotes-0.16.2.apk, versionCode 25; SHA256 `d871a652d7ae0cdbd137b556bcf366d37a506c95306cfde53bd19147fda4e8d7`. Tablette aynı paket kimliğiyle yerinde güncelleme.
+
+Doğrulanmayan: fiziksel S Pen ile kullanıcının silme hissi, GPU kare süreleri ve uzun süreli saha kullanımı. Önceki görüntü yeni karo hazır olana kadar kısa süre kalabilir; yoğun sayfa yeniden raster işi arka plandadır. İnternetten indirme yapılmadı.
+
 ## 0.16.1 — yeni sayfada ilk çizginin yanıp sönmesi, 14 Kasım 2026
 
 Kullanıcı sayfa değiştirince ilk yazının yanıp söndüğünü bildirdi. Kalem kalktığında canlı katman temizleniyor, henüz karosu olmayan sayfanın tamamlanmış çizgisi arka plan işçisini bekliyordu; araya boş kare giriyordu. Hazır noktaları toplam 4096'yı aşmayan hafif sayfaların eksik karoları aynı karede hazırlanır. Yoğun/soğuk sayfalarda arka plan raster ve zoom fallback sürer. Aynı karede tamamlanan karo eksik sayılmaz; yeniden açmada hazır durumu gereksiz yeni kareyi beklemez.
