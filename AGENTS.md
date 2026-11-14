@@ -18,6 +18,7 @@ Kullanıcı Türkçe konuşur. Arayüz metinleri, belgeler, kod yorumları ve co
 6. Dosyalarım'dan silinen kaynağın notu **çöp kutusuna** gider (12 Kasım 2026; önceki "not yerinde kalır" kuralının yerine). Yalnız tamamlanmış taramada; eksik/izinsiz taramada hiçbir not çöpe gitmez. Dosya geri konursa not çöpten kendiliğinden döner. Kullanıcı çöpten geri alırsa not bir daha atılmaz.
 7. **Çöp kutusu 30 gün** (`TRASH_DAYS`): süresi dolan not açılışta/yenilemede kalıcı silinir. Kaynak dosyalar `.GVNnotes-çöp`'te kalır; uygulama kullanıcı dosyası silmez.
 8. **Klasör silme** alt klasörleriyle birliktedir: içindeki tüm notlar çöpe, kaynak dosyaları ve kalan klasör ağacı `.GVNnotes-çöp`'e taşınır.
+10. Yazarken düğmeler görünüşte pasifleşmez (14 Kasım 2026): işlem gerekirse içeride yok sayılır, kullanıcıya soluk düğme gösterilmez.
 9. Samsung Notes yalnız davranış referansıdır; Samsung kodu, simgesi, görseli kopyalanmaz.
 10. **Bırakınca görünüm yalnız ortalanır; ölçek asla zorla değişmez, kullanıcı istediği kadar uzaklaşabilir** (14 Kasım 2026): mevcut 0.1–8 ölçek sınırı korunur. Parmakla veya kalemin gezinme aracıyla hareket serbesttir; bırakınca/savrulma bitince yalnız konum 230 ms yavaşlayan animasyonla düzelir. Ekrandan dar/kısa belge iki eksende ortalanır; büyük belgede kenar payı en çok 20 dp olur. Yeni temas animasyonu keser; yazarken/silerken görünüm oynamaz. Ekrana sığdır düğmesi ve yeniden boyutlandırma sığdırması sürer.
 

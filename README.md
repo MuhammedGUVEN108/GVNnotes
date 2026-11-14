@@ -12,7 +12,9 @@ Galaxy Tab S9+ ve S Pen için PDF, resim ve boş sayfalar üzerine el yazısıyl
 
 Yapay zekâ ajanları önce [AGENTS.md](AGENTS.md) dosyasını okumalı.
 
-## Mevcut durum — 0.17.2 (14 Kasım 2026)
+## Mevcut durum — 0.17.3 (14 Kasım 2026)
+
+0.17.3: kalem kâğıttayken üst düğmeler soluklaşmaz; o an basılan işlem sessizce yok sayılır.
 
 0.17.2: yatay ekranda bazı ölçeklerde (ölçülen: %200–%240 ve %410–%500) ekranda gereken mürekkep karoları birbirini bellekten atıp sürekli yanıp sönüyordu; görünen karolar artık atılmıyor.
 

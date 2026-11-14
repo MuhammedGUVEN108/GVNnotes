@@ -1,5 +1,13 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.17.3 — yazarken üst düğmeler soluklaşmıyor, 14 Kasım 2026
+
+Kullanıcı: kalem kâğıda değince üst satırdaki **+** ve **Ekrana sığdır** siyahtan soluk siyaha geçiyor, kalkınca geri dönüyordu; "özellik o an pasifleşebilir ama bunu kullanıcıya göstermesin." MainActivity'deki `canEdit` artık yazma durumunu (`busy`) içermez; düğmeler, başlık, sayfa sıralayıcı menüleri ve seçim çubuğu görünüşte hep etkin. Yazarken basılan işlem EditorState/InkPageView içindeki mevcut `busy` korumasıyla sessizce yok sayılır (sayfa ekleme/silme/taşıma, şablon, seçim işlemleri ve sığdırma bu korumaya sahip).
+
+Doğrulama: PdfNoteDeviceTest kalem kâğıttayken iki düğmenin etkin olduğunu ve o an basılan + düğmesinin sayfa eklemediğini denetler. Etkilenen 6 tablet birimi geçti (pdf-note, folder-sync, note-management, lasso, persistence-restart, library); diğerleri değişmedi. Derleme, JVM testleri ve lint geçti.
+
+APK: dist/GVNnotes-0.17.3.apk, SHA256 `a15d82700e4322c469c1d70dc647fa9ac4ec8caab011fbf6fce20b454bba4272`. Tablette kurulu.
+
 ## 0.17.2 — belirli ölçekte sürekli yanıp sönen mürekkep, 14 Kasım 2026
 
 Kullanıcı tablette (yatay, ölçek %150'nin üstünde) mürekkebin bir anda sürekli yanıp sönmeye başladığını, ölçek değişince geçip aynı ölçeğe dönünce geri geldiğini bildirdi.

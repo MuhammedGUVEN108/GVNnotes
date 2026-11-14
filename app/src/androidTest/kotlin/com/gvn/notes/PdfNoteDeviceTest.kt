@@ -126,6 +126,15 @@ class PdfNoteDeviceTest {
                     1,arrayOf(prop),arrayOf(c),0,0,1f,1f,0,0,InputDevice.SOURCE_STYLUS,0)
                 try { view.dispatchTouchEvent(e) } finally { e.recycle() }
             }
+            if(i==1) {
+                // Kalem kâğıttayken üst düğmeler soluklaşmaz (kullanıcı isteği); işlem yalnız içeride yok sayılır.
+                var busy=false; inst.runOnMainSync { busy=state.busy }
+                assertTrue("Test kalemi kâğıtta olmalı",busy)
+                compose.onNodeWithContentDescription("Ekrana sığdır").assertIsEnabled()
+                compose.onNodeWithContentDescription("Bu sayfanın arkasına boş sayfa ekle").assertIsEnabled()
+                compose.onNodeWithContentDescription("Bu sayfanın arkasına boş sayfa ekle").performClick()
+                inst.runOnMainSync { assertEquals("Yazarken basılan + sayfa eklememeli",3,state.pages.size) }
+            }
             SystemClock.sleep(20)
         }
         settle(state)

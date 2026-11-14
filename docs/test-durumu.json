@@ -43,21 +43,21 @@
                       },
     "pdf-note":  {
                      "result":  "passed",
-                     "fingerprint":  "be9ac15702fbccbb",
-                     "date":  "2026-11-14 23:12",
-                     "version":  "0.17.2"
+                     "fingerprint":  "2cebc45e6a6d26b6",
+                     "date":  "2026-11-14 23:37",
+                     "version":  "0.17.3"
                  },
     "folder-sync":  {
                         "result":  "passed",
-                        "fingerprint":  "448274a7a88fbc08",
-                        "date":  "2026-11-14 02:32",
-                        "version":  "0.16.0"
+                        "fingerprint":  "5802658ac9c84367",
+                        "date":  "2026-11-14 23:37",
+                        "version":  "0.17.3"
                     },
     "note-management":  {
                             "result":  "passed",
-                            "fingerprint":  "a78eff3bcb8da8ee",
-                            "date":  "2026-11-14 02:32",
-                            "version":  "0.16.0"
+                            "fingerprint":  "02f0e1e786ffd9f9",
+                            "date":  "2026-11-14 23:37",
+                            "version":  "0.17.3"
                         },
     "two-way":  {
                     "result":  "passed",
@@ -73,9 +73,9 @@
                   },
     "lasso":  {
                   "result":  "passed",
-                  "fingerprint":  "ad098502a5333d99",
-                  "date":  "2026-11-14 23:13",
-                  "version":  "0.17.2"
+                  "fingerprint":  "a5145c0300ecb178",
+                  "date":  "2026-11-14 23:37",
+                  "version":  "0.17.3"
               },
     "folder-delete":  {
                           "result":  "passed",
@@ -103,14 +103,14 @@
                     },
     "persistence-restart":  {
                                 "result":  "passed",
-                                "fingerprint":  "6b653ed8eab51645",
-                                "date":  "2026-11-14 23:13",
-                                "version":  "0.17.2"
+                                "fingerprint":  "bfc0f32af124835b",
+                                "date":  "2026-11-14 23:37",
+                                "version":  "0.17.3"
                             },
     "library":  {
                     "result":  "passed",
-                    "fingerprint":  "8b43a22f9565790a",
-                    "date":  "2026-11-14 02:33",
-                    "version":  "0.16.0"
+                    "fingerprint":  "4858bd40e04e1b88",
+                    "date":  "2026-11-14 23:38",
+                    "version":  "0.17.3"
                 }
 }

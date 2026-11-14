@@ -152,7 +152,9 @@ private val Divider=Ada.Line
 @Composable private fun EditorScreen(editor:EditorState,onBack:(()->Unit)?=null,closing:Boolean=false,
     folder:FolderContext?=null,onNavigate:(AfterClose)->Unit={}) {
     val revision=editor.revision
-    val canEdit=editor.ready && !editor.busy && !closing
+    // Kalem kâğıda değerken (busy) düğmeler görünüşte soluklaşmaz (kullanıcı isteği, 14 Kasım 2026): o an basılan işlem
+    // EditorState/InkPageView içinde busy kontrolüyle sessizce yok sayılır.
+    val canEdit=editor.ready && !closing
     var pageView by remember { mutableStateOf<InkPageView?>(null) }
     var toolbar by remember { mutableStateOf<com.gvn.notes.pen.PenToolbar?>(null) }
     // GVNpen ayarları ekranından dönünce yeni ayarlar şeride ve yazma yüzeyine uygulanır.
