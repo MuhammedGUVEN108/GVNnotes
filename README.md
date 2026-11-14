@@ -1,6 +1,6 @@
 # GVNnotes
 
-0.16.2: silgi, geri al/yinele ve kement değişikliklerinde yeni mürekkep karosu hazırlanırken eski görüntü korunur; yoğun sayfanın bölgesi boş çizilmez.
+0.16.3: sürekli silmede aynı sayfanın ara karoları da gösterilir; eski revizyon kirli kalıp yeniden üretilir. Silgi hareketi sürerken görüntü ilerler, kalan yazı boşalmaz.
 
 0.16.1: yeni sayfanın ilk kısa çizgisinde canlı → kalıcı katman geçişindeki boş kare giderildi. Hafif mürekkep aynı karede hazırlanır; yoğun sayfalar arka planda kalır.
 
@@ -10,7 +10,9 @@ Galaxy Tab S9+ ve S Pen için PDF, resim ve boş sayfalar üzerine el yazısıyl
 
 Yapay zekâ ajanları önce [AGENTS.md](AGENTS.md) dosyasını okumalı.
 
-## Mevcut durum — 0.16.2 (14 Kasım 2026)
+## Mevcut durum — 0.16.3 (14 Kasım 2026)
+
+0.16.3 doğrulaması: sürekli silme regresyonu eski koşulla 153 ms'de kaldı, düzeltmeyle tam koşuda en çok 90 ms gecikmeyle geçti. 20 JVM testi ve ilgili 10 tablet birimi başarılı; değişmeyen 7 birim atlandı. Ayrıntı ve sınırlar: [doğrulama](docs/DOGRULAMA.md).
 
 - **0.12.0:** klasör silme (alt klasörleriyle), çöp kutusu 30 gün sonra kendiliğinden boşalır, Dosyalarım'dan silinen dosyanın notu çöpe gider (dosya geri gelirse döner). Tablet testleri yalnız ilgili kodu değişenleri çalıştırır ([durum tablosu](docs/TEST-DURUMU.md)).
 

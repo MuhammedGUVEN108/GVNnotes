@@ -1,15 +1,15 @@
 {
     "ink-cache":  {
                       "result":  "passed",
-                      "fingerprint":  "bd6ea50e35125a52",
-                      "date":  "2026-11-14 12:36",
-                      "version":  "0.16.2"
+                      "fingerprint":  "adb51dafb7f8c64b",
+                      "date":  "2026-11-14 12:50",
+                      "version":  "0.16.3"
                   },
     "ink-performance":  {
                             "result":  "passed",
-                            "fingerprint":  "eddf7f4da22b18c2",
-                            "date":  "2026-11-14 12:37",
-                            "version":  "0.16.2"
+                            "fingerprint":  "bf53626bb5e703d5",
+                            "date":  "2026-11-14 12:50",
+                            "version":  "0.16.3"
                         },
     "persistence-codec-device":  {
                                      "result":  "passed",
@@ -19,9 +19,9 @@
                                  },
     "persistence-ink-regression":  {
                                        "result":  "passed",
-                                       "fingerprint":  "24d0d93f1bba36b3",
-                                       "date":  "2026-11-14 12:37",
-                                       "version":  "0.16.2"
+                                       "fingerprint":  "7600ffe9af387606",
+                                       "date":  "2026-11-14 12:50",
+                                       "version":  "0.16.3"
                                    },
     "vector-export":  {
                           "result":  "passed",
@@ -31,9 +31,9 @@
                       },
     "pdf-note":  {
                      "result":  "passed",
-                     "fingerprint":  "576ef3fa91df9ac5",
-                     "date":  "2026-11-14 12:37",
-                     "version":  "0.16.2"
+                     "fingerprint":  "73f62a68aadc13e0",
+                     "date":  "2026-11-14 12:50",
+                     "version":  "0.16.3"
                  },
     "folder-sync":  {
                         "result":  "passed",
@@ -55,15 +55,15 @@
                 },
     "pen-tools":  {
                       "result":  "passed",
-                      "fingerprint":  "adfead6c75038bc1",
-                      "date":  "2026-11-14 12:40",
-                      "version":  "0.16.2"
+                      "fingerprint":  "8a51eccdb051e109",
+                      "date":  "2026-11-14 12:50",
+                      "version":  "0.16.3"
                   },
     "lasso":  {
                   "result":  "passed",
-                  "fingerprint":  "fc3bf7e45e21d8a4",
-                  "date":  "2026-11-14 12:40",
-                  "version":  "0.16.2"
+                  "fingerprint":  "e46c976d501a4137",
+                  "date":  "2026-11-14 12:51",
+                  "version":  "0.16.3"
               },
     "folder-delete":  {
                           "result":  "passed",
@@ -73,27 +73,27 @@
                       },
     "cursor-size":  {
                         "result":  "passed",
-                        "fingerprint":  "bf60cd334e517b2d",
-                        "date":  "2026-11-14 12:40",
-                        "version":  "0.16.2"
+                        "fingerprint":  "acd0695e93e81cf1",
+                        "date":  "2026-11-14 12:51",
+                        "version":  "0.16.3"
                     },
     "templates":  {
                       "result":  "passed",
-                      "fingerprint":  "597432c6e3b76ff0",
-                      "date":  "2026-11-14 12:40",
-                      "version":  "0.16.2"
+                      "fingerprint":  "d18fa8055fbf054b",
+                      "date":  "2026-11-14 12:51",
+                      "version":  "0.16.3"
                   },
     "finger-draw":  {
                         "result":  "passed",
-                        "fingerprint":  "bd156de481697ad3",
-                        "date":  "2026-11-14 12:40",
-                        "version":  "0.16.2"
+                        "fingerprint":  "7b27fd07a8d71cb8",
+                        "date":  "2026-11-14 12:51",
+                        "version":  "0.16.3"
                     },
     "persistence-restart":  {
                                 "result":  "passed",
-                                "fingerprint":  "90dac99e895226a5",
-                                "date":  "2026-11-14 12:41",
-                                "version":  "0.16.2"
+                                "fingerprint":  "e04a1778d6b9e859",
+                                "date":  "2026-11-14 12:51",
+                                "version":  "0.16.3"
                             },
     "library":  {
                     "result":  "passed",

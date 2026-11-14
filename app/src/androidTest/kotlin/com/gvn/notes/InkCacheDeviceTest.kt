@@ -80,6 +80,71 @@ class InkCacheDeviceTest {
             settle(); exact()
         } finally { inst.runOnMainSync { cache.close(); reference.close(); image.recycle(); expected.recycle() } }
     }
+    @Test fun continuousAsyncEraseMakesProgressBeforePenStops() {
+        val inst=androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+        val page=Page(noteId="continuous-erase",order=0,width=500f,height=500f)
+        // Tek karoda yoğun geometri: 4096 eşiğinin üstünde, son adımda da async kalır.
+        val original=List(120) { n -> RenderedStroke(PageStroke(pageId=page.id,tool=Tool.PEN,
+            color=0xc0182230.toInt(),width=1.5f,samples=List(96) { k ->
+                Sample(20f+k*4.8f,20f+n*3.6f,.8f,0f,0f,k.toLong()) })) }
+        var strokes=original
+        val cache=InkTileCache(async=true); val reference=InkTileCache()
+        val image=Bitmap.createBitmap(500,500,Bitmap.Config.ARGB_8888)
+        val expected=image.copy(Bitmap.Config.ARGB_8888,true)
+        val erasedAt=LongArray(48)
+        var removed=0; var checkInk=false; var maxLag=0L; var progress=0
+        fun frame():Boolean {
+            image.eraseColor(Color.WHITE); cache.beginFrame(1f)
+            val work=cache.rasterizedStrokes
+            cache.draw(Canvas(image),page,strokes,RectF(0f,0f,500f,500f),1f,true)
+            assertEquals("Sürekli silgi ana thread'de rasterleşti",work,cache.rasterizedStrokes)
+            if(checkInk) {
+                assertNotEquals("Sürekli silgide kalan yazı boşaldı",Color.WHITE,image.getPixel(200,380))
+                val now=android.os.SystemClock.uptimeMillis()
+                for(i in 0 until removed) {
+                    if(erasedAt[i]<0) continue
+                    val blank=image.getPixel(200,(20f+i*3.6f).toInt())==Color.WHITE
+                    val lag=now-erasedAt[i]
+                    assertTrue("Silgi sürerken bölge güncellenmedi: adım=$i gecikme=$lag ms",blank || lag<=150)
+                    if(blank && erasedAt[i]>0) { maxLag=maxOf(maxLag,lag); progress++; erasedAt[i]=-1 }
+                }
+            }
+            return cache.settled
+        }
+        fun settle() {
+            val deadline=android.os.SystemClock.uptimeMillis()+20_000
+            while(android.os.SystemClock.uptimeMillis()<deadline) {
+                var done=false; inst.runOnMainSync { done=frame() }
+                if(done) return
+                android.os.SystemClock.sleep(8)
+            }
+            fail("Sürekli silgi karoları tamamlanmadı")
+        }
+        try {
+            settle(); checkInk=true
+            for(i in erasedAt.indices) assertNotEquals("Silinecek bölge başlangıçta boş",
+                Color.WHITE,image.getPixel(200,(20f+i*3.6f).toInt()))
+            repeat(48) { step ->
+                inst.runOnMainSync {
+                    removed=step+1; erasedAt[step]=android.os.SystemClock.uptimeMillis()
+                    strokes=original.drop(removed)
+                    frame()
+                }
+                // İşçi/settled beklenmez; ana looper callback'leri bu arada işleyebilir.
+                android.os.SystemClock.sleep(8)
+            }
+            assertTrue("Silme bitmeden yeterli bölge güncellenmedi",progress>=30)
+            android.util.Log.i("InkCacheRegression","Sürekli silme: 48 adım, ilerleyen bölge=$progress, en yüksek gecikme=$maxLag ms")
+            settle()
+            inst.runOnMainSync {
+                expected.eraseColor(Color.WHITE)
+                reference.draw(Canvas(expected),page,strokes,RectF(0f,0f,500f,500f),1f,true)
+                assertTrue("Sürekli silgi sonucu referanstan farklı",image.sameAs(expected))
+                assertEquals(reference.retainedBytes,cache.retainedBytes)
+                cache.clear(); assertEquals(0L,cache.retainedBytes)
+            }
+        } finally { inst.runOnMainSync { cache.close(); reference.close(); image.recycle(); expected.recycle() } }
+    }
     private fun compare(a:Bitmap,b:Bitmap,tolerance:Double=1.5) {
         val aa=IntArray(a.width*a.height); val bb=IntArray(aa.size)
         a.getPixels(aa,0,a.width,0,0,a.width,a.height); b.getPixels(bb,0,b.width,0,0,b.width,b.height)

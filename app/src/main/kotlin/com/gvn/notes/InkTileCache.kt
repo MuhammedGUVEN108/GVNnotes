@@ -112,8 +112,8 @@ internal class InkTileCache(private val budget:Long=64L*1024*1024,private val as
             bitmap?.let { drawTile(canvas,key,it) }
         }
     }
-    private fun put(key:Key,bitmap:Bitmap) {
-        dirty.remove(key)
+    private fun put(key:Key,bitmap:Bitmap,stale:Boolean=false) {
+        if(stale) dirty.add(key) else dirty.remove(key)
         used-=tiles.remove(key)?.byteCount ?: 0; tiles[key]=bitmap; used+=bitmap.byteCount
         val iterator=tiles.entries.iterator()
         while(used>budget && iterator.hasNext()) { val entry=iterator.next(); used-=entry.value.byteCount; dirty.remove(entry.key); iterator.remove() }
@@ -150,7 +150,11 @@ internal class InkTileCache(private val budget:Long=64L*1024*1024,private val as
             main.post {
                 pending.remove(key)
                 if(!closed) {
-                    if(states[key.page]?.generation==generation && image!=null) { put(key,image!!); rasterizedStrokes+=work }
+                    // Aynı sayfanın ara görüntüsü de ilerlemedir; sürekli silgide işçi aç kalmaz.
+                    // Değişen State (smooth/removePage) kabul edilmez. Eski revizyon yeniden üretilir.
+                    if(states[key.page]===state && image!=null) {
+                        put(key,image!!,stale=state.generation!=generation); rasterizedStrokes+=work
+                    }
                     failure?.let(onError); onReady()
                 }
             }

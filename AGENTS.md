@@ -1,6 +1,6 @@
 # AGENTS.md — GVNnotes
 
-Bu dosya, bu projede çalışan yapay zekâ ajanları (Codex, Claude, Cursor, Gemini vb.) içindir. Güncel durum burada yazılıdır; başka bir belgeyle çelişirse **bu dosya ve kod** geçerlidir. Son güncelleme: 14 Kasım 2026, sürüm 0.16.2.
+Bu dosya, bu projede çalışan yapay zekâ ajanları (Codex, Claude, Cursor, Gemini vb.) içindir. Güncel durum burada yazılıdır; başka bir belgeyle çelişirse **bu dosya ve kod** geçerlidir. Son güncelleme: 14 Kasım 2026, sürüm 0.16.3.
 
 ## Proje ne?
 
@@ -22,9 +22,9 @@ Kullanıcı Türkçe konuşur. Arayüz metinleri, belgeler, kod yorumları ve co
 
 Eskiyen kararlar (artık geçersiz): "GVNpen yalnız arayüz referansı, kodu taşınmaz" (10 Kasım); "çizim motoru Jetpack Ink" (0.1–0.9); "kütüphane Samsung Notes düzeninde" (0.2–0.10). Bu ifadeleri eski belgelerde görürsen uygulama.
 
-## 0.16.2 güncel mimari
+## 0.16.3 güncel mimari
 
-0.16.2: silgi/geri al/yinele/kement değişiklikleri karoyu hemen atmaz; kirli karo yenisi arka planda hazır olana kadar görünür. Yalnız güncel sayfa revizyonunun sonucu kabul edilir. Kirli karoya artımlı çizgi eklenmez; bütçe ve tahliyede kirli işaretler de temizlenir. Yoğun sayfa ana thread'de yeniden rasterleşmez.
+0.16.3: silgi/geri al/yinele/kement değişiklikleri karoyu hemen atmaz; kirli karo yenisi arka planda hazır olana kadar görünür. Aynı State nesnesinin ara revizyon karosu kabul edilir, kirli bırakılıp yeniden planlanır; güncel revizyon temiz sayılır. State değişmişse (smooth/removePage) sonuç atılır. Böylece sürekli silmede işçi sonucu aç kalmaz. Kirli karoya artımlı çizgi eklenmez; bütçe ve tahliyede kirli işaretler de temizlenir. Yoğun sayfa ana thread'de yeniden rasterleşmez. 48 adım/8 ms sürekli silme regresyonu eski koşulla başarısızlığı, silme sürerken en çok 150 ms gecikmeyi, kalan yazının görünürlüğünü ve son piksel eşitliğini denetler.
 
 Kullanıcı mevcut notların test olduğunu belirterek sayfa bazlı mimariyi onayladı. PageStore artık SQLite şema 6 kullanır; eski slot sınırları yalnız LegacyPageStore içindir. PageInkDatabase değişen sayfa/çizgi yazımı, SampleHandle/SampleMemory lazy noktalar + bütçeli komşu hazırlığı, PageHistory değişen sayfa geçmişi sağlar. InkTileCache üretimde async çalışır; zoom sırasında hazır başka ölçekteki karolar kullanılır. 64 MiB karo / 300k geometri / 750k nokta LRU bütçeleri uygulamanın toplam RAM sınırı değildir; sabitlenen aktif sayfa nokta bütçesini aşabilir. Ayrıntı docs/KAYIT-MIMARISI.md. Alt çubuk yasağı ve sessiz kayıt kararı sürer. 0.16.1: ilk kısa çizgi handoff boş karesini önlemek için hazır ve toplam ≤4096 noktalı hafif sayfaların eksik karoları aynı karede hazırlanır; büyük/soğuk sayfalar async kalır.
 

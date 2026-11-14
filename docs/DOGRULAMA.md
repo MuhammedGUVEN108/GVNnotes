@@ -1,6 +1,24 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.16.3 — sürekli silmede karo ilerlemesi, 14 Kasım 2026
+
+Kök neden: her silgi örneğinde artan generation, arka plandaki sonucu sürekli reddedebiliyordu. Aynı State nesnesinden gelen ara görüntü artık LRU'ya konur; generation farklıysa kirli kalır ve sonraki karede tekrar planlanır. Yalnız güncel revizyon temiz sayılır; smooth değişimi/removePage ile State değişmişse sonuç atılır. put içindeki tek değiştirme yolu bellek sayacını ve tahliyedeki kirli işaretlerini birlikte yönetir; kirli karoya drawInto ile artımlı ekleme atlanmaya devam eder.
+
+Yeni continuousAsyncEraseMakesProgressBeforePenStops regresyonu: tek karoda 120 × 96 = 11.520 nokta (son adımda 6912 nokta, hâlâ async); 48 silme adımı, adımlar arasında yalnız 8 ms bekleme, işçinin bitmesi beklenmeden ana looper çalışır. Silinecek noktaların başlangıçta dolu olduğu doğrulanır. Silme sürerken silinen bölge en geç 150 ms içinde beyaz olmalı; kalan yazı her çizilen karede görünmeli ve ana thread raster sayacı artmamalı; bitişte senkron referansla ARGB görüntü ve tutulan bayt sayısı eşit olmalı. clear sonrası sayaç sıfır olmalı. Dosyalar zaten DEVICE-TEST.ps1 ink-cache parmak izi listesinde; yeni dosya yok.
+
+**Düzeltmesiz kanıt:** son test sürümünde geçici olarak bd06dfd'deki generation eşitliği koşuluna dönüldü; ilk silinen bölge 153 ms sonra hâlâ dolu olduğu için kaldı (1 test / 1 failure; logs/regression-old-final.txt, logs/regression-old-final-build.log). Ardından State kimliği düzeltmesi geri kondu. Düzeltmeli tekil koşuda 48 adım sürerken 45 bölge güncellendi, en yüksek ölçülen gecikme 117 ms; son piksel eşitliği geçti (logs/regression-fixed.txt, logs/regression-latency.txt). İlk 46.080 noktalı deneme, düzeltmeli kodda da 150 ms sınırını aştığından son yük 11.520 noktaya ayarlandı; 150 ms her yoğunluk için kapasite garantisi değildir.
+
+Son çevrimdışı build.ps1 -Offline başarılı: 15 core + 5 app JVM testi, 0 hata; lint 0 hata / 43 uyarı. Test APK derlemesi başarılı (logs/build.log, logs/test-build-0.16.3-final.log).
+
+Son APK üzerinde DEVICE-TEST.ps1: ilgili 10 birim geçti (ink-cache, ink-performance, persistence-ink-regression, pdf-note, pen-tools, lasso, cursor-size, templates, finger-draw, persistence-restart); değişmeyen 7 birim önceki başarılı parmak izleriyle atlandı. Yeni regresyon dahil 7 önbellek testi başarılı. Tam önbellek koşusunda silme sürerken 45 bölge ilerledi, en yüksek ölçülen gecikme 90 ms; son piksel eşitliği, kalan yazı görünürlüğü ve bellek sayacı geçti. Kanıt: logs/ink-cache.txt, logs/device-0.16.3.log, logs/regression-latency-final.txt; güncel parmak izleri docs/TEST-DURUMU.md ve docs/test-durumu.json içinde. Aynı paket kimliğiyle yerinde güncellendi; test APK'sı kaldırıldı.
+
+APK: dist/GVNnotes-0.16.3.apk, versionCode 26; SHA256 `1290fe0bf27c63e8a53d7c28d9a0e404b2b9e252d8a44962806decd236f50736`.
+
+Doğrulanmayan: fiziksel S Pen ile silme hissi, GPU kare süreleri, uzun süreli saha kullanımı ve her sayfa yoğunluğunda 150 ms sınırı. Testler sentetik verilerle çalışır; gerçek kullanıcı notlarında çizim/silme yapılmadı. GVNpen davranışı ve kayıt biçimi değişmedi. İnternetten indirme ve push yapılmadı.
+
 ## 0.16.2 — silgi sırasında mürekkebin yanıp sönmesi, 14 Kasım 2026
+
+**Sonraki düzeltme:** sürekli silmede gecikme açığı 0.16.3'te kapatıldı. Bu sürümdeki son görüntü/kalan yazı testi, silme sürerken görüntünün ilerlemesini denetlemiyordu.
 
 Kök neden: silgi/geri al/kement, değişen çizgilere değen hazır karoları hemen kaldırıyordu. Yoğun sayfalarda asenkron yeniden üretim bitene kadar bu bölgeler boş veya farklı ölçekten çiziliyordu. InkTileCache artık karoyu kirli işaretler ve yenisi hazır olana kadar aynı görüntüyü gösterir. Güncel revizyon kontrolü korunur; kirli karoya artımlı ekleme yapılmaz. Bütçe/tahliye/temizle işlemleri kirli işaretleri de yönetir. GVNpen geometrisi, yan düğme, arayüz ve kayıt biçimi değiştirilmedi.
 
