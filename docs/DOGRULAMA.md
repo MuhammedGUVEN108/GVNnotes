@@ -1,5 +1,23 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.17.1 — bırakınca görünüm ortaya oturur, 14 Kasım 2026
+
+İlk 0.17.0 denemesinde bırakınca sığdırmanın altındaki ölçek geri büyütülüyordu. Kullanıcı tablette deneyip bunu reddetti: yalnız ortalanmasını, istediği kadar uzaklaşabilmeyi istedi. Bu düzeltme önceki görevdeki yanlış ölçek yorumunun yerine geçer.
+
+InkPageView artık oturma hedefinde ve 230 ms yavaşlayan animasyonun her karesinde ölçeği aynen korur (mevcut 0.1–8 hareket sınırı). Küçük belge, PDF/boş not ayrımı olmadan yatay ve dikey ortalanır; büyük belgede konum en çok 20 dp kenar payıyla sınırlanır. Hareket serbest, oturma yalnız bırakınca/savrulma sonunda; yeni temas keser, yazarken/silerken başlatılmaz. Ekrana sığdır, sayfaya git ve boyut değişimi bekleyen hareketi keser; sığdırma işlevi sürer.
+
+ViewportDeviceTest, test-library altında boş not ve iki sayfalı PDF ile gerçek iki parmak uzaklaştırma/bırakma, sığdırma altı ölçek ve iki eksende merkez, 0.15× ölçek, dört yönde kenar dönüşü, sınır içi konum, dar çalışma alanı, kalem gezinmesi/savrulma, meşgul durum ve yeni temasla animasyon kesilmesini denetler. DEVICE-TEST.ps1 içine yeni viewport birimi ve kaynak parmak izleri eklendi. Önceki InkCacheDeviceTest eklemesi görevle ilgilidir ve korundu: ölçek değiştiren deneme yerine sabit ölçekte 16 konum karesinde hazır mürekkebin görünürlüğünü denetler; son piksel eşitliği kontrolü sürer.
+
+Son çevrimdışı build.ps1 -Offline başarılı: 15 core + 5 app JVM testi, 0 hata; lint 0 hata / 43 uyarı. Test APK derlemesi başarılı. Kanıt: logs/build.log, logs/test-build-0.17.1.log.
+
+Viewport testi ve 7 önbellek testi tablette geçti. Test belgesinde 0.15× bırakma sonrası görüntüler çekilip gözle incelendi: boş not ve iki sayfalı PDF iki eksende ortada, ölçek korunmuş. Görüntüler: logs/ui-0.17.1/uzaklastir-bos.png ve uzaklastir-pdf.png. Bunlar test etkinliğinde doğrudan InkPageView görüntüleridir; gerçek kullanıcı notları üzerinde çizim/silme yapılmadı.
+
+Son APK üzerinde DEVICE-TEST.ps1 başarılı: ilgili 11 birim (viewport, ink-cache, ink-performance, persistence-ink-regression, pdf-note, pen-tools, lasso, cursor-size, templates, finger-draw, persistence-restart) geçti; değişmeyen 7 birim önceki başarılı parmak izleriyle atlandı. Kanıt: logs/device-0.17.1.log, logs/viewport.txt, logs/ink-cache.txt; güncel durum docs/TEST-DURUMU.md ve docs/test-durumu.json. Aynı paket kimliğiyle yerinde güncellendi; uygulama tablette kurulu bırakıldı, test APK'sı kaldırıldı.
+
+APK: dist/GVNnotes-0.17.1.apk, versionCode 28; SHA256 `046200b89e0f3e98cf5bd1d222f60e7061cb2a5def267d0741b2948f40855eb0`.
+
+Doğrulanmayan: fiziksel parmak/S Pen ile kullanıcının hareket hissi, GPU kare süreleri ve uzun süreli saha kullanımı. Resim notu ayrıca sınanmadı; ortak belge konumlandırma kodunu kullanır. İnternetten indirme ve push yapılmadı.
+
 ## 0.16.3 — sürekli silmede karo ilerlemesi, 14 Kasım 2026
 
 Kök neden: her silgi örneğinde artan generation, arka plandaki sonucu sürekli reddedebiliyordu. Aynı State nesnesinden gelen ara görüntü artık LRU'ya konur; generation farklıysa kirli kalır ve sonraki karede tekrar planlanır. Yalnız güncel revizyon temiz sayılır; smooth değişimi/removePage ile State değişmişse sonuç atılır. put içindeki tek değiştirme yolu bellek sayacını ve tahliyedeki kirli işaretlerini birlikte yönetir; kirli karoya drawInto ile artımlı ekleme atlanmaya devam eder.

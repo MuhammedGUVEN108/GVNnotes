@@ -1,5 +1,7 @@
 package com.gvn.notes
 
+import android.animation.ValueAnimator
+import android.view.animation.DecelerateInterpolator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.*
@@ -84,6 +86,10 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     private var palmGesture = false
     private var velocity: VelocityTracker? = null
     private val scroller = OverScroller(context)
+    private var settling: ValueAnimator? = null
+    private var flingPending = false
+    internal fun navigationSettled() = !flingPending && scroller.isFinished && settling?.isRunning != true
+    private fun stopNavigation() { settling?.cancel(); settling=null; scroller.forceFinished(true); flingPending=false }
     /** Gezinme modunda kalem de parmak gibi kaydırır. */
     private var penPanning = false
 
@@ -267,26 +273,55 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     fun scrollToPage(index: Int) {
         layoutPages()
         if (editor.busy || index !in tops.indices) return
-        scroller.forceFinished(true)
+        stopNavigation()
         val v = editor.viewport
         editor.viewport = clamp(v.copy(y = 16 * density - tops[index] * v.scale))
         refresh()
     }
     fun fit() {
         if (editor.busy || width <= 0 || height <= 0) return
-        scroller.forceFinished(true)
+        stopNavigation()
         val keepTop = editor.pages.size > 1 || editor.pages.first().background != BackgroundType.BLANK
         val page = editor.currentPage
         editor.fitted = false
         fitIfNeeded(width, height); refresh()
         if (keepTop) scrollToPage(page)
     }
+    private fun singleBlank() = editor.pages.size == 1 && editor.pages.first().background == BackgroundType.BLANK
+    internal fun fitScale(): Float {
+        layoutPages()
+        val m=20*density
+        return (if(singleBlank()) min((width-2*m)/docWidth,(height-2*m)/docHeight)
+            else (width-2*m)/docWidth).coerceIn(.1f,8f)
+    }
     private fun clamp(v: Viewport): Viewport {
         if (width <= 0 || height <= 0) return v
         layoutPages()
-        val m = 24 * density
-        fun axis(pos: Float, size: Float, view: Float): Float { val a = view - size - m; return pos.coerceIn(min(a, m), max(a, m)) }
-        return v.copy(x = axis(v.x, docWidth * v.scale, width.toFloat()), y = axis(v.y, docHeight * v.scale, height.toFloat()))
+        val m=20*density
+        fun axis(pos:Float,size:Float,view:Float):Float =
+            if(size<=view) (view-size)/2
+            else pos.coerceIn(view-size-m,m)
+        return v.copy(x=axis(v.x,docWidth*v.scale,width.toFloat()),
+            y=axis(v.y,docHeight*v.scale,height.toFloat()))
+    }
+    /** Yalnız gezinme bitince oturur; büyük ölçekte okunan konum korunur. */
+    internal fun settleViewport() {
+        if(contact || editor.busy || !editor.ready || width<=0 || height<=0) return
+        settling?.cancel()
+        val from=editor.viewport
+        val target=clamp(from)
+        if(from==target) return
+        settling=ValueAnimator.ofFloat(0f,1f).apply {
+            duration=230; interpolator=DecelerateInterpolator()
+            addUpdateListener {
+                if(contact || editor.busy) { it.cancel(); return@addUpdateListener }
+                val t=it.animatedValue as Float
+                editor.viewport=Viewport(from.scale,
+                    from.x+(target.x-from.x)*t,from.y+(target.y-from.y)*t)
+                refresh()
+            }
+            start()
+        }
     }
     override fun onSizeChanged(w:Int,h:Int,oldw:Int,oldh:Int) {
         super.onSizeChanged(w,h,oldw,oldh)
@@ -300,10 +335,10 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         val margin=20*density
         val first=editor.pages.first()
         editor.viewport = if (editor.pages.size == 1 && first.background == BackgroundType.BLANK) {
-            val s=min((w-margin*2)/first.width,(h-margin*2)/first.height).coerceAtLeast(.1f)
+            val s=fitScale()
             Viewport(s,(w-first.width*s)/2,(h-first.height*s)/2)
         } else {
-            val s=((w-margin*2)/docWidth).coerceIn(.1f,8f)
+            val s=fitScale()
             Viewport(s,(w-docWidth*s)/2,margin)
         }
         editor.fitted=true
@@ -312,9 +347,9 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     }
     override fun computeScroll() {
         if (scroller.computeScrollOffset()) {
-            editor.viewport = clamp(editor.viewport.copy(x = scroller.currX.toFloat(), y = scroller.currY.toFloat()))
+            editor.viewport = editor.viewport.copy(x = scroller.currX.toFloat(), y = scroller.currY.toFloat())
             refresh(); postInvalidateOnAnimation()
-        }
+        } else if(flingPending) { flingPending=false; settleViewport() }
     }
 
     // ---------------- Girdi ----------------
@@ -351,6 +386,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     override fun onGenericMotionEvent(e: MotionEvent): Boolean {
         val type=e.getToolType(e.actionIndex)
         if(type!=MotionEvent.TOOL_TYPE_STYLUS && type!=MotionEvent.TOOL_TYPE_ERASER) return super.onGenericMotionEvent(e)
+        if(prefs.hoverErase && (temp || e.buttonState!=0)) stopNavigation()
         handler.removeCallbacks(hoverExitTick); button(e)
         hoverScreen=PointF(e.x,e.y)
         val (page,pt)=local(e.x,e.y); hoverPage=page; hoverLocal=if(page>=0) Geometry.Point(pt.x,pt.y) else null
@@ -363,8 +399,8 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     override fun onTouchEvent(e:MotionEvent):Boolean {
         if(!editor.ready || (editor.navigationPending && pointer<0)) return true
         val action=e.actionMasked; val ai=e.actionIndex
-        if(action==MotionEvent.ACTION_DOWN) scroller.forceFinished(true)
-        if(action==MotionEvent.ACTION_CANCEL) { cancel(); stopFingerGesture(); return true }
+        if(action==MotionEvent.ACTION_DOWN || action==MotionEvent.ACTION_POINTER_DOWN) stopNavigation()
+        if(action==MotionEvent.ACTION_CANCEL) { val navigating=fingerFocus!=null || penPanning; cancel(); stopFingerGesture(); penPanning=false; if(navigating) settleViewport(); return true }
         // Parmakla yazarken ikinci parmak değerse: yarım çizgi bırakılır, hareket kaydırma/yakınlaştırmaya döner.
         if(fingerStroke && contact && action==MotionEvent.ACTION_POINTER_DOWN && e.getToolType(ai)==MotionEvent.TOOL_TYPE_FINGER) {
             active=null; preview=null; predicted=null; contact=false; pointer=-1; fingerStroke=false; working=null
@@ -541,7 +577,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     private val scaleGesture = ScaleGestureDetector(context, object: ScaleGestureDetector.SimpleOnScaleGestureListener() {
         override fun onScale(detector: ScaleGestureDetector): Boolean {
             if (contact || palmGesture) return false
-            editor.viewport=clamp(editor.viewport.zoomAt(detector.scaleFactor,detector.focusX,detector.focusY))
+            editor.viewport=editor.viewport.zoomAt(detector.scaleFactor,detector.focusX,detector.focusY)
             refresh(); return true
         }
     })
@@ -550,17 +586,25 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         if(action==MotionEvent.ACTION_DOWN) { penPanning=true; fingerFocus=e.x to e.y; velocity?.recycle(); velocity=VelocityTracker.obtain() }
         velocity?.addMovement(e)
         if(action==MotionEvent.ACTION_MOVE && penPanning) fingerFocus?.let { b ->
-            editor.viewport=clamp(editor.viewport.copy(x=editor.viewport.x+e.x-b.first,y=editor.viewport.y+e.y-b.second)); fingerFocus=e.x to e.y; refresh() }
+            editor.viewport=editor.viewport.copy(x=editor.viewport.x+e.x-b.first,y=editor.viewport.y+e.y-b.second); fingerFocus=e.x to e.y; refresh() }
         if(action==MotionEvent.ACTION_UP || action==MotionEvent.ACTION_CANCEL) { fling(); penPanning=false; stopFingerGesture() }
     }
     private fun fling() {
         velocity?.let { tracker ->
-            tracker.computeCurrentVelocity(1000)
+            val config=ViewConfiguration.get(context)
+            tracker.computeCurrentVelocity(1000,config.scaledMaximumFlingVelocity.toFloat())
+            if(max(kotlin.math.abs(tracker.xVelocity),kotlin.math.abs(tracker.yVelocity)) < config.scaledMinimumFlingVelocity) {
+                settleViewport(); return
+            }
             val v=editor.viewport; layoutPages()
-            val big=(max(docWidth,docHeight)*v.scale*2).toInt()
-            scroller.fling(v.x.toInt(),v.y.toInt(),tracker.xVelocity.toInt(),tracker.yVelocity.toInt(),-big,big,-big,big)
+            val low=clamp(v.copy(x=-Float.MAX_VALUE,y=-Float.MAX_VALUE))
+            val high=clamp(v.copy(x=Float.MAX_VALUE,y=Float.MAX_VALUE))
+            // Hareket serbesttir; savrulma belge dışındaki boşluğu daha da büyütmez.
+            scroller.fling(v.x.toInt(),v.y.toInt(),tracker.xVelocity.toInt(),tracker.yVelocity.toInt(),
+                min(low.x,v.x).toInt(),max(high.x,v.x).toInt(),min(low.y,v.y).toInt(),max(high.y,v.y).toInt())
+            flingPending=true
             postInvalidateOnAnimation()
-        }
+        } ?: settleViewport()
     }
     /** Tek parmak kaydırır (bırakınca savrulur), iki parmak kaydırır ve yakınlaştırır. Avuç teması yok sayılır. */
     private fun fingerGesture(event: MotionEvent) {
@@ -579,7 +623,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
             fingerFocus=focus; fingerCount=count
         } else if (action==MotionEvent.ACTION_MOVE) {
             fingerFocus?.let { before ->
-                editor.viewport=clamp(editor.viewport.copy(x=editor.viewport.x+focus.first-before.first,y=editor.viewport.y+focus.second-before.second))
+                editor.viewport=editor.viewport.copy(x=editor.viewport.x+focus.first-before.first,y=editor.viewport.y+focus.second-before.second)
                 refresh()
             }
             fingerFocus=focus
@@ -660,6 +704,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
     }
 
     override fun onDetachedFromWindow() {
+        stopNavigation()
         handler.removeCallbacksAndMessages(null)
         scroller.forceFinished(true)
         if(contact) endPen()

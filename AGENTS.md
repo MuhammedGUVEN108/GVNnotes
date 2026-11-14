@@ -1,6 +1,6 @@
 # AGENTS.md — GVNnotes
 
-Bu dosya, bu projede çalışan yapay zekâ ajanları (Codex, Claude, Cursor, Gemini vb.) içindir. Güncel durum burada yazılıdır; başka bir belgeyle çelişirse **bu dosya ve kod** geçerlidir. Son güncelleme: 14 Kasım 2026, sürüm 0.16.3.
+Bu dosya, bu projede çalışan yapay zekâ ajanları (Codex, Claude, Cursor, Gemini vb.) içindir. Güncel durum burada yazılıdır; başka bir belgeyle çelişirse **bu dosya ve kod** geçerlidir. Son güncelleme: 14 Kasım 2026, sürüm 0.17.1.
 
 ## Proje ne?
 
@@ -19,10 +19,13 @@ Kullanıcı Türkçe konuşur. Arayüz metinleri, belgeler, kod yorumları ve co
 7. **Çöp kutusu 30 gün** (`TRASH_DAYS`): süresi dolan not açılışta/yenilemede kalıcı silinir. Kaynak dosyalar `.GVNnotes-çöp`'te kalır; uygulama kullanıcı dosyası silmez.
 8. **Klasör silme** alt klasörleriyle birliktedir: içindeki tüm notlar çöpe, kaynak dosyaları ve kalan klasör ağacı `.GVNnotes-çöp`'e taşınır.
 9. Samsung Notes yalnız davranış referansıdır; Samsung kodu, simgesi, görseli kopyalanmaz.
+10. **Bırakınca görünüm yalnız ortalanır; ölçek asla zorla değişmez, kullanıcı istediği kadar uzaklaşabilir** (14 Kasım 2026): mevcut 0.1–8 ölçek sınırı korunur. Parmakla veya kalemin gezinme aracıyla hareket serbesttir; bırakınca/savrulma bitince yalnız konum 230 ms yavaşlayan animasyonla düzelir. Ekrandan dar/kısa belge iki eksende ortalanır; büyük belgede kenar payı en çok 20 dp olur. Yeni temas animasyonu keser; yazarken/silerken görünüm oynamaz. Ekrana sığdır düğmesi ve yeniden boyutlandırma sığdırması sürer.
 
 Eskiyen kararlar (artık geçersiz): "GVNpen yalnız arayüz referansı, kodu taşınmaz" (10 Kasım); "çizim motoru Jetpack Ink" (0.1–0.9); "kütüphane Samsung Notes düzeninde" (0.2–0.10). Bu ifadeleri eski belgelerde görürsen uygulama.
 
-## 0.16.3 güncel mimari
+## 0.17.1 güncel mimari
+
+0.17.1: InkPageView gezinme sonunda yalnız konumu düzeltir; sığdırmanın altındaki ölçek de korunur. Kısa PDF/resim/çok sayfalı belge de dikey ortalanır. İlk 0.17.0 denemesinin zorla büyütmesi kullanıcı tarafından reddedildi. fit/scrollToPage/yeniden boyutlandırma bekleyen hareketi keser. InkTileCache aynı örnek ve zoom fallback akışıyla kullanılır; animasyon karelerinde önbellek temizlenmez. GVNpen yazma motoru değişmedi.
 
 0.16.3: silgi/geri al/yinele/kement değişiklikleri karoyu hemen atmaz; kirli karo yenisi arka planda hazır olana kadar görünür. Aynı State nesnesinin ara revizyon karosu kabul edilir, kirli bırakılıp yeniden planlanır; güncel revizyon temiz sayılır. State değişmişse (smooth/removePage) sonuç atılır. Böylece sürekli silmede işçi sonucu aç kalmaz. Kirli karoya artımlı çizgi eklenmez; bütçe ve tahliyede kirli işaretler de temizlenir. Yoğun sayfa ana thread'de yeniden rasterleşmez. 48 adım/8 ms sürekli silme regresyonu eski koşulla başarısızlığı, silme sürerken en çok 150 ms gecikmeyi, kalan yazının görünürlüğünü ve son piksel eşitliğini denetler.
 

@@ -32,7 +32,7 @@ Kurallar:
 - **Konum çipi → Klasör paneli:** aynı klasördeki notlar; birine dokununca mevcut not kaydedilip o not açılır. **Klasöre git** kütüphanede o klasörü açar; **Bu klasörde yeni** o klasörde yeni not penceresini açar.
 - **Üst satır:** başlık altında sayfa ve yakınlaştırma bilgisi; Ekrana sığdır ve Tam ekran düğmeleri. PDF dışa aktarma üstteki ⋯ menüsündedir. Kalıcı alt çubuk ve sürekli kayıt yazısı yoktur; kayıt hatası olursa uyarı görünür.
 - **Sayfa sıralayıcı (sağ panel):** küçük resme dokun → o sayfaya git. Küçük resmin ⋮ menüsü: Yukarı/Aşağı taşı, Arkasına boş sayfa ekle, Şablon (boş sayfalarda), Sayfayı sil. En alttaki kutu sona sayfa ekler. ✕ ile kapanır.
-- **Tuval:** parmakla kaydır, iki parmakla yakınlaştır. Not, kapattığın sayfadan açılır.
+- **Tuval:** parmakla kaydır, iki parmakla yakınlaştır. Bırakınca veya kalemle gezinme/savrulma bitince yalnız konum 230 ms animasyonla oturur; ölçek asla zorla değişmez. Sığdırmanın altına da uzaklaşabilirsin (alt sınır 0.1). Ekrandan dar/kısa belge yatay ve dikey ortalanır; büyük belgede kenar ötesi boşluk en çok 20 dp payla sınırlanır. Yeni dokunuş animasyonu keser; yazarken/silerken görünüm oynamaz. Ekrana sığdır düğmesi ve çalışma alanı boyutu değişince sığdırma sürer. Not, kapattığın sayfadan açılır.
 - **Kement:** yazıların etrafına döngü çiz → seçilir; çerçevenin içinden sürükle → taşınır. Üstteki çubuk: Sil, Çoğalt, Rengi uygula, Seçimi kaldır.
 
 ## GVNpen araç şeridi

@@ -185,8 +185,8 @@ class InkCacheDeviceTest {
             samples=List(96) { k -> Sample(30f+k*9f,40f+n*5f,.8f,0f,0f,k.toLong()) })) }
         val cache=InkTileCache(async=true); val sync=InkTileCache()
         val a=Bitmap.createBitmap(1000,800,Bitmap.Config.ARGB_8888); val b=a.copy(Bitmap.Config.ARGB_8888,true)
-        fun frame(scale:Float):Boolean {
-            a.eraseColor(Color.WHITE); val canvas=Canvas(a); canvas.scale(scale,scale)
+        fun frame(scale:Float, offset:Float=0f):Boolean {
+            a.eraseColor(Color.WHITE); val canvas=Canvas(a); canvas.translate(offset,offset); canvas.scale(scale,scale)
             cache.beginFrame(scale); cache.draw(canvas,page,strokes,RectF(0f,0f,1000f/scale,800f/scale),scale,true)
             return cache.settled
         }
@@ -205,6 +205,15 @@ class InkCacheDeviceTest {
                 frame(1.5f)
                 val pixels=IntArray(a.width*a.height); a.getPixels(pixels,0,a.width,0,0,a.width,a.height)
                 assertTrue("Yakınlaştırma sırasında mürekkep kayboldu",pixels.count { it!=Color.WHITE }>10_000)
+            }
+            // Sabit ölçekli konum oturmasında her karede hazır mürekkep görünür kalır.
+            repeat(16) { n ->
+                inst.runOnMainSync {
+                    frame(1.5f,n*2f)
+                    val pixels=IntArray(a.width*a.height); a.getPixels(pixels,0,a.width,0,0,a.width,a.height)
+                    assertTrue("Oturma karesinde mürekkep kayboldu: $n",pixels.count { it!=Color.WHITE }>10_000)
+                }
+                android.os.SystemClock.sleep(16)
             }
             settle(1.5f)
             inst.runOnMainSync {
