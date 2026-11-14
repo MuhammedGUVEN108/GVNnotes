@@ -34,6 +34,8 @@ Eskiyen kararlar (artık geçersiz): "GVNpen yalnız arayüz referansı, kodu ta
 
 Kullanıcı mevcut notların test olduğunu belirterek sayfa bazlı mimariyi onayladı. PageStore artık SQLite şema 6 kullanır; eski slot sınırları yalnız LegacyPageStore içindir. PageInkDatabase değişen sayfa/çizgi yazımı, SampleHandle/SampleMemory lazy noktalar + bütçeli komşu hazırlığı, PageHistory değişen sayfa geçmişi sağlar. InkTileCache üretimde async çalışır; zoom sırasında hazır başka ölçekteki karolar kullanılır. 64 MiB karo / 300k geometri / 750k nokta LRU bütçeleri uygulamanın toplam RAM sınırı değildir; sabitlenen aktif sayfa nokta bütçesini aşabilir. Ayrıntı docs/KAYIT-MIMARISI.md. Alt çubuk yasağı ve sessiz kayıt kararı sürer. 0.16.1: ilk kısa çizgi handoff boş karesini önlemek için hazır ve toplam ≤4096 noktalı hafif sayfaların eksik karoları aynı karede hazırlanır; büyük/soğuk sayfalar async kalır.
 
+Kütüphane animasyonları kısa (150–220 ms), yaylanmasız; kütüphane ↔ düzenleyici geçişini AnimatedContent/Crossfade ile sarma: kapanan notun EditorState'i yeniden oluşur (0.18.0).
+
 ## Kod haritası
 
 ```

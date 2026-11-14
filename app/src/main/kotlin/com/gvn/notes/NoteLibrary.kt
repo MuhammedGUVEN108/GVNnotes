@@ -423,6 +423,37 @@ class LibraryState(val library:NoteLibrary,private val treeFor:(String)->SourceT
         library.moveNote(key,target,oldTitle="\u0000",newTitle="")
         null
     }
+    /**
+     * Toplu taşıma (kütüphanede çoklu seçim). Tek işlem, tek liste yenileme, tek bildirim. Kaynağı klasörde olan bir
+     * not varsa yazma izni işe başlamadan denetlenir; izin yoksa hiçbir not taşınmaz. Ad çakışması yalnız o notu atlar.
+     */
+    fun moveNotes(keys:Collection<String>,target:String)=noteAction("Notlar taşındı.","Notlar taşınamadı.") {
+        val needsTree=keys.any { k -> liveEntry(k)?.let { it.path!=target }==true }
+        val t=if(needsTree) writableTree() else null
+        var done=0; var taken=0; var failed=0
+        for(key in keys) try {
+            val entry=liveEntry(key)
+            if(entry!=null && entry.path!=target) {
+                val moved=t!!.move(entry.documentId!!,entry.path,target,entry.name)
+                index.update(key) { it.copy(documentId=moved,path=target) }
+            }
+            library.moveNote(key,target,oldTitle="\u0000",newTitle=""); done++
+        } catch(e:NameTakenException) { taken++ } catch(e:Exception) { failed++ }
+        batchMessage("taşındı",done,taken,failed)
+    }
+    /** Toplu çöpe atma: her not tek tek [trashNote] kurallarıyla; biri başarısız olursa diğerleri sürer. */
+    fun trashNotes(keys:Collection<String>)=noteAction("Notlar çöp kutusuna taşındı.","Notlar çöpe taşınamadı.") {
+        val t=tree(); var done=0; var failed=0
+        for(key in keys) try { trashNote(key,t); done++ } catch(e:Exception) { failed++ }
+        batchMessage("çöp kutusuna taşındı",done,0,failed)
+    }
+    private fun batchMessage(verb:String,done:Int,taken:Int,failed:Int)=buildList {
+        if(done>0) add("$done not $verb")
+        if(taken>0) add("$taken notun hedefinde aynı adlı dosya var, taşınmadı")
+        if(failed>0) add("$failed not işlenemedi")
+        if(isEmpty()) add("Seçili not yok")
+    }.joinToString(" · ")+"."
+
     /** Klasör oluşturur: kaynak klasör bağlıysa orada (iki yönlü), değilse yalnız uygulamada. */
     fun createFolder(parent:String,name:String)=noteAction("Klasör oluşturuldu.","Klasör oluşturulamadı.") {
         val clean=name.trim()

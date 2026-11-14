@@ -1,116 +1,122 @@
 {
+    "selection":  {
+                      "result":  "passed",
+                      "fingerprint":  "dd22a13e6d710b7b",
+                      "date":  "2026-11-14 23:57",
+                      "version":  "0.18.0"
+                  },
     "zoom-idle":  {
                       "result":  "passed",
-                      "fingerprint":  "78fc5f15451425bb",
-                      "date":  "2026-11-14 23:25",
-                      "version":  "0.17.2"
+                      "fingerprint":  "b1bdc3ceaecc10aa",
+                      "date":  "2026-11-14 23:58",
+                      "version":  "0.18.0"
                   },
     "viewport":  {
                      "result":  "passed",
-                     "fingerprint":  "5f6328652e2afb53",
-                     "date":  "2026-11-14 23:11",
-                     "version":  "0.17.2"
+                     "fingerprint":  "abb397de7de198c4",
+                     "date":  "2026-11-14 23:58",
+                     "version":  "0.18.0"
                  },
     "ink-cache":  {
                       "result":  "passed",
-                      "fingerprint":  "17588766bcda275f",
-                      "date":  "2026-11-14 23:12",
-                      "version":  "0.17.2"
+                      "fingerprint":  "768c14d0fa109581",
+                      "date":  "2026-11-14 23:58",
+                      "version":  "0.18.0"
                   },
     "ink-performance":  {
                             "result":  "passed",
-                            "fingerprint":  "19fffe9cf7953f12",
-                            "date":  "2026-11-14 23:12",
-                            "version":  "0.17.2"
+                            "fingerprint":  "8d6a85250e5f021b",
+                            "date":  "2026-11-14 23:58",
+                            "version":  "0.18.0"
                         },
     "persistence-codec-device":  {
                                      "result":  "passed",
-                                     "fingerprint":  "a67bf49611f81d73",
-                                     "date":  "2026-11-14 02:31",
-                                     "version":  "0.16.0"
+                                     "fingerprint":  "1ac47b2de7e3e22c",
+                                     "date":  "2026-11-14 23:59",
+                                     "version":  "0.18.0"
                                  },
     "persistence-ink-regression":  {
                                        "result":  "passed",
-                                       "fingerprint":  "b583df47cec4ee22",
-                                       "date":  "2026-11-14 23:12",
-                                       "version":  "0.17.2"
+                                       "fingerprint":  "ee9ddd488bc1d591",
+                                       "date":  "2026-11-14 23:59",
+                                       "version":  "0.18.0"
                                    },
     "vector-export":  {
                           "result":  "passed",
-                          "fingerprint":  "5952dae2813aef48",
-                          "date":  "2026-11-14 02:32",
-                          "version":  "0.16.0"
+                          "fingerprint":  "480c1da1d72f755c",
+                          "date":  "2026-11-14 23:59",
+                          "version":  "0.18.0"
                       },
     "pdf-note":  {
                      "result":  "passed",
-                     "fingerprint":  "2cebc45e6a6d26b6",
-                     "date":  "2026-11-14 23:37",
-                     "version":  "0.17.3"
+                     "fingerprint":  "7948ed08137380b6",
+                     "date":  "2026-11-14 23:59",
+                     "version":  "0.18.0"
                  },
     "folder-sync":  {
                         "result":  "passed",
-                        "fingerprint":  "5802658ac9c84367",
-                        "date":  "2026-11-14 23:37",
-                        "version":  "0.17.3"
+                        "fingerprint":  "4b5fb26e485e54ed",
+                        "date":  "2026-11-14 23:59",
+                        "version":  "0.18.0"
                     },
     "note-management":  {
                             "result":  "passed",
-                            "fingerprint":  "02f0e1e786ffd9f9",
-                            "date":  "2026-11-14 23:37",
-                            "version":  "0.17.3"
+                            "fingerprint":  "fd99645c948231a9",
+                            "date":  "2026-11-14 23:59",
+                            "version":  "0.18.0"
                         },
     "two-way":  {
                     "result":  "passed",
-                    "fingerprint":  "5e2351b6e29c909b",
-                    "date":  "2026-11-14 02:32",
-                    "version":  "0.16.0"
+                    "fingerprint":  "5fe5a10bf8773109",
+                    "date":  "2026-11-14 23:59",
+                    "version":  "0.18.0"
                 },
     "pen-tools":  {
                       "result":  "passed",
-                      "fingerprint":  "af41abb86c1357c6",
-                      "date":  "2026-11-14 23:12",
-                      "version":  "0.17.2"
+                      "fingerprint":  "b87fb58c45366b43",
+                      "date":  "2026-11-15 00:00",
+                      "version":  "0.18.0"
                   },
     "lasso":  {
                   "result":  "passed",
-                  "fingerprint":  "a5145c0300ecb178",
-                  "date":  "2026-11-14 23:37",
-                  "version":  "0.17.3"
+                  "fingerprint":  "7ffae9629fa9af82",
+                  "date":  "2026-11-15 00:00",
+                  "version":  "0.18.0"
               },
     "folder-delete":  {
                           "result":  "passed",
-                          "fingerprint":  "1e41b90a4bfbd870",
-                          "date":  "2026-11-14 02:33",
-                          "version":  "0.16.0"
+                          "fingerprint":  "092c4868ec473a04",
+                          "date":  "2026-11-15 00:00",
+                          "version":  "0.18.0"
                       },
     "cursor-size":  {
                         "result":  "passed",
-                        "fingerprint":  "bbe12de7b8373933",
-                        "date":  "2026-11-14 23:13",
-                        "version":  "0.17.2"
+                        "fingerprint":  "6860766bbcaa2a4e",
+                        "date":  "2026-11-15 00:00",
+                        "version":  "0.18.0"
                     },
     "templates":  {
                       "result":  "passed",
-                      "fingerprint":  "293c6aad07d5c55d",
-                      "date":  "2026-11-14 23:13",
-                      "version":  "0.17.2"
+                      "fingerprint":  "c5e0bc39ae708519",
+                      "date":  "2026-11-15 00:00",
+                      "version":  "0.18.0"
                   },
     "finger-draw":  {
                         "result":  "passed",
-                        "fingerprint":  "8e3a97bacd6eb902",
-                        "date":  "2026-11-14 23:13",
-                        "version":  "0.17.2"
+                        "fingerprint":  "ea35fb4f85245d50",
+                        "date":  "2026-11-15 00:00",
+                        "version":  "0.18.0"
                     },
     "persistence-restart":  {
                                 "result":  "passed",
-                                "fingerprint":  "bfc0f32af124835b",
-                                "date":  "2026-11-14 23:37",
-                                "version":  "0.17.3"
+                                "fingerprint":  "c0ef8dcdaed213c9",
+                                "date":  "2026-11-15 00:00",
+                                "version":  "0.18.0"
                             },
     "library":  {
                     "result":  "passed",
-                    "fingerprint":  "4858bd40e04e1b88",
-                    "date":  "2026-11-14 23:38",
-                    "version":  "0.17.3"
+                    "fingerprint":  "d66085e5c1d55c9e",
+                    "date":  "2026-11-15 00:01",
+                    "version":  "0.18.0"
                 }
 }

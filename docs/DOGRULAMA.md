@@ -1,5 +1,17 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.18.0 — kütüphanede toplu seçim ve yumuşak geçişler, 15 Kasım 2026
+
+Kullanıcı kütüphane ekranı için toplu işlemleri ("3 numara kesin gelsin") ve "her şey çok sert çalışıyor" diyerek küçük, yumuşak animasyonları istedi.
+
+- **Toplu seçim:** nota uzun basınca seçim modu. Seçimdeyken dokunma notu açmaz, seçime ekler/çıkarır. Başlık satırı seçim çubuğuna döner (ayrı alt çubuk yok): N not seçili, Tümünü seç / Seçimi kaldır, Taşı, Çöpe at, Kapat. Geri tuşu önce seçimi bırakır; klasör/arama/çöp/ayarlar değişince ve eşitleme notu kaldırınca seçim güncellenir. Tek notun ⋯ menüsü seçimde gizlenir.
+- **Toplu işlemler (LibraryState.moveNotes / trashNotes):** tek işlem, tek liste yenileme, tek bildirim. Ad çakışması yalnız o notu atlar ve sayıyla bildirilir; kaynağı klasörde olan not varsa yazma izni işe başlamadan denetlenir (izin yoksa hiçbir not taşınmaz). Toplu çöpe atma onay ister; notlar 30 gün çöpte kalır, kaynak dosyalar .GVNnotes-çöp'e taşınır. Tek not işlemleri ve bildirimleri değişmedi.
+- **Yumuşak geçişler (yalnız kütüphane):** liste ↔ çöp ↔ ayarlar ve başlık ↔ seçim çubuğu solarak geçer; not/klasör satırları liste değişince yerine kayar ve solarak girer/çıkar; seçili satır ve klasör ağacı vurgusu renk geçişiyle; bildirim ve içe aktarma balonu yumuşak girer. Süreler 150–220 ms, yaylanma ve tekrar yok. Düzenleyiciye geçiş ve GVNpen şeridi değişmedi (not kapanırken bellekteki durumun yeniden oluşmaması için).
+
+Doğrulama: yeni SelectionDeviceTest — toplu taşımada bir ad çakışması (2 taşındı/1 atlandı), çöp + geri yükleme, kaynak dosyanın silinmeyip .GVNnotes-çöp'e gitmesi, yazma izni yokken hiçbir şeyin değişmemesi; arayüzde uzun bas, seçimde dokunmanın not açmaması, tümünü seç, geri tuşu ve kapat. Satır sonu değişikliği yüzünden 20 tablet biriminin hepsi yeniden çalıştı ve hepsi geçti. Gerçek kütüphanede yalnız seçim moduna girildi (taşı/çöpe at basılmadı): logs/ui-0.18.0/01-secim.png, kısa kayıt logs/ui-0.18.0/secim-kaydi.mp4. Animasyonların "yumuşak" hissi testle ölçülemez; kullanıcı onayı bekleniyor.
+
+APK: dist/GVNnotes-0.18.0.apk, SHA256 `29e244398e642b6400b782c52b98c619bf0588129abf3a3dd2d8411158f7beaf`. Tablette kurulu.
+
 ## 0.17.3 — yazarken üst düğmeler soluklaşmıyor, 14 Kasım 2026
 
 Kullanıcı: kalem kâğıda değince üst satırdaki **+** ve **Ekrana sığdır** siyahtan soluk siyaha geçiyor, kalkınca geri dönüyordu; "özellik o an pasifleşebilir ama bunu kullanıcıya göstermesin." MainActivity'deki `canEdit` artık yazma durumunu (`busy`) içermez; düğmeler, başlık, sayfa sıralayıcı menüleri ve seçim çubuğu görünüşte hep etkin. Yazarken basılan işlem EditorState/InkPageView içindeki mevcut `busy` korumasıyla sessizce yok sayılır (sayfa ekleme/silme/taşıma, şablon, seçim işlemleri ve sığdırma bu korumaya sahip).

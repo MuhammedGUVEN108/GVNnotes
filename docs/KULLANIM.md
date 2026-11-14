@@ -10,6 +10,7 @@ GVNnotes, Galaxy Tab S9+ ve S Pen için PDF, resim ve boş sayfalar üzerine el 
 - **Klasör kartları:** bulunduğun klasörün alt klasörleri; dokununca içine girersin. Sol üstteki ← üst klasöre çıkar.
 - **Klasörü sil:** klasör kartının **⋯** menüsü ya da klasörün içindeyken üstteki **⋯ → Bu klasörü sil**. Klasör **alt klasörleriyle birlikte** silinir; içindeki notlar çöp kutusuna, `Documents/GVNnotes`'taki dosyaları `.GVNnotes-çöp` klasörüne gider.
 - **Not kartı:** önizleme, ad, tarih, sayfa sayısı, PDF ise "PDF"; Tüm notlar'da klasör adı. **⋯** → Yeniden adlandır, Klasöre taşı, Çöp kutusuna taşı.
+- **Toplu seçim:** bir nota uzun bas → seçim modu. Başka notlara dokunarak ekle/çıkar; üstte **Tümünü seç**, **Taşı**, **Çöpe at**. Geri tuşu ya da ✕ seçimi kapatır.
 - **Ara / sırala:** büyüteç notun adında ve klasöründe arar. **⋯** → Ada / Tarihe göre sırala, Yeni klasör, Ayarlar, Notları yenile, Kaynak klasörü değiştir.
 - **Çöp kutusu:** Geri yükle ya da Kalıcı sil. Notlar **30 gün** kalır, sonra kendiliğinden kalıcı silinir; her notta kalan gün yazar.
 
