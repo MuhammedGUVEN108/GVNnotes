@@ -20,25 +20,47 @@ class PdfPages(private val file:File) {
     private var renderer:PdfRenderer?=null
     private var descriptor:ParcelFileDescriptor?=null
     private val requested=HashSet<String>()
+    /** Üretilen sayfa görüntüsü sayısı (testler: durgun ekranda artmamalı). */
+    @Volatile var renders=0; private set
     @Volatile private var closed=false
-    private val cache=object:LruCache<String,Bitmap>(CACHE_BYTES) {
-        override fun sizeOf(key:String,value:Bitmap)=value.byteCount
+    /**
+     * Ana iş parçacığında kullanılan LRU. Bu ve önceki karede istenen görüntüler bütçe yüzünden atılmaz (15 Kasım 2026):
+     * dik A4 sayfa %310 üstünde 4096 px (~95 MB) olur, sınırda iki sayfa 160 MB'ı aşınca her yeni görüntü ekrandaki
+     * diğerini atıyor ve sayfalar saniyede 10-19 kez yeniden üretiliyordu. Görünen sayfalar kadar geçici aşım olur.
+     */
+    private val cache=LinkedHashMap<String,Bitmap>(16,.75f,true)
+    private var cachedBytes=0L
+    private var frameKeys=HashSet<String>()
+    private var lastFrameKeys=HashSet<String>()
+    /** Her çizim karesinin başında çağrılır. */
+    fun beginFrame() { lastFrameKeys=frameKeys; frameKeys=HashSet() }
+    private fun put(key:String,bitmap:Bitmap) {
+        cachedBytes-=cache.remove(key)?.byteCount ?: 0; cache[key]=bitmap; cachedBytes+=bitmap.byteCount
+        val iterator=cache.entries.iterator()
+        while(cachedBytes>CACHE_BYTES && iterator.hasNext()) {
+            val e=iterator.next()
+            if(e.key==key || e.key in frameKeys || e.key in lastFrameKeys) continue
+            cachedBytes-=e.value.byteCount; iterator.remove()
+        }
     }
+    internal val retainedBytes get()=cachedBytes
 
     /** İstenen genişliğe en yakın hazır görüntüyü döndürür; daha iyisi yoksa arka planda üretip [onReady] çağırır. */
     fun bitmap(index:Int,targetWidth:Int,onReady:()->Unit):Bitmap? {
         val bucket=bucket(targetWidth)
         val key="$index@$bucket"
-        cache.get(key)?.let { return it }
+        frameKeys+=key
+        cache[key]?.let { return it }
         if(!closed && requested.add(key)) executor.execute {
             val result=runCatching { render(index,bucket) }.getOrNull()
+            renders++
             main.post {
                 requested.remove(key)
-                if(result!=null && !closed) { cache.put(key,result); onReady() }
+                if(result!=null && !closed) { put(key,result); onReady() }
             }
         }
         // Hazırlanırken aynı sayfanın başka boyuttaki görüntüsünü geçici olarak kullan.
-        return BUCKETS.sortedBy { kotlin.math.abs(it-bucket) }.firstNotNullOfOrNull { cache.get("$index@$it") }
+        return BUCKETS.sortedBy { kotlin.math.abs(it-bucket) }.firstNotNullOfOrNull { b -> cache["$index@$b"]?.also { frameKeys+="$index@$b" } }
     }
 
     private fun render(index:Int,width:Int):Bitmap? {
@@ -64,7 +86,7 @@ class PdfPages(private val file:File) {
             renderer=null; descriptor=null
         }
         executor.shutdown()
-        cache.evictAll()
+        cache.clear(); cachedBytes=0; frameKeys.clear(); lastFrameKeys.clear()
     }
 
     companion object {

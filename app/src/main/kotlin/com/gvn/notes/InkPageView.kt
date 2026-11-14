@@ -115,6 +115,7 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
         override fun onDraw(canvas: Canvas) {
             layoutPages()
             inkTiles.beginFrame(Triple(editor.viewport,width,height))
+            editor.pdf?.beginFrame()
             canvas.drawColor(0xffe3e9f1.toInt()) // Petrol Ada masası
             val strokes = editor.history.grouped
             val visibleIds=ArrayList<String>()

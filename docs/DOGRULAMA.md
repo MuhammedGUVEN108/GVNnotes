@@ -1,5 +1,15 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.18.1 — dik PDF sayfalarında yüksek ölçekte sayfa görüntüsü döngüsü, 15 Kasım 2026
+
+Kullanıcı ölçümü sonrası danışman incelemesi: PdfPages sayfayı tek parça, genişlik kovası kadar üretir; %310 üstünde 4096 px dik A4 ~95 MB olur. İki sayfanın sınırı ekrandayken 160 MB PDF önbelleği yetmiyor, her yeni görüntü ekrandaki diğerini atıyordu: sayfalar saniyede 10–19 kez yeniden üretildi (0.17.2'deki karo döngüsüyle aynı tür). **0.17.2 girdisindeki "PDF arka planı döngü üretmedi" ifadesi yalnız yatay sayfalar için doğruydu**; o test yatay PDF kullanıyordu.
+
+Düzeltme (PdfPages): LruCache yerine ana iş parçacığında LRU; InkPageView her karede `beginFrame()` çağırır; bu ve önceki karede istenen görüntüler (yedek ölçek dahil) bütçe yüzünden atılmaz, yer ekranda olmayanlardan açılır. Görünen sayfalar kadar geçici aşım.
+
+Doğrulama: ZoomIdleDeviceTest dik A4 senaryosu eklendi ve sayfa görüntüsü üretimi (`PdfPages.renders`) 2 s'lik pencerede sayılıyor. Düzeltmesiz kodla dik PDF %310–%500 aralığında 20 ölçekte döngü (logs/pdfloop-portrait.txt); düzeltmeyle dik ve yatay 36'şar ölçeğin hepsi durgun, 0 yeniden üretim (logs/pdfloop-fixed.txt). Etkilenen 13 tablet birimi geçti.
+
+APK: dist/GVNnotes-0.18.1.apk, SHA256 `67bfaa503838275d41653672b16d6f0fdef4e4c54434c9a5dbb51d27673139dc`. Tablette kurulu.
+
 ## 0.18.0 — kütüphanede toplu seçim ve yumuşak geçişler, 15 Kasım 2026
 
 Kullanıcı kütüphane ekranı için toplu işlemleri ("3 numara kesin gelsin") ve "her şey çok sert çalışıyor" diyerek küçük, yumuşak animasyonları istedi.

@@ -12,7 +12,9 @@ Galaxy Tab S9+ ve S Pen için PDF, resim ve boş sayfalar üzerine el yazısıyl
 
 Yapay zekâ ajanları önce [AGENTS.md](AGENTS.md) dosyasını okumalı.
 
-## Mevcut durum — 0.18.0 (15 Kasım 2026)
+## Mevcut durum — 0.18.1 (15 Kasım 2026)
+
+0.18.1: dik PDF sayfalarında %310 üstünde sayfa görüntülerinin birbirini bellekten atıp sürekli yeniden üretilmesi düzeltildi.
 
 0.18.0: kütüphanede nota uzun basınca toplu seçim (taşı, çöpe at, tümünü seç); kütüphane geçişleri yumuşak animasyonlu.
 

@@ -23,18 +23,23 @@ class ZoomIdleDeviceTest {
     private val inst=InstrumentationRegistry.getInstrumentation()
     private fun ui(block:()->Unit)=inst.runOnMainSync(block)
 
-    @Test fun everyZoomLevelBecomesIdle() {
+    @Test fun everyZoomLevelBecomesIdle()=sweep(portrait=false)
+    /** Dik A4: 4096 px'lik sayfa görüntüsü ~95 MB; iki sayfa 160 MB PDF önbelleğini aşar. Sayfa üretimi de durmalı. */
+    @Test fun everyZoomLevelBecomesIdlePortrait()=sweep(portrait=true)
+
+    private fun sweep(portrait:Boolean) {
         // Etkinlik açılmadan önce yataya sabitle (açıldıktan sonra döndürmek etkinliği yeniden oluşturur).
         inst.uiAutomation.setRotation(android.app.UiAutomation.ROTATION_FREEZE_90); SystemClock.sleep(1500)
         val activity=inst.startActivitySync(Intent(inst.targetContext,MainActivity::class.java)
             .putExtra("gvnnotes.testDocument",true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         SystemClock.sleep(800)
-        val root=File(inst.targetContext.filesDir,"test-library/zoom-idle"); root.deleteRecursively()
+        val root=File(inst.targetContext.filesDir,"test-library/zoom-idle-"+(if(portrait) "dik" else "yatay")); root.deleteRecursively()
         val library=NoteLibrary(root)
         val pdf=File(inst.targetContext.cacheDir,"zoom-idle.pdf")
         PdfDocument().apply {
-            repeat(3) { val p=startPage(PdfDocument.PageInfo.Builder(842,595,it+1).create())
-                p.canvas.drawRect(40f,40f,800f,555f,android.graphics.Paint().apply { color=Color.rgb(240,236,220) }); finishPage(p) }
+            val pw=if(portrait) 595 else 842; val ph=if(portrait) 842 else 595
+            repeat(3) { val p=startPage(PdfDocument.PageInfo.Builder(pw,ph,it+1).create())
+                p.canvas.drawRect(40f,40f,pw-40f,ph-40f,android.graphics.Paint().apply { color=Color.rgb(240,236,220) }); finishPage(p) }
             pdf.outputStream().use { writeTo(it) }; close()
         }
         val key=library.importPdf("Ölçek boşta") { pdf.inputStream() }
@@ -69,17 +74,17 @@ class ZoomIdleDeviceTest {
                     if(count!=lastCount) { lastCount=count; quietSince=SystemClock.uptimeMillis() }
                     else if(SystemClock.uptimeMillis()-quietSince>=500) { idle=true; break }
                 }
-                var before=0; ui { before=draws }
-                SystemClock.sleep(1000)
-                var after=0; ui { after=draws }
+                var before=0; var rendersBefore=0; ui { before=draws; rendersBefore=editor.pdf?.renders ?: 0 }
+                SystemClock.sleep(2000)
+                var after=0; var rendersAfter=0; ui { after=draws; rendersAfter=editor.pdf?.renders ?: 0 }
                 val label="%${Math.round(scale*100)}"
-                report.append("$label:${if(idle) "durgun" else "DONGU"}(${after-before}) ")
-                if(!idle || after-before>2) loops+=label
+                report.append("$label:${if(idle) "durgun" else "DONGU"}(${after-before}/pdf ${rendersAfter-rendersBefore}) ")
+                if(!idle || after-before>2 || rendersAfter>rendersBefore) loops+=label
                 s+=.1f
             }
         } finally {
             ui { view.viewTreeObserver.removeOnDrawListener(listener) }; inst.uiAutomation.setRotation(android.app.UiAutomation.ROTATION_UNFREEZE)
-            android.util.Log.i("GVNnotesTest","zoom-idle $report")
+            android.util.Log.i("GVNnotesTest","zoom-idle ${if(portrait) "dik" else "yatay"} $report")
             root.deleteRecursively()
         }
         assertTrue("Bu ölçeklerde görünüm durulmadı (sürekli yeniden çizim): $loops",loops.isEmpty())
