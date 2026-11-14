@@ -7,27 +7,27 @@
                   },
     "zoom-idle":  {
                       "result":  "passed",
-                      "fingerprint":  "e30d22a2939bade7",
-                      "date":  "2026-11-15 00:40",
-                      "version":  "0.18.1"
+                      "fingerprint":  "53ee4cd69dd99bec",
+                      "date":  "2026-11-15 01:10",
+                      "version":  "0.18.2"
                   },
     "viewport":  {
                      "result":  "passed",
-                     "fingerprint":  "12ded5cfa802db12",
-                     "date":  "2026-11-15 00:40",
-                     "version":  "0.18.1"
+                     "fingerprint":  "bdda85293502e2b4",
+                     "date":  "2026-11-15 01:10",
+                     "version":  "0.18.2"
                  },
     "ink-cache":  {
                       "result":  "passed",
-                      "fingerprint":  "17588766bcda275f",
-                      "date":  "2026-11-15 00:09",
-                      "version":  "0.18.0"
+                      "fingerprint":  "7c6a85d9aab39459",
+                      "date":  "2026-11-15 01:11",
+                      "version":  "0.18.2"
                   },
     "ink-performance":  {
                             "result":  "passed",
-                            "fingerprint":  "dcac5c7393db6281",
-                            "date":  "2026-11-15 00:41",
-                            "version":  "0.18.1"
+                            "fingerprint":  "b16d4ba0a349d671",
+                            "date":  "2026-11-15 01:11",
+                            "version":  "0.18.2"
                         },
     "persistence-codec-device":  {
                                      "result":  "passed",
@@ -37,27 +37,27 @@
                                  },
     "persistence-ink-regression":  {
                                        "result":  "passed",
-                                       "fingerprint":  "e0d42fc8cf2b4e2e",
-                                       "date":  "2026-11-15 00:41",
-                                       "version":  "0.18.1"
+                                       "fingerprint":  "588b8999eccdadf0",
+                                       "date":  "2026-11-15 01:11",
+                                       "version":  "0.18.2"
                                    },
     "vector-export":  {
                           "result":  "passed",
-                          "fingerprint":  "0a38ec09f7871409",
-                          "date":  "2026-11-15 00:41",
-                          "version":  "0.18.1"
+                          "fingerprint":  "e2832346ba099bbe",
+                          "date":  "2026-11-15 01:11",
+                          "version":  "0.18.2"
                       },
     "pdf-note":  {
                      "result":  "passed",
-                     "fingerprint":  "c26eda7a65ac0c84",
-                     "date":  "2026-11-15 00:41",
-                     "version":  "0.18.1"
+                     "fingerprint":  "d581e674adc2dbc5",
+                     "date":  "2026-11-15 01:11",
+                     "version":  "0.18.2"
                  },
     "folder-sync":  {
                         "result":  "passed",
-                        "fingerprint":  "1a498bdfd64e7429",
-                        "date":  "2026-11-15 00:41",
-                        "version":  "0.18.1"
+                        "fingerprint":  "2777fa5da021ec78",
+                        "date":  "2026-11-15 01:11",
+                        "version":  "0.18.2"
                     },
     "note-management":  {
                             "result":  "passed",
@@ -73,15 +73,15 @@
                 },
     "pen-tools":  {
                       "result":  "passed",
-                      "fingerprint":  "4b0dac6f5ba26240",
-                      "date":  "2026-11-15 00:41",
-                      "version":  "0.18.1"
+                      "fingerprint":  "39df2d6ddb11150c",
+                      "date":  "2026-11-15 01:12",
+                      "version":  "0.18.2"
                   },
     "lasso":  {
                   "result":  "passed",
-                  "fingerprint":  "2ae418cfbc95c5e5",
-                  "date":  "2026-11-15 00:41",
-                  "version":  "0.18.1"
+                  "fingerprint":  "b70eaa009f52c09a",
+                  "date":  "2026-11-15 01:12",
+                  "version":  "0.18.2"
               },
     "folder-delete":  {
                           "result":  "passed",
@@ -91,27 +91,27 @@
                       },
     "cursor-size":  {
                         "result":  "passed",
-                        "fingerprint":  "cd373210a4fcceaf",
-                        "date":  "2026-11-15 00:42",
-                        "version":  "0.18.1"
+                        "fingerprint":  "d39aca842e4dbd26",
+                        "date":  "2026-11-15 01:12",
+                        "version":  "0.18.2"
                     },
     "templates":  {
                       "result":  "passed",
-                      "fingerprint":  "bc5ba7cab48a61e7",
-                      "date":  "2026-11-15 00:42",
-                      "version":  "0.18.1"
+                      "fingerprint":  "6ab547304af7a30d",
+                      "date":  "2026-11-15 01:12",
+                      "version":  "0.18.2"
                   },
     "finger-draw":  {
                         "result":  "passed",
-                        "fingerprint":  "748629b023fbf99e",
-                        "date":  "2026-11-15 00:42",
-                        "version":  "0.18.1"
+                        "fingerprint":  "ddbb321a19443938",
+                        "date":  "2026-11-15 01:12",
+                        "version":  "0.18.2"
                     },
     "persistence-restart":  {
                                 "result":  "passed",
-                                "fingerprint":  "53ce95131f3cf0d7",
-                                "date":  "2026-11-15 00:42",
-                                "version":  "0.18.1"
+                                "fingerprint":  "22155c15645e18af",
+                                "date":  "2026-11-15 01:12",
+                                "version":  "0.18.2"
                             },
     "library":  {
                     "result":  "passed",

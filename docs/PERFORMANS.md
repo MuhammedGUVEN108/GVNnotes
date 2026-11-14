@@ -1,5 +1,9 @@
 # Yoğun mürekkep performansı — 0.16.0
 
+## 0.18.2 GPU yükleme düzeltmesi
+
+Betikli zor senaryoda (ani ölçek değişimi) dik PDF en yavaş kareler 250 ms → ~35–44 ms, yatay %99 105 → 53–61 ms; kare sırasında yavaş yükleme 0. Bellek toplamı değişmedi (native → GPU). Ayrıntı: DOGRULAMA.md 0.18.2.
+
 ## Kullanıcının gerçek kullanımıyla ölçüm — 0.18.0, 15 Kasım 2026
 
 Kullanıcı SM-X810'da gerçek PDF notlarında S Pen ve parmakla dört senaryo yaptı; her senaryodan önce `dumpsys gfxinfo` sıfırlandı (ham çıktı: logs/manuel-olcum/). Ekran o sırada 60 Hz bildirdi (kare bütçesi 16,7 ms).

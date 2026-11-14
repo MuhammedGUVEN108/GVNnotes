@@ -162,6 +162,7 @@ internal class InkTileCache(private val budget:Long=64L*1024*1024,private val as
                 if(!closed && epoch==requestedEpoch) {
                     val rendered=Bitmap.createBitmap(SIDE+GUTTER*2,SIDE+GUTTER*2,Bitmap.Config.ARGB_8888)
                     image=rendered; work=drawInto(rendered,key,strokes,smooth)
+                    rendered.prepareToDraw() // GPU yüklemesini karo ekrana gelmeden başlat.
                 }
             } catch(e:Exception) { failure=e }
             main.post {

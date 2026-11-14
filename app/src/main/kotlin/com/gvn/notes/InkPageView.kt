@@ -133,7 +133,10 @@ class InkPageView(context: Context, private val editor: EditorState) : FrameLayo
                 val index = page.sourcePageIndex
                 val pdf = editor.pdf
                 if (page.background == BackgroundType.PDF && index != null && pdf != null) {
-                    pdf.bitmap(index, rect.width().toInt()) { invalidate() }?.let { canvas.drawBitmap(it,null,rect,bitmapPaint) }
+                    // Donanım görüntüsü yazılım tuvaline çizilemez (yalnız testlerdeki View.draw(Canvas(bitmap)) yolu).
+                    pdf.bitmap(index, rect.width().toInt()) { invalidate() }
+                        ?.takeIf { canvas.isHardwareAccelerated || it.config!=Bitmap.Config.HARDWARE }
+                        ?.let { canvas.drawBitmap(it,null,rect,bitmapPaint) }
                 }
                 canvas.concat(m)
                 drawPattern(canvas,page)

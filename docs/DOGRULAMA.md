@@ -1,5 +1,20 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.18.2 — yakınlaştırma ve sayfa geçişinde GPU yükleme takılmaları, 15 Kasım 2026
+
+Kullanıcının dört senaryolu gerçek ölçümünde (PERFORMANS.md) en yavaş %1 kareler yakınlaştırma/sayfa geçişinde 38–40 ms idi; gfxinfo bunları "slow bitmap upload" olarak gösterdi.
+
+- **PdfPages:** sayfa görüntüsü arka plan iş parçacığında `Bitmap.Config.HARDWARE`'a kopyalanır (GPU yüklemesi kare dışında), yazılım kopyası bırakılır; kopya oluşmazsa yazılım görüntüsü kullanılır. LRU boyutu genişlik×yükseklik×4. Bütçeden atılan görüntü (bu ve önceki karede istenmemiş) hemen `recycle` edilir. Yazılım tuvaline (yalnız testlerde) donanım görüntüsü çizilmez.
+- **InkTileCache:** arka planda çizilen karoya `prepareToDraw()`; atma/kirli karo mantığı değişmedi.
+
+**Ölçüm (betikli, test-library, ZoomIdleDeviceTest taraması — ölçek bir anda değişir, en kötü durum):** dik PDF %90/%99 kare 250/250 ms → 32–36/42–44 ms; yatay 53/105 ms → 38/53–61 ms; kare sırasında yavaş GPU yüklemesi dik 20 → 0, yatay 8 → 0. Bellek (PSS) değişmedi (dik ~910–950 MB, yatay ~590–660 MB): native 466 → 30–45 MB'a indi ama görüntüler GPU belleğine taşındı. Asıl bellek çözümü PDF'i sayfa yerine karo karo çizmek; önerildi, yapılmadı. Ham çıktılar: logs/perf-karsilastirma/.
+
+**Test:** ZoomIdleDeviceTest artık hareket görürse 2 s daha izler; döngü ancak ikinci pencerede de çizim/üretim sürerse sayılır (yoğun sayfada >500 ms süren tek seferlik hazırlık döngü değildir). Gevşetilmiş ölçütün gerçek döngüyü hâlâ yakaladığı eski PdfPages koduyla kanıtlandı (%310–%500 kaldı; logs/perf-old-portrait.txt). Etkilenen 14 tablet birimi geçti.
+
+**Doğrulanmayan:** kullanıcının dört senaryosu bu sürümle tekrarlanmadı; manuel %99 sayıları küçük örneklemdir, yalnız gösterge.
+
+APK: dist/GVNnotes-0.18.2.apk, SHA256 `4dfaf559b66913196c2ca176d756e280467955d55b7537246b2ea6388206b9e2`. Tablette kurulu.
+
 ## 0.18.1 — dik PDF sayfalarında yüksek ölçekte sayfa görüntüsü döngüsü, 15 Kasım 2026
 
 Kullanıcı ölçümü sonrası danışman incelemesi: PdfPages sayfayı tek parça, genişlik kovası kadar üretir; %310 üstünde 4096 px dik A4 ~95 MB olur. İki sayfanın sınırı ekrandayken 160 MB PDF önbelleği yetmiyor, her yeni görüntü ekrandaki diğerini atıyordu: sayfalar saniyede 10–19 kez yeniden üretildi (0.17.2'deki karo döngüsüyle aynı tür). **0.17.2 girdisindeki "PDF arka planı döngü üretmedi" ifadesi yalnız yatay sayfalar için doğruydu**; o test yatay PDF kullanıyordu.

@@ -35,15 +35,19 @@ class PdfPages(private val file:File) {
     /** Her çizim karesinin başında çağrılır. */
     fun beginFrame() { lastFrameKeys=frameKeys; frameKeys=HashSet() }
     private fun put(key:String,bitmap:Bitmap) {
-        cachedBytes-=cache.remove(key)?.byteCount ?: 0; cache[key]=bitmap; cachedBytes+=bitmap.byteCount
+        cachedBytes-=cache.remove(key)?.let { sizeOf(it) } ?: 0; cache[key]=bitmap; cachedBytes+=sizeOf(bitmap)
         val iterator=cache.entries.iterator()
         while(cachedBytes>CACHE_BYTES && iterator.hasNext()) {
             val e=iterator.next()
             if(e.key==key || e.key in frameKeys || e.key in lastFrameKeys) continue
-            cachedBytes-=e.value.byteCount; iterator.remove()
+            cachedBytes-=sizeOf(e.value); iterator.remove()
+            // Atılan görüntü bu ve önceki karede istenmedi, bir daha yalnız önbellekten okunur: GPU belleği GC beklemeden bırakılır.
+            e.value.recycle()
         }
     }
     internal val retainedBytes get()=cachedBytes
+    /** Donanım görüntüsünün baytı da GPU'da genişlik×yükseklik×4 kadar yer tutar. */
+    private fun sizeOf(b:Bitmap)=b.width.toLong()*b.height*4
 
     /** İstenen genişliğe en yakın hazır görüntüyü döndürür; daha iyisi yoksa arka planda üretip [onReady] çağırır. */
     fun bitmap(index:Int,targetWidth:Int,onReady:()->Unit):Bitmap? {
@@ -75,7 +79,10 @@ class PdfPages(private val file:File) {
             val bitmap=Bitmap.createBitmap(width,height,Bitmap.Config.ARGB_8888)
             bitmap.eraseColor(Color.WHITE) // PDF şeffaf alanları kâğıt gibi beyaz görünsün.
             page.render(bitmap,null,null,PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-            return bitmap
+            // GPU yüklemesi bu arka plan iş parçacığında olur (kare sırasında değil); yazılım kopyası bırakılır.
+            // Kopya oluşmazsa yazılım görüntüsüyle devam edilir.
+            val gpu=bitmap.copy(Bitmap.Config.HARDWARE,false) ?: return bitmap
+            bitmap.recycle(); return gpu
         }
     }
 

@@ -52,6 +52,8 @@ class ZoomIdleDeviceTest {
             for(page in editor.pages) editor.replacePage(page.id,List(70) { n -> RenderedStroke(PageStroke(pageId=page.id,tool=Tool.PEN,
                 color=Color.BLACK,width=3f,samples=List(120) { k -> Sample(10f+k*8.3f,8f+n*(page.height-16f)/70f,.8f,0f,0f,k.toLong()) })) })
         }
+        fun shell(cmd:String)=inst.uiAutomation.executeShellCommand(cmd).let { fd -> android.os.ParcelFileDescriptor.AutoCloseInputStream(fd).use { it.readBytes().toString(Charsets.UTF_8) } }
+        shell("dumpsys gfxinfo ${inst.targetContext.packageName} reset")
         var draws=0
         val listener=ViewTreeObserver.OnDrawListener { draws++ }
         ui { view.viewTreeObserver.addOnDrawListener(listener) }
@@ -78,13 +80,28 @@ class ZoomIdleDeviceTest {
                 SystemClock.sleep(2000)
                 var after=0; var rendersAfter=0; ui { after=draws; rendersAfter=editor.pdf?.renders ?: 0 }
                 val label="%${Math.round(scale*100)}"
-                report.append("$label:${if(idle) "durgun" else "DONGU"}(${after-before}/pdf ${rendersAfter-rendersBefore}) ")
-                if(!idle || after-before>2 || rendersAfter>rendersBefore) loops+=label
+                // Geç biten tek seferlik iş (yoğun sayfada >500 ms süren karo/sayfa hazırlığı) döngü değildir:
+                // hareket görülürse 2 s daha izlenir; döngü ancak ikinci pencerede de sürerse sayılır.
+                var late=""
+                var looping=!idle || after-before>2 || rendersAfter>rendersBefore
+                if(looping) {
+                    var d2=0; var r2=0; ui { d2=draws; r2=editor.pdf?.renders ?: 0 }
+                    SystemClock.sleep(2000)
+                    var d3=0; var r3=0; ui { d3=draws; r3=editor.pdf?.renders ?: 0 }
+                    late=" sonra(${d3-d2}/pdf ${r3-r2})"
+                    looping=d3-d2>2 || r3>r2
+                }
+                report.append("$label:${if(idle) "durgun" else "DONGU"}(${after-before}/pdf ${rendersAfter-rendersBefore})$late ")
+                if(looping) loops+=label
                 s+=.1f
             }
         } finally {
             ui { view.viewTreeObserver.removeOnDrawListener(listener) }; inst.uiAutomation.setRotation(android.app.UiAutomation.ROTATION_UNFREEZE)
             android.util.Log.i("GVNnotesTest","zoom-idle ${if(portrait) "dik" else "yatay"} $report")
+            val stats=File(inst.targetContext.getExternalFilesDir(null),"zoom-idle-${if(portrait) "dik" else "yatay"}-gfxinfo.txt")
+            runCatching { stats.writeText(shell("dumpsys gfxinfo ${inst.targetContext.packageName}")) }
+            val mi=android.os.Debug.MemoryInfo(); android.os.Debug.getMemoryInfo(mi)
+            android.util.Log.i("GVNnotesTest","zoom-idle-bellek ${if(portrait) "dik" else "yatay"} pss=${mi.totalPss/1024}MB graphics=${(mi.getMemoryStat("summary.graphics") ?: "0").toInt()/1024}MB native=${(mi.getMemoryStat("summary.native-heap") ?: "0").toInt()/1024}MB")
             root.deleteRecursively()
         }
         assertTrue("Bu ölçeklerde görünüm durulmadı (sürekli yeniden çizim): $loops",loops.isEmpty())
