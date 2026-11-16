@@ -6,7 +6,9 @@ Kullanıcı isteği: başka uygulamalardan gelen PDF/resim, Samsung Notes'ta old
 
 Doğrulanan: `build.ps1 -Offline` (JVM testleri, APK, lint) başarılı. Yeni `OpenWithDeviceTest` tablette geçti: kapalıyken PDF açma, not açıkken resim açma, aynı PDF'de kopya oluşmaması, bozuk dosyada not açıkken görünen hata, sistem listesinde yer alma. Manifest değiştiği için 21 tablet biriminin tamamı yeniden çalıştı ve geçti. Tablette `cmd package query-activities` çıktısında PDF ve JPEG için `com.gvn.notes.prototype/.MainActivity`, Samsung Notes ve diğerleriyle aynı listede görüldü. 0.19.0 tablette kurulu.
 
-**Doğrulanmayan:** gerçek WhatsApp, Telegram, Drive ve Dosyalarım'dan açma (test, debug derlemedeki `file://` yoluyla yapıldı; gerçek `content://` okuma, mevcut "PDF içe aktar" ile aynı çağrıları kullanır ama bu akışta denenmedi). Dosyayı PDF türü yerine genel tür (`application/octet-stream`) olarak gönderen uygulamalarda GVNnotes listede çıkmaz. Çok büyük PDF'de kopyalama süresi ölçülmedi.
+Test ayrıca not açıkken, kaydedilmemiş değişiklikten (yeni sayfa) hemen sonra gelen dosyada değişikliğin diske yazıldığını denetler. Gerçek `content://` yolu da denendi: tabletteki bir PDF, medya sağlayıcısı adresiyle (`content://media/external/file/…`, `am start … --grant-read-uri-permission`) test kütüphanesine açıldı; not dosya adıyla oluştu ve düzenleyicide göründü (`logs/open-with-content-uri.png`). Kullanıcı notlarına dokunulmadı.
+
+**Doğrulanmayan:** gerçek WhatsApp, Telegram, Drive ve Dosyalarım'ın kendi ekranlarından açma; kaynak klasör bağlıyken uygulama kapalı durumdan açma (açılış eşitlemesiyle aynı ana denk gelir). Dosyayı PDF türü yerine genel tür (`application/octet-stream`) olarak gönderen uygulamalarda GVNnotes listede çıkmaz. Çok büyük PDF'de kopyalama süresi ölçülmedi.
 
 APK: `dist/GVNnotes-0.19.0.apk`, SHA256 `3b5fd8438b17fe848af167ff9dd9ff101d82e9aa9ec6717c78b4dd005bdbcfde`.
 

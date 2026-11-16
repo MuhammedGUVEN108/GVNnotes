@@ -87,22 +87,26 @@ class OpenWithDeviceTest {
         assertTrue(first[0].isPdf)
 
         // 2) Not açıkken resim gelir: aynı ekran kullanılır (singleTask), açık not kapanır, resim notu açılır.
+        //    Geçişten hemen önce yapılan, henüz kaydedilmemiş değişiklik (yeni sayfa) kaybolmamalı.
+        val open=awaitEditor(3)
+        inst.runOnMainSync { open.addBlankPage() }
         inst.targetContext.startActivity(view(png,"image/png"))
         awaitEditor(1)
         val second=NoteLibrary(root).list()
         assertEquals(2,second.size)
         assertTrue(second.any { it.title=="tahta fotoğrafı" && it.pageCount==1 })
-        assertTrue("İlk not bozulmamalı",second.any { it.key==first[0].key && !it.unreadable && it.pageCount==3 })
+        assertEquals("Geçişten önceki değişiklik kaydedilmeli",4,
+            PageStore(NoteLibrary(root).directory(first[0].key)).open().snapshot!!.pages.size)
 
-        // 3) Aynı PDF yeniden açılır: kopya oluşmaz, ilk not açılır.
+        // 3) Aynı PDF yeniden açılır: kopya oluşmaz, ilk not (eklenen sayfasıyla) açılır.
         inst.targetContext.startActivity(view(pdf,"application/pdf"))
-        awaitEditor(3)
+        awaitEditor(4)
         assertEquals(2,NoteLibrary(root).list().size)
 
         // 4) Açık olan notun dosyası yeniden gelirse hiçbir şey değişmez.
         inst.targetContext.startActivity(view(pdf,"application/pdf"))
         compose.waitForIdle(); android.os.SystemClock.sleep(1500)
-        awaitEditor(3)
+        awaitEditor(4)
         assertEquals(2,NoteLibrary(root).list().size)
 
         // 5) Okunamayan dosya: not açıkken de hata görünür, kütüphane değişmez.
@@ -111,6 +115,6 @@ class OpenWithDeviceTest {
         compose.waitUntil(15000) { runCatching { compose.onAllNodesWithText("İçe aktarılamadı").fetchSemanticsNodes().isNotEmpty() }.getOrDefault(false) }
         compose.onNodeWithText("Tamam").performClick()
         assertEquals(2,NoteLibrary(root).list().size)
-        awaitEditor(3)
+        awaitEditor(4)
     }
 }
