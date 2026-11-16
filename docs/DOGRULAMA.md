@@ -1,5 +1,19 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.20.0 — "Nota Ekle" ve kaynak klasörün taşınması, 16 Kasım 2026
+
+Kullanıcı istekleri: (1) kaynak klasör `Documents/GVNnotes` yerine dahili depolamanın kökündeki `GVNnotes` olsun; (2) başka uygulamadan açılan dosya hemen kaydedilmesin, altta animasyonlu ve ekranı engellemeyen "Nota Ekle" çıksın, basılınca not eklensin ve dosyanın ham hali `GVNnotes` klasörüne gelsin; (3) testlerde tablet uykuya geçmesin.
+
+Yapılan: geçici not (`pending-open.json`), "Nota Ekle" hapı, eklenmeden kapanınca silme (yazı varsa önce sorma), açılışta artık temizliği, `SourceTree.createFile`, `SyncIndex.add/rebase`, kök klasör yoksa eksik tarama, önerilen klasör `primary:GVNnotes`, arayüz metinleri. Tablette `stay_on_while_plugged_in=7` (önce 0 idi; geri almak: Geliştirici seçenekleri → Uyanık kal).
+
+Doğrulanan: `build.ps1 -Offline` (JVM testleri, APK, lint) başarılı. `OpenWithDeviceTest` (3 test) tablette geçti: eklenmeden kütüphaneye/klasöre girmeme; "Nota Ekle" ile not + uzantısı tamamlanmış ham dosya + eşleşen eşitleme kaydı; ardışık iki eşitlemede ikinci not ya da çöp oluşmaması; dokunulmamış geçici notun sessizce silinmesi; yazılmış notta kapatırken sorma ("Nota ekle" ve "Eklemeden kapat"); kaydedilmemiş değişiklikle geçiş; artık temizliği; kimlik yeniden yazma. Ekran görüntüleri incelendi: `logs/open-with-test/01-nota-ekle.png`, `02-eklendi.png`, `03-kapatirken-sor.png`. Kodu değişen 11 tablet birimi yeniden çalıştı ve geçti; değişmeyen 10 birim atlandı.
+
+Tabletteki taşıma: uygulama verisi `yedek/tablet-verisi-2026-11-16-klasor-tasima-oncesi.tar` olarak yedeklendi (351 MB), uygulama durduruldu, `mv /sdcard/Documents/GVNnotes /sdcard/GVNnotes` yapıldı (3 PDF, alt klasörler ve `.GVNnotes-çöp` yerinde). Eski bağlantıyla açılan 0.20.0'da notlar ve çöp listesi yedekle birebir aynı kaldı, hiçbir not çöpe gitmedi; ekranda "bazı klasörler okunamadı" yazdı (`logs/tasima-sonrasi-baglanmadan.png`).
+
+**Doğrulanmayan:** klasörün yeni yerinin uygulamada bağlanması (sistem izin ekranı kullanıcının işidir) ve bağlandıktan sonra üç notun `primary:GVNnotes/…` kimlikleriyle eşleşmesi; gerçek SAF klasörüne "Nota Ekle" ile dosya yazılması (test düz klasör kaynağıyla yapıldı); WhatsApp/Telegram/Drive ekranlarından uçtan uca akış.
+
+APK: `dist/GVNnotes-0.20.0.apk`, SHA256 `261de0f32a17d7c08d3c29fd136d93efb92930699da0675a0cc79a05eff874f8`.
+
 ## 0.19.0 — "Birlikte aç", 16 Kasım 2026
 
 Kullanıcı isteği: başka uygulamalardan gelen PDF/resim, Samsung Notes'ta olduğu gibi doğrudan GVNnotes ile açılabilsin. `MainActivity` `singleTask` oldu; VIEW ve SEND (PDF, JPEG, PNG, WebP) ile SEND_MULTIPLE (resimler) filtreleri eklendi. Gelen dosya kök klasörde not olur ve açılır; not açıkken gelirse açık not olağan kayıt/kapanış yolundan geçer. Aynı içerik bu yolla yeniden açılırsa `opened-index.json` kaydıyla var olan not açılır.
