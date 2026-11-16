@@ -1,8 +1,12 @@
-﻿param([string]$Serial='TABLET-SERI-NO',[switch]$Hepsi,[string[]]$Sadece,[switch]$Durum)
+﻿param([string]$Serial,[switch]$Hepsi,[string[]]$Sadece,[switch]$Durum)
 # Tablet testleri. Her test biriminin ilgili kaynak dosyalari vardir; o dosyalar son basarili calistirmadan beri
 # degismediyse birim atlanir (docs/TEST-DURUMU.md'de tikli). -Hepsi her seyi calistirir; -Sadece ad1,ad2 yalniz onlari.
 $ErrorActionPreference='Stop'
-$adb='C:/Users/Muhammed/AppData/Local/Ajan-Araclari/android/sdk/platform-tools/adb.exe'
+# Tablet seri numarasi ve adb yolu depoda tutulmaz: yerel.ps1 (git disi) $GvnSerial ve istege bagli $GvnAdb tanimlar.
+if(Test-Path -LiteralPath "$PSScriptRoot/yerel.ps1"){ . "$PSScriptRoot/yerel.ps1" }
+if(!$Serial){$Serial=$GvnSerial}
+$adb=$GvnAdb
+if(!$adb){$adb="$env:ANDROID_HOME/platform-tools/adb.exe"}
 $root=$PSScriptRoot
 $ledgerJson="$root/docs/test-durumu.json"
 $ledgerMd="$root/docs/TEST-DURUMU.md"
@@ -88,6 +92,7 @@ foreach($n in $units.Keys){
 if($todo.Count -eq 0){SaveLedger;Write-Output 'Calistirilacak test yok: hepsi guncel. Zorlamak icin -Hepsi.';return}
 SaveLedger
 if($Durum){Write-Output 'Yalniz durum tablosu guncellendi; cihaz testi calistirilmadi.';return}
+if(!$Serial){throw 'Tablet seri numarasi yok: -Serial verin ya da yerel.ps1 icinde $GvnSerial tanimlayin (bkz. yerel.ornek.ps1).'}
 Adb @('install','-r',"$root/app/build/outputs/apk/debug/app-debug.apk") | Out-Null
 Adb @('install','-r',"$root/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk") | Out-Null
 $failed=$null

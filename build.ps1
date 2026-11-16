@@ -1,9 +1,10 @@
 ﻿param([switch]$Offline)
 $ErrorActionPreference='Stop'
-$env:JAVA_HOME='C:/Users/Muhammed/AppData/Local/Ajan-Araclari/java/jdk-21.0.13+9'
-$env:ANDROID_HOME='C:/Users/Muhammed/AppData/Local/Ajan-Araclari/android/sdk'
-$gradle='D:/Sanal Desktop/yerel-araclar/araclar/gradle-8.11.1/bin/gradle.bat'
-if(!(Test-Path -LiteralPath $gradle)){$gradle=Join-Path $PSScriptRoot 'gradlew.bat'}
+# Yerel arac yollari depoda tutulmaz: yerel.ps1 (git disi) JAVA_HOME, ANDROID_HOME ve istege bagli $GvnGradle tanimlar.
+# Ornek: yerel.ornek.ps1. Dosya yoksa ortam degiskenleri ve proje wrapper'i kullanilir.
+if(Test-Path -LiteralPath "$PSScriptRoot/yerel.ps1"){ . "$PSScriptRoot/yerel.ps1" }
+$gradle=$GvnGradle
+if(!$gradle -or !(Test-Path -LiteralPath $gradle)){$gradle=Join-Path $PSScriptRoot 'gradlew.bat'}
 if(!(Test-Path -LiteralPath $gradle)){throw 'Yerel Gradle veya proje wrapper bulunamadi.'}
 New-Item -ItemType Directory -Force "$PSScriptRoot/logs","$PSScriptRoot/dist" | Out-Null
 $arguments=@('-p',$PSScriptRoot,':core:test',':app:testDebugUnitTest',':app:assembleDebug',':app:lintDebug','--console','plain','--no-daemon')

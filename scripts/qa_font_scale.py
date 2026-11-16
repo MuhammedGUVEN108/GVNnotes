@@ -1,11 +1,12 @@
 """Temporary visual QA; always restores the original Android font setting."""
+import os
 import pathlib
 import subprocess
 import time
 
 root=pathlib.Path(__file__).resolve().parent.parent
-adb="C:/Users/Muhammed/AppData/Local/Ajan-Araclari/android/sdk/platform-tools/adb.exe"
-base=[adb,"-s","TABLET-SERI-NO"]
+adb=os.environ.get("GVNNOTES_ADB") or os.path.join(os.environ.get("ANDROID_HOME",""),"platform-tools","adb.exe")
+base=[adb,"-s",os.environ["GVNNOTES_SERIAL"]]  # tablet seri numarası ortam değişkeninden
 previous=subprocess.check_output(base+["shell","settings","get","system","font_scale"]).decode().strip()
 (root/"logs/library-font-scale-before.txt").write_text(previous,encoding="utf-8")
 try:

@@ -54,7 +54,7 @@ Kullanıcının sadeleştirilmiş kütüphane ve üst satır düzenini günlük 
 - [Ürün tanımı](PRODUCT.md) · [Tasarım sistemi](DESIGN.md)
 - [Kodun neyi neden yaptığı](docs/KOD-REHBERI.md) · [Kayıt ve kurtarma](docs/KAYIT-MIMARISI.md)
 - [Tablet test oturumu](docs/TABLET-TESTI.md) · [Test durumu ✅](docs/TEST-DURUMU.md) · [Doğrulama geçmişi](docs/DOGRULAMA.md)
-- Tarihsel: [Eşitleme ve veri modeli gerekçeleri](docs/TASARIM.md) · [GVNpen kaynak incelemesi](docs/GVNPEN-INCELEME.md) · [Samsung Notes incelemesi](research/samsung-notes-4.3.831/RAPOR.md)
+- Tarihsel: [Eşitleme ve veri modeli gerekçeleri](docs/TASARIM.md) · [GVNpen kaynak incelemesi](docs/GVNPEN-INCELEME.md)
 - Arayüz tasarım sheet'leri: `D:/Sanal Desktop/GVNnotes Arayüz Sheetleri/` (seçilen: `6-petrol-ada.html`)
 
 ## Derleme

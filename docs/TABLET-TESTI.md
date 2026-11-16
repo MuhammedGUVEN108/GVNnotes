@@ -6,7 +6,7 @@ Son tam çalıştırma: 12 Kasım 2026, SM-X810 — 13 test biriminin hepsi geç
 
 ## 0. Hazırlık
 
-1. Tableti USB ile bağla; `adb devices` içinde `TABLET-SERI-NO` görünmeli. adb: `C:/Users/Muhammed/AppData/Local/Ajan-Araclari/android/sdk/platform-tools/adb.exe`.
+1. Tableti USB ile bağla; `adb devices` içinde tabletin seri numarası görünmeli. Seri numarası ve adb yolu yerel `yerel.ps1` dosyasındadır (şablon: `yerel.ornek.ps1`).
 2. İsteğe bağlı gerçek not yedeği (yalnız okuma):
    `adb shell run-as com.gvn.notes.prototype tar -cf /sdcard/Download/gvnnotes-yedek.tar files/notebooks files/trash files/sync-index.json`
 3. Paket kimliği `com.gvn.notes.prototype`; kurulum mevcut notların üzerine güncellemedir.

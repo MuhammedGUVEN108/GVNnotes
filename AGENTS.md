@@ -109,11 +109,11 @@ gradle -p . :app:assembleDebugAndroidTest --offline   # build.ps1'deki gradle.ba
 ```
 
 - **Test atlama (kullanıcı isteği):** her birimin ilgili kaynak dosyaları `DEVICE-TEST.ps1` içindeki `$units` tablosundadır; bu dosyaların parmak izi son başarılı çalıştırmadakiyle aynıysa birim atlanır. Kayıt: `docs/test-durumu.json` (makine) ve `docs/TEST-DURUMU.md` (tikli tablo). **Yeni test ya da yeni kaynak dosyası eklerken tabloyu güncelle**; bir birimin kullandığı dosya listede yoksa o dosyadaki değişiklik testi tetiklemez. Sürüm numarası değişikliği testi tetiklemez.
-- adb: `C:/Users/Muhammed/AppData/Local/Ajan-Araclari/android/sdk/platform-tools/adb.exe`, tablet seri no `TABLET-SERI-NO`.
+- Yerel araç yolları (JDK, Android SDK, Gradle, adb) ve tablet seri numarası depoda tutulmaz: git dışındaki `yerel.ps1` içindedir (`yerel.ornek.ps1` şablon). `build.ps1` ve `DEVICE-TEST.ps1` bu dosyayı kendisi yükler. Depo herkese açıktır (GitHub); seri numarası, kişisel yol ya da kullanıcının dosya adlarını belgelere/commit'lere yazma.
 - Tablet testleri kullanıcı notlarına dokunmaz: `files/test-document`, `files/test-library` ve test kaynak klasörleri kullanılır (yalnız debug derlemede, test intent'iyle). GVNpen ayarları testte yalnız bellekte değiştirilir, kaydedilmez.
 - Test seçicileri `testTag` ve içerik açıklamalarına bağlıdır (ör. `library`, `new-note`, `note-title`, `create-note`, `editor`, `back-to-notes`, `page-sorter`, `page-indicator`, `folder-<ad>`, "Sayfa sıralayıcı", "Üst klasör", "<klasör>, N not"). Arayüzü değiştirirken bunları koru ya da testleri birlikte güncelle.
 - Arayüz değişikliğinden sonra tablette ekran görüntüsü al ve bak (`adb exec-out screencap -p > logs/...png`); derlemenin geçmesi görünüşün doğru olduğunu kanıtlamaz.
-- `build.ps1` **UTF-8 BOM'lu** kalmalı: BOM silinirse PowerShell 5.1 Türkçe karakterli Gradle yolunu ("yerel-araclar") bozar ve derleme internetten Gradle indirmeye çalışıp takılır. PowerShell 5.1'de `>` ikili veriyi bozar; ekran görüntüsü için bash/Git Bash kullan.
+- `build.ps1` **UTF-8 BOM'lu** kalmalı: BOM silinirse PowerShell 5.1 Türkçe karakterli yerel Gradle yolunu bozar (`yerel.ps1` de BOM'lu olmalı) ve derleme internetten Gradle indirmeye çalışıp takılır. PowerShell 5.1'de `>` ikili veriyi bozar; ekran görüntüsü için bash/Git Bash kullan.
 
 ## Çalışma kuralları
 
@@ -137,7 +137,6 @@ gradle -p . :app:assembleDebugAndroidTest --offline   # build.ps1'deki gradle.ba
 | [docs/DOGRULAMA.md](docs/DOGRULAMA.md) | Sürüm sürüm doğrulama geçmişi (tarihsel) |
 | [docs/TASARIM.md](docs/TASARIM.md) | Klasör eşitleme ve veri modeli gerekçeleri (tarihsel, kısmen geçerli) |
 | [docs/GVNPEN-INCELEME.md](docs/GVNPEN-INCELEME.md) | GVNpen kaynak incelemesi (tarihsel) |
-| `research/` | Samsung Notes ve Ink API incelemeleri (tarihsel) |
 
 ## 0.14.0 kullanıcı kararı — 14 Kasım 2026
 
