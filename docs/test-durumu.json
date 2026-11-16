@@ -1,122 +1,128 @@
 {
     "selection":  {
                       "result":  "passed",
-                      "fingerprint":  "3100aef36989f200",
-                      "date":  "2026-11-15 00:07",
-                      "version":  "0.18.0"
+                      "fingerprint":  "c904d4761a9259b6",
+                      "date":  "2026-11-16 19:42",
+                      "version":  "0.19.0"
                   },
     "zoom-idle":  {
                       "result":  "passed",
-                      "fingerprint":  "53ee4cd69dd99bec",
-                      "date":  "2026-11-15 01:10",
-                      "version":  "0.18.2"
+                      "fingerprint":  "c629edf8705a071d",
+                      "date":  "2026-11-16 19:45",
+                      "version":  "0.19.0"
                   },
     "viewport":  {
                      "result":  "passed",
-                     "fingerprint":  "bdda85293502e2b4",
-                     "date":  "2026-11-15 01:10",
-                     "version":  "0.18.2"
+                     "fingerprint":  "321ada1438415347",
+                     "date":  "2026-11-16 19:46",
+                     "version":  "0.19.0"
                  },
     "ink-cache":  {
                       "result":  "passed",
-                      "fingerprint":  "7c6a85d9aab39459",
-                      "date":  "2026-11-15 01:11",
-                      "version":  "0.18.2"
+                      "fingerprint":  "9082ba19378580e5",
+                      "date":  "2026-11-16 19:46",
+                      "version":  "0.19.0"
                   },
     "ink-performance":  {
                             "result":  "passed",
-                            "fingerprint":  "b16d4ba0a349d671",
-                            "date":  "2026-11-15 01:11",
-                            "version":  "0.18.2"
+                            "fingerprint":  "fe5ce77c74872da7",
+                            "date":  "2026-11-16 19:46",
+                            "version":  "0.19.0"
                         },
     "persistence-codec-device":  {
                                      "result":  "passed",
-                                     "fingerprint":  "a67bf49611f81d73",
-                                     "date":  "2026-11-15 00:09",
-                                     "version":  "0.18.0"
+                                     "fingerprint":  "4d6574e0f26fc8cb",
+                                     "date":  "2026-11-16 19:47",
+                                     "version":  "0.19.0"
                                  },
     "persistence-ink-regression":  {
                                        "result":  "passed",
-                                       "fingerprint":  "588b8999eccdadf0",
-                                       "date":  "2026-11-15 01:11",
-                                       "version":  "0.18.2"
+                                       "fingerprint":  "8794aed30240aece",
+                                       "date":  "2026-11-16 19:47",
+                                       "version":  "0.19.0"
                                    },
     "vector-export":  {
                           "result":  "passed",
-                          "fingerprint":  "e2832346ba099bbe",
-                          "date":  "2026-11-15 01:11",
-                          "version":  "0.18.2"
+                          "fingerprint":  "245fb55c1379101a",
+                          "date":  "2026-11-16 19:47",
+                          "version":  "0.19.0"
                       },
     "pdf-note":  {
                      "result":  "passed",
-                     "fingerprint":  "d581e674adc2dbc5",
-                     "date":  "2026-11-15 01:11",
-                     "version":  "0.18.2"
+                     "fingerprint":  "078658eb4e21bb44",
+                     "date":  "2026-11-16 19:47",
+                     "version":  "0.19.0"
                  },
+    "open-with":  {
+                      "result":  "passed",
+                      "fingerprint":  "04b366fc22404fbe",
+                      "date":  "2026-11-16 19:42",
+                      "version":  "0.19.0"
+                  },
     "folder-sync":  {
                         "result":  "passed",
-                        "fingerprint":  "2777fa5da021ec78",
-                        "date":  "2026-11-15 01:11",
-                        "version":  "0.18.2"
+                        "fingerprint":  "d07c43bd84866762",
+                        "date":  "2026-11-16 19:47",
+                        "version":  "0.19.0"
                     },
     "note-management":  {
                             "result":  "passed",
-                            "fingerprint":  "4e8e847d001c0e63",
-                            "date":  "2026-11-15 00:10",
-                            "version":  "0.18.0"
+                            "fingerprint":  "770bc2be70d5bb99",
+                            "date":  "2026-11-16 19:47",
+                            "version":  "0.19.0"
                         },
     "two-way":  {
                     "result":  "passed",
-                    "fingerprint":  "9515849d1f4b0b99",
-                    "date":  "2026-11-15 00:10",
-                    "version":  "0.18.0"
+                    "fingerprint":  "e4d5e0b07b2aa7cb",
+                    "date":  "2026-11-16 19:47",
+                    "version":  "0.19.0"
                 },
     "pen-tools":  {
                       "result":  "passed",
-                      "fingerprint":  "39df2d6ddb11150c",
-                      "date":  "2026-11-15 01:12",
-                      "version":  "0.18.2"
+                      "fingerprint":  "9843c6481c6dfb16",
+                      "date":  "2026-11-16 19:47",
+                      "version":  "0.19.0"
                   },
     "lasso":  {
                   "result":  "passed",
-                  "fingerprint":  "b70eaa009f52c09a",
-                  "date":  "2026-11-15 01:12",
-                  "version":  "0.18.2"
+                  "fingerprint":  "5fa2bd23a09ae3ef",
+                  "date":  "2026-11-16 19:47",
+                  "version":  "0.19.0"
               },
     "folder-delete":  {
                           "result":  "passed",
-                          "fingerprint":  "d870e2088d9eea38",
-                          "date":  "2026-11-15 00:10",
-                          "version":  "0.18.0"
+                          "fingerprint":  "8023303958bd25e7",
+                          "date":  "2026-11-16 19:48",
+                          "version":  "0.19.0"
                       },
     "cursor-size":  {
                         "result":  "passed",
-                        "fingerprint":  "d39aca842e4dbd26",
-                        "date":  "2026-11-15 01:12",
-                        "version":  "0.18.2"
+                        "fingerprint":  "5a5cfa635195d5f1",
+                        "date":  "2026-11-16 19:48",
+                        "version":  "0.19.0"
                     },
     "templates":  {
                       "result":  "passed",
-                      "fingerprint":  "6ab547304af7a30d",
-                      "date":  "2026-11-15 01:12",
-                      "version":  "0.18.2"
+                      "fingerprint":  "362041814651aaa7",
+                      "date":  "2026-11-16 19:48",
+                      "version":  "0.19.0"
                   },
     "finger-draw":  {
                         "result":  "passed",
-                        "fingerprint":  "ddbb321a19443938",
-                        "date":  "2026-11-15 01:12",
-                        "version":  "0.18.2"
+                        "fingerprint":  "73072cff4e035839",
+                        "date":  "2026-11-16 19:48",
+                        "version":  "0.19.0"
                     },
     "persistence-restart":  {
                                 "result":  "passed",
-                                "fingerprint":  "22155c15645e18af",
-                                "date":  "2026-11-15 01:12",
-                                "version":  "0.18.2"
+                                "fingerprint":  "d8a7cf2b7ee65210",
+                                "date":  "2026-11-16 19:48",
+                                "version":  "0.19.0"
                             },
     "library":  {
                     "result":  "passed",
-                    "fingerprint":  "b0c1f93e26c9bfcd",
-                    "date":  "2026-11-15 00:11",
-                    "version":  "0.18.0"
+                    "fingerprint":  "9d80098246292ce7",
+                    "date":  "2026-11-16 19:48",
+                    "version":  "0.19.0"
                 }
 }

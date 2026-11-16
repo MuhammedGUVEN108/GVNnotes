@@ -2,10 +2,36 @@
     <application android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:label="GVNnotes" android:allowBackup="false" android:supportsRtl="true"
         android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round">
-        <activity android:name=".MainActivity" android:exported="true">
+        <!-- singleTask: başka uygulamadan dosya açılınca ikinci bir kopya açılmaz; aynı notları iki ekran birden yazamaz. -->
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- "Birlikte aç": WhatsApp, Telegram, Drive, Dosyalarım vb. PDF/resim açarken GVNnotes seçenek olur. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="image/jpeg" />
+                <data android:mimeType="image/png" />
+                <data android:mimeType="image/webp" />
+            </intent-filter>
+            <!-- "Paylaş" menüsü: yalnız paylaşma sunan uygulamalar için. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="image/jpeg" />
+                <data android:mimeType="image/png" />
+                <data android:mimeType="image/webp" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/jpeg" />
+                <data android:mimeType="image/png" />
+                <data android:mimeType="image/webp" />
             </intent-filter>
         </activity>
         <activity android:name=".pen.PenSettingsActivity" android:exported="false" android:label="GVNpen · Ayarlar"

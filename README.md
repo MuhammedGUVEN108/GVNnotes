@@ -12,7 +12,9 @@ Galaxy Tab S9+ ve S Pen için PDF, resim ve boş sayfalar üzerine el yazısıyl
 
 Yapay zekâ ajanları önce [AGENTS.md](AGENTS.md) dosyasını okumalı.
 
-## Mevcut durum — 0.18.3 (15 Kasım 2026)
+## Mevcut durum — 0.19.0 (16 Kasım 2026)
+
+0.19.0: "Birlikte aç". Başka uygulamalarda (WhatsApp, Telegram, Drive, Dosyalarım…) PDF ya da resim açarken GVNnotes seçenek olarak çıkar; "Paylaş" menüsünde de vardır. Dosya kök klasörde not olur ve hemen açılır; aynı dosya yeniden açılırsa var olan not açılır.
 
 0.18.3: seçilen 06 numaralı logo uygulandı. Özgün sayfa/kalem geometrisi korunarak gece mavisi `#18222E`, camgöbeği `#4FC4DD` ve koyu camgöbeği `#11758B` kullanıldı. Eski logo kaynakları ve 0.18.2 APK'sı `assets/brand/eski-surum-0.18.2/` altında korunur. Derleme, JVM testleri ve lint başarılı; tablette yeni simge görüntüyle doğrulandı.
 

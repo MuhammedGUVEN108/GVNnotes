@@ -1,5 +1,15 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.19.0 — "Birlikte aç", 16 Kasım 2026
+
+Kullanıcı isteği: başka uygulamalardan gelen PDF/resim, Samsung Notes'ta olduğu gibi doğrudan GVNnotes ile açılabilsin. `MainActivity` `singleTask` oldu; VIEW ve SEND (PDF, JPEG, PNG, WebP) ile SEND_MULTIPLE (resimler) filtreleri eklendi. Gelen dosya kök klasörde not olur ve açılır; not açıkken gelirse açık not olağan kayıt/kapanış yolundan geçer. Aynı içerik bu yolla yeniden açılırsa `opened-index.json` kaydıyla var olan not açılır.
+
+Doğrulanan: `build.ps1 -Offline` (JVM testleri, APK, lint) başarılı. Yeni `OpenWithDeviceTest` tablette geçti: kapalıyken PDF açma, not açıkken resim açma, aynı PDF'de kopya oluşmaması, bozuk dosyada not açıkken görünen hata, sistem listesinde yer alma. Manifest değiştiği için 21 tablet biriminin tamamı yeniden çalıştı ve geçti. Tablette `cmd package query-activities` çıktısında PDF ve JPEG için `com.gvn.notes.prototype/.MainActivity`, Samsung Notes ve diğerleriyle aynı listede görüldü. 0.19.0 tablette kurulu.
+
+**Doğrulanmayan:** gerçek WhatsApp, Telegram, Drive ve Dosyalarım'dan açma (test, debug derlemedeki `file://` yoluyla yapıldı; gerçek `content://` okuma, mevcut "PDF içe aktar" ile aynı çağrıları kullanır ama bu akışta denenmedi). Dosyayı PDF türü yerine genel tür (`application/octet-stream`) olarak gönderen uygulamalarda GVNnotes listede çıkmaz. Çok büyük PDF'de kopyalama süresi ölçülmedi.
+
+APK: `dist/GVNnotes-0.19.0.apk`, SHA256 `3b5fd8438b17fe848af167ff9dd9ff101d82e9aa9ec6717c78b4dd005bdbcfde`.
+
 ## 0.18.3 — kurumsal gece mavisi logo, 15 Kasım 2026
 
 Kullanıcının seçtiği 06 numaralı tasarım, mevcut Android VectorDrawable geometrisi korunarak uygulandı. Zemin `#18222E`, kıvrım/kalem başlığı `#4FC4DD`, çizgiler/kalem `#11758B`. Adaptive ve yuvarlak ikon aynı kaynakları kullanır. Eski dört XML kaynağı bayt eşitliği kontrol edilerek `assets/brand/eski-surum-0.18.2/` altına yedeklendi; eski APK da korundu.

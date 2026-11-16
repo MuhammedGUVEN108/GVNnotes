@@ -78,16 +78,21 @@ class MainActivity:ComponentActivity() {
             override fun <T:ViewModel> create(modelClass:Class<T>):T =
                 EditorState(if(testDocument)File(filesDir,"test-document") else library.directory(key)) as T
         })[EditorState::class.java]
+        // "Birlikte aç" / "Paylaş": test belgesi modunda yok sayılır.
+        openShared={ incoming -> if(!testDocument) sharedFiles(incoming,debuggable)?.let { libraryState.openShared(it) } }
+        // Aynı intent ekran dönünce, süreç yeniden kurulunca ya da son uygulamalardan dönünce yeniden gelir; dosya bir kez açılır.
+        if(savedInstanceState==null && (intent.flags and android.content.Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY)==0) openShared?.invoke(intent)
         setContent { MaterialTheme(colorScheme=AdaColors) {
             if(testDocument) EditorScreen(editor("test"))
             else {
                 val selected=libraryState.selectedKey
                 if(selected==null) LibraryScreen(libraryState)
-                else key(selected) {
+                else Box(Modifier.fillMaxSize()) { key(selected) {
                     // Klasör adası: notun klasörü ve aynı klasördeki diğer notlar.
                     val path=libraryState.notes.firstOrNull { it.key==selected }?.folderPath
                     val siblings=libraryState.notes.filter { it.folderPath==(path ?: "") }
-                    EditorDestination(editor(selected),FolderContext(selected,path,siblings)) { after ->
+                    val incoming=libraryState.incomingKey?.takeIf { it!=selected }
+                    EditorDestination(editor(selected),FolderContext(selected,path,siblings),incoming,{ libraryState.incomingKey=null }) { after ->
                         libraryState.close(); stores.clear(selected)
                         when(after) {
                             is AfterClose.Open -> libraryState.open(after.key)
@@ -97,8 +102,48 @@ class MainActivity:ComponentActivity() {
                         }
                     }
                 }
+                    // Not açıkken gelen dosyanın durumu ve hatası (kütüphane ekranı kendi bildirimini gösterir).
+                    SharedImportStatus(libraryState)
+                }
             }
         } }
+    }
+    private var openShared:((android.content.Intent)->Unit)?=null
+    override fun onNewIntent(intent:android.content.Intent) {
+        super.onNewIntent(intent); setIntent(intent); openShared?.invoke(intent)
+    }
+    /** Intent bir dosya açma/paylaşma isteği değilse null; isteği taşıyıp okunabilir dosya içermiyorsa boş liste. */
+    private fun sharedFiles(intent:android.content.Intent,debuggable:Boolean):List<SharedFile>? {
+        val uris:List<android.net.Uri> = runCatching { when(intent.action) {
+            android.content.Intent.ACTION_VIEW -> listOfNotNull(intent.data)
+            android.content.Intent.ACTION_SEND -> listOfNotNull(
+                androidx.core.content.IntentCompat.getParcelableExtra(intent,android.content.Intent.EXTRA_STREAM,android.net.Uri::class.java))
+            android.content.Intent.ACTION_SEND_MULTIPLE ->
+                androidx.core.content.IntentCompat.getParcelableArrayListExtra(intent,android.content.Intent.EXTRA_STREAM,android.net.Uri::class.java).orEmpty()
+            else -> return null
+        } }.getOrDefault(emptyList())
+        val resolver=applicationContext.contentResolver
+        // Yalnız content:// kabul edilir; file:// yalnız debug derlemede (cihaz testi) açıktır.
+        return uris.filter { it.scheme=="content" || (debuggable && it.scheme=="file") }.map { uri ->
+            SharedFile(
+                name={ if(uri.scheme=="file") uri.lastPathSegment else
+                    resolver.query(uri,arrayOf(android.provider.OpenableColumns.DISPLAY_NAME),null,null,null)?.use { c ->
+                        if(c.moveToFirst()) c.getString(0) else null } },
+                open={ checkNotNull(resolver.openInputStream(uri)) { "Dosya okunamadı." } })
+        }
+    }
+}
+
+@Composable private fun BoxScope.SharedImportStatus(state:LibraryState) {
+    if(state.importing) Surface(Modifier.align(Alignment.BottomCenter).safeDrawingPadding().padding(bottom=32.dp),
+        shape=RoundedCornerShape(24.dp),shadowElevation=4.dp,color=Ada.Surface) {
+        Row(Modifier.padding(horizontal=20.dp,vertical=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+            CircularProgressIndicator(Modifier.size(20.dp),strokeWidth=2.dp,color=Ada.Accent); Text("İçe aktarılıyor…",color=Ada.Ink)
+        }
+    }
+    state.importError?.let { message ->
+        AlertDialog(onDismissRequest={state.clearImportError()},title={Text("İçe aktarılamadı")},text={Text(message)},
+            confirmButton={TextButton(onClick={state.clearImportError()}){Text("Tamam")}})
     }
 }
 
@@ -122,9 +167,12 @@ sealed interface AfterClose {
     data class NewIn(val path:String):AfterClose
 }
 
-@Composable private fun EditorDestination(editor:EditorState,folder:FolderContext,onClose:(AfterClose?)->Unit) {
+@Composable private fun EditorDestination(editor:EditorState,folder:FolderContext,incoming:String?,onIncomingTaken:()->Unit,
+    onClose:(AfterClose?)->Unit) {
     var closing by rememberSaveable { mutableStateOf(false) }
     var after by remember { mutableStateOf<AfterClose?>(null) }
+    // Başka uygulamadan dosya açıldı: bu not olağan yoldan (kayıt bitince) kapanır, sonra gelen not açılır.
+    LaunchedEffect(incoming) { if(incoming!=null) { after=AfterClose.Open(incoming); closing=true; onIncomingTaken() } }
     BackHandler { closing=true }
     LaunchedEffect(closing) { editor.navigationPending=closing }
     DisposableEffect(editor) { onDispose { editor.navigationPending=false } }

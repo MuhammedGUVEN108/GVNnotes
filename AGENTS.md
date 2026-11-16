@@ -1,6 +1,6 @@
 # AGENTS.md — GVNnotes
 
-Bu dosya, bu projede çalışan yapay zekâ ajanları (Codex, Claude, Cursor, Gemini vb.) içindir. Güncel durum burada yazılıdır; başka bir belgeyle çelişirse **bu dosya ve kod** geçerlidir. Son güncelleme: 14 Kasım 2026, sürüm 0.17.1.
+Bu dosya, bu projede çalışan yapay zekâ ajanları (Codex, Claude, Cursor, Gemini vb.) içindir. Güncel durum burada yazılıdır; başka bir belgeyle çelişirse **bu dosya ve kod** geçerlidir. Son güncelleme: 16 Kasım 2026, sürüm 0.19.0.
 
 ## Proje ne?
 
@@ -23,6 +23,10 @@ Kullanıcı Türkçe konuşur. Arayüz metinleri, belgeler, kod yorumları ve co
 10. **Bırakınca görünüm yalnız ortalanır; ölçek asla zorla değişmez, kullanıcı istediği kadar uzaklaşabilir** (14 Kasım 2026): mevcut 0.1–8 ölçek sınırı korunur. Parmakla veya kalemin gezinme aracıyla hareket serbesttir; bırakınca/savrulma bitince yalnız konum 230 ms yavaşlayan animasyonla düzelir. Ekrandan dar/kısa belge iki eksende ortalanır; büyük belgede kenar payı en çok 20 dp olur. Yeni temas animasyonu keser; yazarken/silerken görünüm oynamaz. Ekrana sığdır düğmesi ve yeniden boyutlandırma sığdırması sürer.
 
 Eskiyen kararlar (artık geçersiz): "GVNpen yalnız arayüz referansı, kodu taşınmaz" (10 Kasım); "çizim motoru Jetpack Ink" (0.1–0.9); "kütüphane Samsung Notes düzeninde" (0.2–0.10). Bu ifadeleri eski belgelerde görürsen uygulama.
+
+## 0.19.0 "Birlikte aç" (16 Kasım 2026)
+
+Kullanıcı isteği: başka uygulamalardan (WhatsApp, Telegram, Drive…) gelen PDF/resim doğrudan GVNnotes ile açılabilsin. Manifest: `MainActivity` `singleTask`; VIEW ve SEND (PDF, JPEG, PNG, WebP), SEND_MULTIPLE (resimler). **`singleTask`'ı kaldırma**: başka uygulamanın görevinde ikinci bir MainActivity açılırsa aynı not klasörlerine iki EditorState yazar. Akış: `MainActivity.sharedFiles` → `LibraryState.openShared` → `NoteLibrary.importShared` (kök klasörde not; tür içeriğe bakılarak belirlenir). Not açıkken gelen dosya `selectedKey`'i doğrudan değiştirmez: `incomingKey` → `EditorDestination` olağan kapanış (kayıt bitince) → `AfterClose.Open`. Intent yalnız bir kez işlenir (`savedInstanceState==null` ve `LAUNCHED_FROM_HISTORY` yok; `onNewIntent`). Yalnız `content://` kabul edilir; `file://` yalnız debug derlemede (test). Aynı içerik bu yolla yeniden açılırsa `files/opened-index.json` (hash → not anahtarı) sayesinde var olan not açılır; not çöpte/silinmişse yenisi oluşur. Bu kayıt yalnız bu yolla açılanları kapsar; karar 5 (klasör eşitlemesinde aynı içerik = ayrı notlar) değişmedi. Test: `OpenWithDeviceTest` (`open-with` birimi).
 
 ## 0.17.2 güncel mimari
 
@@ -78,7 +82,7 @@ Ayrıntılı anlatım: [docs/KOD-REHBERI.md](docs/KOD-REHBERI.md). Kayıt yapıs
 ## Veri ve uyumluluk (dikkat)
 
 - Paket kimliği `com.gvn.notes.prototype` — **değiştirme**; değişirse kullanıcının notları yeni uygulamada görünmez.
-- Kullanıcı verisi: `files/notebooks/<uuid>/` (document-a.gvn / document-b.gvn, preview.png, card.json, kaynak PDF/resim kopyası), `files/trash/`, `files/sync-index.json`, `files/sync-source.txt`, `files/settings.json`, `files/crash-log.txt`, GVNpen ayarları `shared_prefs/gvnpen.xml`.
+- Kullanıcı verisi: `files/notebooks/<uuid>/` (document-a.gvn / document-b.gvn, preview.png, card.json, kaynak PDF/resim kopyası), `files/trash/`, `files/sync-index.json`, `files/opened-index.json`, `files/sync-source.txt`, `files/settings.json`, `files/crash-log.txt`, GVNpen ayarları `shared_prefs/gvnpen.xml`.
 - Kayıt şeması 6 (`PageStore.SCHEMA`): SQLite. Şema 1–4 legacy okuyucuyla dönüştürülür. Daha eski APK yeni şemayı açamaz. Eski SaveEnvelope 64 MiB sınırı yeni DB sınırı değildir.
 - `PagePattern` kodları ve `Prefs.json()` anahtarları kayıtlı veridir; yalnız ekleme yap.
 - Yeni GVNpen varsayılanı gerekiyorsa `Prefs.load` içindeki `DefaultsVersion` göçünü kullan; kullanıcının kendi seçtiği değeri ezme.

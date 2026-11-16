@@ -19,6 +19,9 @@ data class NoteCard(val key:String,val title:String,val modified:Long,val stroke
     val revision:Long,val preview:File?,val unreadable:Boolean=false,val pageCount:Int=1,val isPdf:Boolean=false,
     val folderPath:String="")
 
+/** Başka uygulamadan gelen dosya; ad sorgusu ve akış arka planda çağrılır. */
+class SharedFile(val name:()->String?,val open:()->java.io.InputStream)
+
 /** Dizin adı not kimliğinden bağımsızdır; eski notebooks/main yerinde okunur. */
 class NoteLibrary(private val root:File) {
     fun directory(key:String):File {
@@ -152,6 +155,54 @@ class NoteLibrary(private val root:File) {
                 .joinToString("") { "%02x".format(it) }
             return createPdfNote(pdf,hash,title,folderPath)
         } finally { received.forEach { it.first.delete() }; pdf.delete() }
+    }
+    // --- "Birlikte aç": başka uygulamadan (WhatsApp, Telegram, Drive, Dosyalarım…) gelen PDF/resim ---
+    /** Bu yolla açılmış dosyaların içerik parmak izi → not anahtarı kaydı. Aynı dosya yeniden açılırsa aynı not açılır. */
+    private val openedIndexFile get()=File(root.parentFile,"opened-index.json")
+    private fun readOpened():org.json.JSONObject =
+        runCatching { org.json.JSONObject(openedIndexFile.readText()) }.getOrElse { org.json.JSONObject() }
+    /** Kayıtlı not hâlâ kütüphanedeyse (çöpte ya da silinmiş değilse) anahtarı. */
+    private fun openedKey(hash:String):String? = readOpened().optString(hash).takeIf { key ->
+        key.isNotEmpty() && runCatching { directory(key).isDirectory }.getOrDefault(false)
+    }
+    private fun rememberOpened(hash:String,key:String) {
+        runCatching {
+            val old=readOpened(); val next=org.json.JSONObject()
+            // Artık kütüphanede olmayan notların kayıtları ayıklanır.
+            old.keys().forEach { h -> val k=old.optString(h); if(runCatching { directory(k).isDirectory }.getOrDefault(false)) next.put(h,k) }
+            next.put(hash,key)
+            val file=AtomicFile(openedIndexFile); val out=file.startWrite()
+            try { out.write(next.toString().toByteArray()); file.finishWrite(out) } catch(e:Exception) { file.failWrite(out); throw e }
+        }
+    }
+    private fun looksLikePdf(file:File):Boolean = runCatching {
+        file.inputStream().use { s -> val head=ByteArray(1024); val n=s.read(head); n>=4 && String(head,0,n,Charsets.ISO_8859_1).contains("%PDF") }
+    }.getOrDefault(false)
+    /**
+     * Başka uygulamadan gelen dosyayı kök klasörde not yapar ve anahtarını döndürür. Tür, bildirilen MIME'a değil
+     * içeriğe bakılarak belirlenir: tek PDF doğrudan, resim(ler) sırayla tek notun sayfaları olur. Aynı içerik bu yolla
+     * daha önce açılmışsa ve notu hâlâ kütüphanedeyse yeni kopya oluşturulmaz, o not döner. Özgün dosyaya dokunulmaz.
+     */
+    @Synchronized fun importShared(files:List<SharedFile>):String {
+        require(files.isNotEmpty() && files.size<=PageStore.MAX_PAGES) { "Dosya sayısı desteklenmiyor." }
+        val received=ArrayList<Pair<File,String>>()
+        try {
+            files.forEach { received+=receive(it.open) }
+            val single=received.singleOrNull()
+            val isPdf=single!=null && looksLikePdf(single.first)
+            val hash=if(isPdf) single!!.second
+                else java.security.MessageDigest.getInstance("SHA-256").digest(received.joinToString(",") { it.second }.toByteArray())
+                    .joinToString("") { "%02x".format(it) }
+            openedKey(hash)?.let { return it }
+            val title=runCatching { files.first().name() }.getOrNull()?.trim()?.let { titleOf(it) }?.takeIf { it.isNotBlank() }
+                ?: if(isPdf) "PDF notu" else "Resim notu"
+            val key=if(isPdf) createPdfNote(single!!.first,hash,title) else {
+                val pdf=File.createTempFile("img-",".pdf",incoming)
+                try { imagesToPdf(received.map { it.first },pdf); createPdfNote(pdf,hash,title) } finally { pdf.delete() }
+            }
+            rememberOpened(hash,key)
+            return key
+        } finally { received.forEach { it.first.delete() } }
     }
     /** Elle seçilen PDF'yi kök klasörde not yapar. */
     fun importPdf(title:String,input:()->java.io.InputStream):String {
@@ -496,6 +547,30 @@ class LibraryState(val library:NoteLibrary,private val treeFor:(String)->SourceT
             catch(e:Exception) {
                 if(e is CancellationException) throw e
                 importError="PDF açılamadı. Dosya bozuk, şifreli veya çok büyük olabilir."
+            } finally { importing=false }
+        }
+    }
+    /**
+     * "Birlikte aç" ile gelen notun anahtarı; yalnız başka bir not açıkken dolar. Düzenleyici bunu görünce açık notu
+     * olağan kapanış yoluyla (kayıt bitince) kapatır ve bu nota geçer.
+     */
+    var incomingKey by mutableStateOf<String?>(null)
+    /** Başka uygulamadan gelen PDF/resmi not yapar ve açar. Açık not varsa doğrudan değiştirilmez; [incomingKey] kullanılır. */
+    fun openShared(files:List<SharedFile>) {
+        if(files.isEmpty()) { importError="Dosya açılamadı. Gönderen uygulama dosyayı paylaşmadı."; return }
+        if(importing) { importError="Önceki dosya hâlâ içe aktarılıyor. Bitince yeniden deneyin."; return }
+        importing=true; importError=null
+        viewModelScope.launch {
+            try {
+                val key=withContext(Dispatchers.IO) { library.importShared(files) }
+                when(selectedKey) {
+                    null -> open(key) // Eşitleme sürüyorsa bitince açılır.
+                    key -> {} // Aynı dosyanın notu zaten açık.
+                    else -> incomingKey=key
+                }
+            } catch(e:Exception) {
+                if(e is CancellationException) throw e
+                importError="Dosya açılamadı. Bozuk, şifreli, çok büyük ya da desteklenmeyen biçimde olabilir."
             } finally { importing=false }
         }
     }
