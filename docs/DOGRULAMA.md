@@ -1,5 +1,15 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.20.1 — klasör bulunamayınca bağlama kartı, 16 Kasım 2026
+
+Kullanıcı bildirdi: klasör taşındıktan sonra uygulama hâlâ eski yolu eşitlemeye çalışıyordu. Neden: klasör bağlıyken eşitleme kartı yalnız yeniden tarıyordu, seçiciyi açmıyordu (ajan kullanıcıyı yanlış düğmeye yönlendirmişti). `SourceTree.exists` ve `LibraryState.sourceLost` eklendi: kök klasör yoksa listede "GVNnotes klasörü bulunamadı · Klasörü bağla" kartı çıkar, eşitleme kartı da seçiciyi açar.
+
+Doğrulanan: derleme, JVM testleri, lint; kodu değişen 10 tablet birimi geçti. Kart tablette görüntüyle incelendi (`logs/klasor-bulunamadi-karti.png`). Kullanıcı klasörü yeni yerinde bağladı ve özelliği başarılı buldu. Bağlama sonrası adb ile bakıldı: kaynak `primary:GVNnotes`; taşınan üç not (`d83e30c5`, `c5fdf664`, `5aed160e`) aynı anahtarlarla AVAILABLE ve `primary:GVNnotes/…` kimlikli; 50 çöp kaydının tamamı yeni köke çevrildi (eski kökte kimlik kalmadı). 0.20.0'da doğrulanmayan gerçek SAF yazımı da görüldü: kullanıcının "Nota Ekle" ile eklediği `ornek.pdf` `/sdcard/GVNnotes` kökünde, eşitleme kaydında notuyla eşleşmiş ve boyutu dolmuş (bir eşitleme geçmiş, ikinci not oluşmamış).
+
+**Doğrulanmayan:** Telegram ve Drive'dan açma (kullanıcının eklediği dosyaların hangi uygulamadan geldiği bilinmiyor); resim dosyasının gerçek klasöre yazılması.
+
+APK: `dist/GVNnotes-0.20.1.apk`, SHA256 `1f13a68bb39114a2fc6b53e1e7319039b2bce4bd4dc60b9b07a6945ecbec0300`.
+
 ## 0.20.0 — "Nota Ekle" ve kaynak klasörün taşınması, 16 Kasım 2026
 
 Kullanıcı istekleri: (1) kaynak klasör `Documents/GVNnotes` yerine dahili depolamanın kökündeki `GVNnotes` olsun; (2) başka uygulamadan açılan dosya hemen kaydedilmesin, altta animasyonlu ve ekranı engellemeyen "Nota Ekle" çıksın, basılınca not eklensin ve dosyanın ham hali `GVNnotes` klasörüne gelsin; (3) testlerde tablet uykuya geçmesin.

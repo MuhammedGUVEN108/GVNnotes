@@ -12,7 +12,7 @@ Galaxy Tab S9+ ve S Pen için PDF, resim ve boş sayfalar üzerine el yazısıyl
 
 Yapay zekâ ajanları önce [AGENTS.md](AGENTS.md) dosyasını okumalı.
 
-## Mevcut durum — 0.20.0 (16 Kasım 2026)
+## Mevcut durum — 0.20.1 (16 Kasım 2026)
 
 0.20.0: başka uygulamadan açılan dosya artık hemen kaydedilmez; altta **Nota Ekle** hapı çıkar. Basılınca not kütüphaneye girer ve dosyanın ham hali `GVNnotes` klasörüne yazılır; basılmazsa kapanınca silinir. Kaynak klasör `Documents/GVNnotes` yerine dahili depolamanın kökündeki `GVNnotes` oldu.
 
