@@ -10,8 +10,8 @@ android {
         applicationId = "com.gvn.notes.prototype"
         minSdk = 28
         targetSdk = 35
-        versionCode = 35
-        versionName = "0.20.0"
+        versionCode = 36
+        versionName = "0.20.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true }

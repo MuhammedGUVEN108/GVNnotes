@@ -281,7 +281,12 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
                                     ActionPill(Icons.Outlined.Image,"Resimden not",!state.importing) { pickImages.launch(arrayOf("image/jpeg","image/png","image/webp")) }
                                 }
                             }
-                            if(state.source!=null && !state.writable && current==null && query.isBlank()) item(key="relink",span=full) {
+                            if(state.sourceLost && current==null && query.isBlank()) item(key="lost",span=full) {
+                                LinkCard(title="GVNnotes klasörü bulunamadı",
+                                    body="Klasör taşınmış ya da silinmiş. Notların yerinde duruyor. Eşitlemenin sürmesi için dahili depolamadaki GVNnotes klasörünü bağla.",
+                                    action="Klasörü bağla") { pickFolder.launch(SuggestedFolder) }
+                            }
+                            if(state.source!=null && !state.sourceLost && !state.writable && current==null && query.isBlank()) item(key="relink",span=full) {
                                 LinkCard(title="Kaynak klasöre yazma izni yok",
                                     body="Taşıma, yeni klasör ve çöp işlemlerinin GVNnotes klasörüne de yansıması için klasörü bir kez yeniden bağla.",
                                     action="Yeniden bağla") { pickFolder.launch(SuggestedFolder) }
@@ -450,15 +455,15 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
             HorizontalDivider(Modifier.padding(horizontal=24.dp,vertical=8.dp),color=Ada.Line)
             TreeRow(Icons.Outlined.Delete,"Çöp kutusu",state.trash.size,showTrash,0,Ada.Muted,onClick=onTrash)
         }
-        // Eşitleme kartı: bağlı değilse bağlar, bağlıysa şimdi eşitler.
+        // Eşitleme kartı: bağlı değilse ya da klasör bulunamıyorsa bağlar, bağlıysa şimdi eşitler.
         Row(Modifier.padding(horizontal=14.dp,vertical=8.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Ada.Desk)
-            .clickable { if(state.source==null) onLink() else state.sync() }.padding(horizontal=14.dp,vertical=12.dp).testTag("sync-card"),
+            .clickable { if(state.source==null || state.sourceLost) onLink() else state.sync() }.padding(horizontal=14.dp,vertical=12.dp).testTag("sync-card"),
             verticalAlignment=Alignment.CenterVertically) {
             if(state.syncing) CircularProgressIndicator(Modifier.size(22.dp),strokeWidth=2.dp,color=Ada.Petrol)
-            else Icon(if(state.source==null) Icons.Outlined.FolderSpecial else Icons.Outlined.Sync,null,tint=Ada.Petrol)
+            else Icon(if(state.source==null || state.sourceLost) Icons.Outlined.FolderSpecial else Icons.Outlined.Sync,null,tint=Ada.Petrol)
             Column(Modifier.padding(start=12.dp)) {
-                Text(if(state.source==null) "Kaynak klasör bağlı değil" else sourceLabel(state.source),fontSize=13.sp,fontWeight=FontWeight.SemiBold,color=Ada.Ink)
-                Text(state.syncMessage ?: if(state.source==null) "Bağlamak için dokun" else "Eşitlemek için dokun",
+                Text(if(state.source==null) "Kaynak klasör bağlı değil" else if(state.sourceLost) "Klasör bulunamadı" else sourceLabel(state.source),fontSize=13.sp,fontWeight=FontWeight.SemiBold,color=Ada.Ink)
+                Text(if(state.sourceLost && !state.syncing) "GVNnotes klasörünü bağlamak için dokun" else state.syncMessage ?: if(state.source==null) "Bağlamak için dokun" else "Eşitlemek için dokun",
                     fontSize=12.sp,color=Ada.Muted,maxLines=2,overflow=TextOverflow.Ellipsis)
             }
         }

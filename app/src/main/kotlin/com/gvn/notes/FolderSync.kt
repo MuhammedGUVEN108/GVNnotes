@@ -22,6 +22,8 @@ interface SourceTree {
     fun open(documentId:String):InputStream
     /** Kaynağa yazılabiliyor mu (kalıcı yazma izni). false ise iki yönlü işlemler yapılmaz. */
     val writable:Boolean get()=false
+    /** Kök klasör yerinde mi. Taşınmış/silinmişse false: kullanıcıdan klasörü yeniden bağlaması istenir. */
+    val exists:Boolean get()=true
     /** [parentPath] altında klasör oluşturur. Aynı ad varsa [NameTakenException]. */
     fun createFolder(parentPath:String,name:String):Unit=throw UnsupportedOperationException()
     /** Belgeyi [toPath] klasörüne taşır, yeni belge kimliğini döndürür. Hedefte aynı ad varsa [NameTakenException]. */
@@ -51,6 +53,9 @@ class SafSourceTree(private val context:Context,private val tree:Uri):SourceTree
     private fun uri(id:String)=DocumentsContract.buildDocumentUriUsingTree(tree,id)
     private val rootId get()=DocumentsContract.getTreeDocumentId(tree)
     override val writable:Boolean get()=resolver.persistedUriPermissions.any { it.uri==tree && it.isWritePermission }
+    override val exists:Boolean get()=runCatching {
+        resolver.query(uri(rootId),arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID),null,null,null)?.use { it.moveToFirst() }
+    }.getOrNull()==true
     override fun scan():SourceScan {
         val items=ArrayList<SourceItem>(); var complete=true
         fun walk(parentId:String,path:String,depth:Int) {
@@ -76,9 +81,7 @@ class SafSourceTree(private val context:Context,private val tree:Uri):SourceTree
         }
         val root=runCatching { rootId }.getOrNull() ?: return SourceScan(emptyList(),false)
         // Kök klasör taşınmış/silinmişse tarama eksik sayılır: hiçbir not "dosyası silindi" diye çöpe gitmez.
-        val rootExists=runCatching { resolver.query(uri(root),arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID),null,null,null)
-            ?.use { it.moveToFirst() } }.getOrNull()==true
-        if(!rootExists) return SourceScan(emptyList(),false)
+        if(!exists) return SourceScan(emptyList(),false)
         walk(root,"",0)
         return SourceScan(items,complete)
     }
@@ -180,6 +183,7 @@ private fun uniqueNames(name:String):Sequence<String> {
 
 /** Testler için düz dosya sistemi kaynağı. Belge kimliği göreli yoldur (SAF yerel sağlayıcısındaki gibi taşınınca değişir). */
 class FileSourceTree(private val root:File,override val writable:Boolean=true):SourceTree {
+    override val exists:Boolean get()=root.isDirectory
     override fun scan():SourceScan {
         if(!root.isDirectory) return SourceScan(emptyList(),false)
         val items=ArrayList<SourceItem>()

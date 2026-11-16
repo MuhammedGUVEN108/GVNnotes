@@ -397,6 +397,8 @@ class LibraryState(val library:NoteLibrary,private val treeFor:(String)->SourceT
     var source by mutableStateOf(runCatching { sourceFile.readText().trim().ifEmpty { null } }.getOrNull()); private set
     /** Kaynak klasöre yazma izni var mı; yoksa iki yönlü işlemler reddedilir. */
     var writable by mutableStateOf(false); private set
+    /** Bağlı klasör yerinde bulunamadı (taşınmış ya da silinmiş). Notlar korunur; kullanıcı klasörü yeniden bağlar. */
+    var sourceLost by mutableStateOf(false); private set
     // --- Uygulama ayarları ---
     private val settingsFile=AppSettings.fileFor(library.syncIndexFile.parentFile!!.let { File(it,"notebooks") })
     var settings by mutableStateOf(AppSettings.load(settingsFile)); private set
@@ -407,7 +409,7 @@ class LibraryState(val library:NoteLibrary,private val treeFor:(String)->SourceT
     /** Kaynak klasör bağlantısını kaldırır; notlar ve eşitleme kaydı korunur, klasördeki dosyalara dokunulmaz. */
     fun unlink() {
         runCatching { sourceFile.delete() }
-        source=null; writable=false; syncMessage="Kaynak klasör bağlantısı kaldırıldı."
+        source=null; writable=false; sourceLost=false; syncMessage="Kaynak klasör bağlantısı kaldırıldı."
     }
     var syncing by mutableStateOf(false); private set
     var syncMessage by mutableStateOf<String?>(null); private set
@@ -459,6 +461,7 @@ class LibraryState(val library:NoteLibrary,private val treeFor:(String)->SourceT
     }
     private fun loadSyncState() {
         writable=runCatching { tree()?.writable==true }.getOrDefault(false)
+        sourceLost=source!=null && runCatching { tree()?.exists==false }.getOrDefault(false)
         val index=runCatching { SyncIndex(library.syncIndexFile).load() }.getOrNull() ?: return
         folders=index.folders
         sourceStates=index.entries.associate { it.key to it.state }
