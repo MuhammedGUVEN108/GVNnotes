@@ -11,7 +11,7 @@ Kotlin + Jetpack Compose (kütüphane, düzenleyici çerçevesi, ayarlar) + Andr
 Muhammed; Galaxy Tab S9+ (SM-X810, Android 16) ve S Pen ile kendi ders PDF'leri ve resimleri üzerinde çalışan tek kullanıcı.
 
 ## Product Purpose
-Dosyalarım'daki `Documents/GVNnotes` klasörüne eklenen PDF/resimleri klasör yapısıyla otomatik not yapmak ve S Pen ile doğrudan sayfaya, GVNpen'deki gibi yazmak.
+Dosyalarım'da dahili depolamanın kökündeki `GVNnotes` klasörüne eklenen PDF/resimleri klasör yapısıyla otomatik not yapmak ve S Pen ile doğrudan sayfaya, GVNpen'deki gibi yazmak.
 
 ## Yoğun not davranışı
 100 sayfalık ders dosyasında yıl boyu mürekkep birikmesi temel senaryodur. 0.16.0 sayfa/çizgi bazlı kalıcı SQLite kayıt, noktaları gerektiğinde yükleme ve komşu sayfa hazırlığı kullanır. Zoom sırasında mevcut görüntü ölçeklenir; net karolar arka planda hazırlanır. Soğuk yoğun sayfanın hazırlık süresi olabilir; sınırsız kapasite veya sıfır gecikme garantisi verilmez.

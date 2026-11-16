@@ -62,8 +62,14 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-/** Tabletteki önerilen kaynak klasör: Documents/GVNnotes (kullanıcı kararı, 11 Kasım 2026). */
-private val SuggestedFolder=DocumentsContract.buildDocumentUri("com.android.externalstorage.documents","primary:Documents/GVNnotes")
+/** Tabletteki önerilen kaynak klasör: dahili depolamanın kökündeki GVNnotes (kullanıcı kararı, 16 Kasım 2026; önce Documents/GVNnotes idi). */
+private val SuggestedFolder=DocumentsContract.buildDocumentUri("com.android.externalstorage.documents","primary:GVNnotes")
+/** Bağlı klasörün okunur adı: "Dahili depolama/GVNnotes". Eski yere bağlıysa gerçek yeri gösterir. */
+internal fun sourceLabel(source:String?):String {
+    val id=runCatching { android.net.Uri.parse(source).takeIf { it.scheme=="content" }?.let { DocumentsContract.getTreeDocumentId(it) } }.getOrNull()
+    val path=id?.substringAfter(':',"")?.ifEmpty { null } ?: "GVNnotes"
+    return "Dahili depolama/$path"
+}
 
 internal fun parentOf(path:String)=path.substringBeforeLast('/',"")
 /** Bir üst görünüm: alt klasörden üst klasöre, en üst klasörden ve "Klasörler"den "Tüm notlar"a. */
@@ -76,7 +82,7 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
 
 /**
  * Kütüphane ("Petrol Ada"): solda kalıcı, yüzen klasör ağacı adası; sağda not kartları. [folder] null = Tüm notlar,
- * "" = Klasörler kökü, "A/B" = alt klasör. Klasörler kaynak klasörden (Documents/GVNnotes) gelir.
+ * "" = Klasörler kökü, "A/B" = alt klasör. Klasörler kaynak klasörden (dahili depolama/GVNnotes) gelir.
  * Dar ekranda klasör ağacı çekmece olarak açılır.
  */
 @Composable fun LibraryScreen(state:LibraryState) {
@@ -277,7 +283,7 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
                             }
                             if(state.source!=null && !state.writable && current==null && query.isBlank()) item(key="relink",span=full) {
                                 LinkCard(title="Kaynak klasöre yazma izni yok",
-                                    body="Taşıma, yeni klasör ve çöp işlemlerinin Documents/GVNnotes klasörüne de yansıması için klasörü bir kez yeniden bağla.",
+                                    body="Taşıma, yeni klasör ve çöp işlemlerinin GVNnotes klasörüne de yansıması için klasörü bir kez yeniden bağla.",
                                     action="Yeniden bağla") { pickFolder.launch(SuggestedFolder) }
                             }
                             if(state.source==null && current==null && query.isBlank()) item(key="link",span=full) {
@@ -369,7 +375,7 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
         AlertDialog(onDismissRequest={trashingKeys=null},icon={Icon(Icons.Outlined.Delete,null,tint=Ada.Danger)},
             title={Text("${keys.size} not çöp kutusuna taşınsın mı?")},
             text={Text("Notlar $TRASH_DAYS gün çöp kutusunda kalır, o süre içinde geri yükleyebilirsin."+
-                if(state.source!=null) " Documents/GVNnotes'taki dosyaları .GVNnotes-çöp klasörüne taşınır; hiçbir dosya silinmez." else "")},
+                if(state.source!=null) " GVNnotes klasöründeki dosyaları .GVNnotes-çöp klasörüne taşınır; hiçbir dosya silinmez." else "")},
             confirmButton={TextButton(onClick={ state.trashNotes(keys); selectedKeys=emptyList(); trashingKeys=null },
                 modifier=Modifier.testTag("confirm-selection-trash")){Text("Çöpe at",color=Ada.Danger)}},
             dismissButton={TextButton(onClick={trashingKeys=null}){Text("Vazgeç")}})
@@ -396,7 +402,7 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
                 if(subs>0) append(" ve $subs alt klasörü")
                 append(" silinir. ")
                 append(if(notes>0) "İçindeki $notes not çöp kutusuna taşınır; $TRASH_DAYS gün sonra kalıcı silinir, o zamana kadar geri yükleyebilirsin." else "İçinde not yok.")
-                if(state.source!=null) append(" Documents/GVNnotes'taki dosyalar .GVNnotes-çöp klasörüne taşınır; hiçbir dosya silinmez.")
+                if(state.source!=null) append(" GVNnotes klasöründeki dosyalar .GVNnotes-çöp klasörüne taşınır; hiçbir dosya silinmez.")
             })},
             confirmButton={TextButton(onClick={
                 state.deleteFolder(p)
@@ -451,7 +457,7 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
             if(state.syncing) CircularProgressIndicator(Modifier.size(22.dp),strokeWidth=2.dp,color=Ada.Petrol)
             else Icon(if(state.source==null) Icons.Outlined.FolderSpecial else Icons.Outlined.Sync,null,tint=Ada.Petrol)
             Column(Modifier.padding(start=12.dp)) {
-                Text(if(state.source==null) "Kaynak klasör bağlı değil" else "Documents/GVNnotes",fontSize=13.sp,fontWeight=FontWeight.SemiBold,color=Ada.Ink)
+                Text(if(state.source==null) "Kaynak klasör bağlı değil" else sourceLabel(state.source),fontSize=13.sp,fontWeight=FontWeight.SemiBold,color=Ada.Ink)
                 Text(state.syncMessage ?: if(state.source==null) "Bağlamak için dokun" else "Eşitlemek için dokun",
                     fontSize=12.sp,color=Ada.Muted,maxLines=2,overflow=TextOverflow.Ellipsis)
             }
@@ -512,7 +518,7 @@ internal fun allFoldersOf(state:LibraryState)=(state.folders+state.notes.map { i
     }
 }
 
-@Composable private fun LinkCard(title:String="Documents/GVNnotes klasörünü bağla",
+@Composable private fun LinkCard(title:String="GVNnotes klasörünü bağla",
     body:String="Bu klasöre koyduğun PDF ve resimler alt klasörleriyle birlikte otomatik not olur.",action:String="Bağla",onLink:()->Unit) {
     Island(Modifier.fillMaxWidth(),elevation=2.dp) {
         Row(Modifier.padding(20.dp),verticalAlignment=Alignment.CenterVertically) {
@@ -733,7 +739,7 @@ private enum class SettingsPage(val label:String,val icon:ImageVector) {
                     }
                     SettingsPage.SOURCE -> {
                         Text("Bu klasöre koyduğun PDF ve resimler, alt klasörleriyle birlikte otomatik not olur.",color=Ada.Muted)
-                        SettingCard(if(state.source==null) "Bağlı değil" else "Documents/GVNnotes",when {
+                        SettingCard(if(state.source==null) "Bağlı değil" else sourceLabel(state.source),when {
                             state.source==null -> "Klasörü bağlarsan oradaki PDF ve resimler otomatik not olur."
                             state.writable -> "Okuma ve yazma izni var. Taşıma, yeni klasör ve çöp klasöre de yansır."
                             else -> "Yalnız okuma izni var. Klasöre yansıyan işlemler için yeniden bağla."

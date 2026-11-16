@@ -21,6 +21,14 @@ data class NoteCard(val key:String,val title:String,val modified:Long,val stroke
 
 /** Başka uygulamadan gelen dosya; ad sorgusu ve akış arka planda çağrılır. */
 class SharedFile(val name:()->String?,val open:()->java.io.InputStream)
+/** Açılacak not; [pending] ise henüz kütüphaneye eklenmemiş geçici nottur ("Nota Ekle" bekler). */
+class SharedOpen(val key:String,val pending:Boolean)
+/** "Nota Ekle" sonucu: dosya klasöre de yazıldı / yalnız not eklendi / not eklendi ama klasöre yazılamadı. */
+enum class SharedAdd { WITH_FILE, NOTE_ONLY, COPY_FAILED }
+/** Geçici not işareti ve tek resmin bekleyen ham hali (not klasörünün içinde). */
+const val PENDING_MARK="pending-open.json"
+private const val PENDING_RAW="shared-original.bin"
+private const val FORBIDDEN_NAME_CHARS="/\\:*?\"<>|"
 
 /** Dizin adı not kimliğinden bağımsızdır; eski notebooks/main yerinde okunur. */
 class NoteLibrary(private val root:File) {
@@ -33,7 +41,8 @@ class NoteLibrary(private val root:File) {
     fun list():List<NoteCard> {
         if(!root.exists())return emptyList()
         val directories=checkNotNull(root.listFiles()) { "Not klasörü okunamadı." }
-        return directories.filter { it.isDirectory && runCatching { directory(it.name) }.isSuccess }.mapNotNull { dir ->
+        // "Nota Ekle" bekleyen geçici notlar (başka uygulamadan açılıp henüz eklenmemiş) listede görünmez.
+        return directories.filter { it.isDirectory && runCatching { directory(it.name) }.isSuccess && !File(it,PENDING_MARK).exists() }.mapNotNull { dir ->
             try {
                 val slots=listOf("document-a.gvn","document-b.gvn","notebook.db","notebook.db-wal","library-revision.txt").map { File(dir,it) }
                 val modified=slots.maxOf { it.lastModified() }
@@ -113,11 +122,13 @@ class NoteLibrary(private val root:File) {
      * Alınmış PDF'yi yeni nota dönüştürür: her PDF sayfası bir not sayfası olur.
      * [folderPath] kaynak klasördeki yerdir ("" = kök). Hata olursa yalnız bu çağrıda oluşturulan not silinir.
      */
-    fun createPdfNote(temp:File,hash:String,title:String,folderPath:String=""):String {
+    fun createPdfNote(temp:File,hash:String,title:String,folderPath:String="",pendingMark:String?=null):String {
         val name=title.trim().ifEmpty { "PDF notu" }.take(100)
         val key=UUID.randomUUID().toString(); val dir=directory(key)
         check(!dir.exists() && dir.mkdirs()) { "Yeni not klasörü oluşturulamadı." }
         try {
+            // Geçici not işareti klasöre ilk yazılan dosyadır; liste bu notu hiçbir an işaretsiz görmez.
+            if(pendingMark!=null) File(dir,PENDING_MARK).writeText(pendingMark)
             val target=PageStore.sourceFile(dir)
             check(temp.renameTo(target) || run { temp.copyTo(target); temp.delete(); true }) { "PDF kopyası tamamlanamadı." }
             val sizes=PdfPages.pageSizes(target)
@@ -178,31 +189,116 @@ class NoteLibrary(private val root:File) {
     private fun looksLikePdf(file:File):Boolean = runCatching {
         file.inputStream().use { s -> val head=ByteArray(1024); val n=s.read(head); n>=4 && String(head,0,n,Charsets.ISO_8859_1).contains("%PDF") }
     }.getOrDefault(false)
+    /** Resim türü içerikten okunur: gönderen uygulamanın verdiği ad uzantısız olabilir. Tanınmazsa null. */
+    private fun imageExtension(file:File):String? = runCatching {
+        file.inputStream().use { s ->
+            val h=ByteArray(12); val n=s.read(h)
+            when {
+                n>=4 && h[0]==0x89.toByte() && h[1]=='P'.code.toByte() && h[2]=='N'.code.toByte() && h[3]=='G'.code.toByte() -> "png"
+                n>=2 && h[0]==0xFF.toByte() && h[1]==0xD8.toByte() -> "jpg"
+                n>=12 && String(h,0,4,Charsets.ISO_8859_1)=="RIFF" && String(h,8,4,Charsets.ISO_8859_1)=="WEBP" -> "webp"
+                else -> null
+            }
+        }
+    }.getOrNull()
     /**
-     * Başka uygulamadan gelen dosyayı kök klasörde not yapar ve anahtarını döndürür. Tür, bildirilen MIME'a değil
-     * içeriğe bakılarak belirlenir: tek PDF doğrudan, resim(ler) sırayla tek notun sayfaları olur. Aynı içerik bu yolla
-     * daha önce açılmışsa ve notu hâlâ kütüphanedeyse yeni kopya oluşturulmaz, o not döner. Özgün dosyaya dokunulmaz.
+     * Kaynak klasöre yazılacak dosya adı: yol/yasak karakterler ayıklanır, başta nokta olmaz (gizli dosya taranmaz) ve
+     * uzantı içerikle uyumlu olur (uzantısız ya da yanlış uzantılı ad eşitlemede görünmez, notu çöpe gönderirdi).
      */
-    @Synchronized fun importShared(files:List<SharedFile>):String {
+    private fun folderFileName(display:String?,extension:String):String {
+        var base=(display ?: "").map { if(it in FORBIDDEN_NAME_CHARS || it<' ') '_' else it }.joinToString("").trim().trimStart('.').trim().take(150)
+        if(base.isEmpty()) base=if(extension=="pdf") "PDF notu" else "Resim notu"
+        val has=base.substringAfterLast('.',"").lowercase()
+        val fits=if(extension=="pdf") has=="pdf" else has in setOf("jpg","jpeg","png","webp")
+        return if(fits && base.substringBeforeLast('.').isNotBlank()) base else "$base.$extension"
+    }
+    /** Aynı içerik zaten kütüphanedeyse o notun anahtarı: bu yolla eklenmiş ya da kaynak klasörden gelmiş not. */
+    private fun existingFor(hash:String):String? = openedKey(hash) ?: runCatching {
+        SyncIndex(syncIndexFile).load().entries.firstOrNull { e ->
+            e.sha256==hash && e.state==SourceState.AVAILABLE && directory(e.key).isDirectory && !File(directory(e.key),PENDING_MARK).exists()
+        }?.key
+    }.getOrNull()
+    /**
+     * Başka uygulamadan gelen dosyayı açılacak hale getirir. Tür, bildirilen MIME'a değil içeriğe bakılarak belirlenir:
+     * tek PDF doğrudan, resim(ler) sırayla tek notun sayfaları olur. Aynı içerik zaten kütüphanedeyse o not döner.
+     * Yoksa **geçici** not oluşur ([SharedOpen.pending]): listede görünmez, klasöre kopyalanmaz; kullanıcı "Nota Ekle"
+     * derse [addShared] ile kalıcılaşır, demezse [discardPending] ile silinir. Özgün dosyaya dokunulmaz.
+     */
+    @Synchronized fun importShared(files:List<SharedFile>):SharedOpen {
         require(files.isNotEmpty() && files.size<=PageStore.MAX_PAGES) { "Dosya sayısı desteklenmiyor." }
         val received=ArrayList<Pair<File,String>>()
         try {
             files.forEach { received+=receive(it.open) }
             val single=received.singleOrNull()
             val isPdf=single!=null && looksLikePdf(single.first)
-            val hash=if(isPdf) single!!.second
-                else java.security.MessageDigest.getInstance("SHA-256").digest(received.joinToString(",") { it.second }.toByteArray())
+            // Tek dosyada kimlik dosyanın kendi parmak izidir (klasör eşitlemesiyle aynı); çoklu resimde birleşik.
+            val hash=single?.second
+                ?: java.security.MessageDigest.getInstance("SHA-256").digest(received.joinToString(",") { it.second }.toByteArray())
                     .joinToString("") { "%02x".format(it) }
-            openedKey(hash)?.let { return it }
-            val title=runCatching { files.first().name() }.getOrNull()?.trim()?.let { titleOf(it) }?.takeIf { it.isNotBlank() }
-                ?: if(isPdf) "PDF notu" else "Resim notu"
-            val key=if(isPdf) createPdfNote(single!!.first,hash,title) else {
+            existingFor(hash)?.let { return SharedOpen(it,false) }
+            val display=runCatching { files.first().name() }.getOrNull()
+            // Klasöre yalnız tek dosya ham haliyle yazılabilir; çoklu resim ya da tanınmayan tür yalnız not olur.
+            val extension=if(isPdf) "pdf" else single?.let { imageExtension(it.first) }
+            val fileName=extension?.let { folderFileName(display,it) } ?: ""
+            val title=(if(fileName.isNotEmpty()) titleOf(fileName) else display?.trim()?.let { titleOf(it) }?.takeIf { it.isNotBlank() })
+                ?: "Resim notu"
+            val mark=org.json.JSONObject().put("v",1).put("hash",hash).put("name",fileName).toString()
+            val key=if(isPdf) createPdfNote(single!!.first,hash,title,pendingMark=mark) else {
                 val pdf=File.createTempFile("img-",".pdf",incoming)
-                try { imagesToPdf(received.map { it.first },pdf); createPdfNote(pdf,hash,title) } finally { pdf.delete() }
+                try { imagesToPdf(received.map { it.first },pdf); createPdfNote(pdf,hash,title,pendingMark=mark) } finally { pdf.delete() }
             }
-            rememberOpened(hash,key)
-            return key
+            // Tek resmin ham hali, "Nota Ekle" denirse klasöre yazılmak üzere notun yanında bekler.
+            if(!isPdf && single!=null && fileName.isNotEmpty()) runCatching {
+                val raw=File(directory(key),PENDING_RAW)
+                check(single.first.renameTo(raw) || run { single.first.copyTo(raw,overwrite=true); true })
+            }
+            return SharedOpen(key,true)
         } finally { received.forEach { it.first.delete() } }
+    }
+    fun isPending(key:String)=runCatching { File(directory(key),PENDING_MARK).exists() }.getOrDefault(false)
+    /**
+     * Geçici notu kalıcı yapar ("Nota Ekle"). Kaynak klasör bağlı ve yazılabilirse dosyanın ham hali klasörün köküne
+     * yazılır ve eşitleme kaydına bu notla eşleşmiş olarak girer; böylece sonraki eşitleme ikinci bir not üretmez.
+     * Klasöre yazılamasa da not kütüphaneye eklenir.
+     */
+    @Synchronized fun addShared(key:String,tree:SourceTree?,index:SyncIndex):SharedAdd {
+        val dir=directory(key); val mark=File(dir,PENDING_MARK)
+        if(!mark.exists()) return SharedAdd.NOTE_ONLY
+        val o=runCatching { org.json.JSONObject(mark.readText()) }.getOrElse { org.json.JSONObject() }
+        val hash=o.optString("hash"); val name=o.optString("name")
+        var result=SharedAdd.NOTE_ONLY
+        if(tree!=null && tree.writable && name.isNotEmpty() && hash.isNotEmpty()) {
+            result=try {
+                val raw=File(dir,PENDING_RAW).takeIf { it.isFile } ?: PageStore.sourceFile(dir)
+                val (documentId,actual)=tree.createFile("",name) { raw.inputStream() }
+                // Boyut/zaman bilinmiyor: ilk eşitleme içeriği yeniden okur, parmak izi eşleşince kaydı tamamlar.
+                index.add(SyncEntry(documentId,key,hash,-1,0,"",actual,SourceState.AVAILABLE))
+                SharedAdd.WITH_FILE
+            } catch(e:Exception) { SharedAdd.COPY_FAILED }
+        }
+        check(mark.delete() || !mark.exists()) { "Not eklenemedi." }
+        File(dir,PENDING_RAW).delete()
+        if(hash.isNotEmpty()) rememberOpened(hash,key)
+        return result
+    }
+    /** Eklenmeden kapatılan geçici notu siler. Kalıcı (işaretsiz) nota dokunmaz. */
+    fun discardPending(key:String) {
+        val dir=directory(key)
+        if(File(dir,PENDING_MARK).exists()) dir.deleteRecursively()
+    }
+    /**
+     * Önceki oturumdan kalan geçici notlar (uygulama, not açıkken kapandıysa). Yalnız açılışta, dosya açma isteği
+     * işlenmeden önce çağrılır. Dokunulmamış olan silinir; üzerine yazılmış olan sessizce yok edilmez, çöp kutusuna gider.
+     */
+    fun cleanPending() {
+        root.listFiles()?.filter { it.isDirectory && File(it,PENDING_MARK).exists() }?.forEach { dir ->
+            runCatching {
+                val written=runCatching { (PageStore(dir).open().snapshot?.revision ?: 0)>1 }.getOrDefault(false)
+                if(written && runCatching { directory(dir.name) }.isSuccess) {
+                    File(dir,PENDING_MARK).delete(); File(dir,PENDING_RAW).delete(); moveToTrash(dir.name)
+                } else dir.deleteRecursively()
+            }
+        }
     }
     /** Elle seçilen PDF'yi kök klasörde not yapar. */
     fun importPdf(title:String,input:()->java.io.InputStream):String {
@@ -323,9 +419,23 @@ class LibraryState(val library:NoteLibrary,private val treeFor:(String)->SourceT
     private val syncLock=kotlinx.coroutines.sync.Mutex()
 
     fun link(uri:String) {
+        val old=source
         runCatching { sourceFile.parentFile?.mkdirs(); sourceFile.writeText(uri) }
-        source=uri; sync()
+        source=uri
+        // Klasörün yeri değiştiyse (ör. Documents/GVNnotes → GVNnotes) kayıtlı belge kimlikleri yeni köke çevrilir;
+        // taşınan dosyalar aynı notlarla eşleşir. Süren bir eşitleme varsa bitmesi beklenir (kaydın üzerine yazmasın).
+        viewModelScope.launch {
+            runCatching {
+                val from=old?.let { treeRootId(it) }; val to=treeRootId(uri)
+                if(from!=null && to!=null && from!=to) syncLock.withLock { withContext(Dispatchers.IO) { index.rebase(from,to) } }
+            }
+            sync()
+        }
     }
+    /** SAF ağaç adresinin kök belge kimliği ("primary:GVNnotes"); SAF adresi değilse null. */
+    private fun treeRootId(uri:String):String? = runCatching {
+        android.net.Uri.parse(uri).takeIf { it.scheme=="content" }?.let { android.provider.DocumentsContract.getTreeDocumentId(it) }
+    }.getOrNull()
     /** Kaynak klasörü tarar; not açıkken çalışmaz (açık notun kaydıyla yarışmasın). */
     fun sync() {
         val uri=source ?: return
@@ -361,7 +471,11 @@ class LibraryState(val library:NoteLibrary,private val treeFor:(String)->SourceT
     var selectedKey by mutableStateOf<String?>(null); private set
     private var refreshJob:Job?=null
     private var refreshGeneration=0
-    init { loadSyncState(); refresh(); sync() }
+    init {
+        // Önceki oturumdan kalan geçici notlar, yeni bir dosya açma isteği işlenmeden önce ve yalnız burada temizlenir.
+        runCatching { library.cleanPending() }
+        loadSyncState(); refresh(); sync()
+    }
     fun refresh() {
         val generation=++refreshGeneration
         refreshJob?.cancel()
@@ -562,7 +676,9 @@ class LibraryState(val library:NoteLibrary,private val treeFor:(String)->SourceT
         importing=true; importError=null
         viewModelScope.launch {
             try {
-                val key=withContext(Dispatchers.IO) { library.importShared(files) }
+                val opened=withContext(Dispatchers.IO) { library.importShared(files) }
+                val key=opened.key
+                if(opened.pending) pendingShared=pendingShared+key
                 when(selectedKey) {
                     null -> open(key) // Eşitleme sürüyorsa bitince açılır.
                     key -> {} // Aynı dosyanın notu zaten açık.
@@ -573,6 +689,39 @@ class LibraryState(val library:NoteLibrary,private val treeFor:(String)->SourceT
                 importError="Dosya açılamadı. Bozuk, şifreli, çok büyük ya da desteklenmeyen biçimde olabilir."
             } finally { importing=false }
         }
+    }
+    /** Başka uygulamadan açılmış, henüz "Nota Ekle" denmemiş geçici notlar. Listede görünmezler; eklenmeden kapanınca silinirler. */
+    var pendingShared by mutableStateOf<Set<String>>(emptySet()); private set
+    /** "Nota Ekle" düğmesinin kısa durum yazısı: not anahtarı → metin. [sharedAdding] sürerken "Ekleniyor…". */
+    var sharedNotice by mutableStateOf<Pair<String,String>?>(null); private set
+    var sharedAdding by mutableStateOf(false); private set
+    fun clearSharedNotice() { if(!sharedAdding) sharedNotice=null }
+    /** Geçici notu kütüphaneye ekler; kaynak klasör bağlıysa dosyanın ham halini klasörün köküne yazar. */
+    fun addShared(key:String) {
+        if(key !in pendingShared || sharedAdding) return
+        // Hemen kalıcı sayılır: ekleme sürerken not kapanırsa silinmez.
+        pendingShared=pendingShared-key; sharedAdding=true; sharedNotice=key to "Ekleniyor…"
+        viewModelScope.launch {
+            try {
+                val result=syncLock.withLock { withContext(Dispatchers.IO) { library.addShared(key,tree(),index) } }
+                sharedNotice=key to when(result) {
+                    SharedAdd.WITH_FILE -> "Notlara eklendi · GVNnotes klasörüne kaydedildi"
+                    SharedAdd.NOTE_ONLY -> "Notlara eklendi"
+                    SharedAdd.COPY_FAILED -> "Notlara eklendi · klasöre kopyalanamadı"
+                }
+                loadSyncState()
+            } catch(e:Exception) {
+                if(e is CancellationException) throw e
+                pendingShared=pendingShared+key; sharedNotice=null
+                importError="Not eklenemedi. Depolama alanını kontrol edip yeniden deneyin."
+            } finally { sharedAdding=false }
+        }
+    }
+    /** Eklenmeden kapatılan geçici notu siler (not kapandıktan sonra çağrılır). Kalıcı notta etkisizdir. */
+    fun discardShared(key:String) {
+        if(key !in pendingShared) return
+        pendingShared=pendingShared-key
+        viewModelScope.launch(Dispatchers.IO) { runCatching { library.discardPending(key) } }
     }
     /** Düzenleyiciden kütüphaneye dönüşte açılacak klasör (Klasör adası → "Klasöre git"). */
     var requestedFolder by mutableStateOf<String?>(null)

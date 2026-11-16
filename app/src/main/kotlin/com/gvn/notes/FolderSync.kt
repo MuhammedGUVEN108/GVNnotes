@@ -34,6 +34,11 @@ interface SourceTree {
     fun trashFolder(path:String):Unit=throw UnsupportedOperationException()
     /** [path] klasörü kaynakta var mı. */
     fun hasFolder(path:String):Boolean=false
+    /**
+     * [parentPath] klasörüne yeni dosya yazar; aynı ad varsa "ad (2).pdf" gibi boş bir ad seçilir, hiçbir dosyanın üzerine
+     * yazılmaz. Belge kimliğini ve gerçekte verilen adı döndürür.
+     */
+    fun createFile(parentPath:String,name:String,input:()->InputStream):Pair<String,String> =throw UnsupportedOperationException()
 }
 
 class NameTakenException(name:String):IllegalStateException("Hedefte aynı adda öge var: $name")
@@ -70,6 +75,10 @@ class SafSourceTree(private val context:Context,private val tree:Uri):SourceTree
             dirs.forEach { (id,p) -> walk(id,p,depth+1) }
         }
         val root=runCatching { rootId }.getOrNull() ?: return SourceScan(emptyList(),false)
+        // Kök klasör taşınmış/silinmişse tarama eksik sayılır: hiçbir not "dosyası silindi" diye çöpe gitmez.
+        val rootExists=runCatching { resolver.query(uri(root),arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID),null,null,null)
+            ?.use { it.moveToFirst() } }.getOrNull()==true
+        if(!rootExists) return SourceScan(emptyList(),false)
         walk(root,"",0)
         return SourceScan(items,complete)
     }
@@ -124,6 +133,22 @@ class SafSourceTree(private val context:Context,private val tree:Uri):SourceTree
             id=DocumentsContract.getDocumentId(checkNotNull(DocumentsContract.renameDocument(resolver,uri(id),unique)) { "Dosya adlandırılamadı." })
         }
         return moveDoc(id,dir(fromPath),trash)
+    }
+    override fun createFile(parentPath:String,name:String,input:()->InputStream):Pair<String,String> {
+        val parent=dir(parentPath)
+        val free=(sequenceOf(name)+uniqueNames(name)).first { child(parent,it)==null }
+        val created=checkNotNull(DocumentsContract.createDocument(resolver,uri(parent),mimeOfSource(free),free)) { "Dosya oluşturulamadı." }
+        try {
+            checkNotNull(resolver.openOutputStream(created,"w")) { "Dosya yazılamadı." }.use { out -> input().use { it.copyTo(out) } }
+            val id=DocumentsContract.getDocumentId(created)
+            // Sağlayıcı adı değiştirebilir; taramanın göreceği gerçek ad okunur. Taranmayacak bir ad kabul edilmez.
+            val actual=nameOf(id) ?: free
+            check(!actual.startsWith(".") && isSource(actual,null)) { "Dosya adı eşitlenemez: $actual" }
+            return id to actual
+        } catch(e:Exception) {
+            runCatching { DocumentsContract.deleteDocument(resolver,created) } // Yalnız bu çağrıda oluşturulan yarım dosya.
+            throw e
+        }
     }
     override fun hasFolder(path:String)=runCatching { dir(path); true }.getOrDefault(false)
     override fun trashFolder(path:String) {
@@ -182,6 +207,12 @@ class FileSourceTree(private val root:File,override val writable:Boolean=true):S
         val target=(sequenceOf(name)+uniqueNames(name)).map { File(trash,it) }.first { !it.exists() }
         check(File(root,documentId).renameTo(target)) { "Dosya çöpe taşınamadı." }; return id(target)
     }
+    override fun createFile(parentPath:String,name:String,input:()->InputStream):Pair<String,String> {
+        val parent=at(parentPath).apply { mkdirs() }
+        val target=(sequenceOf(name)+uniqueNames(name)).map { File(parent,it) }.first { !it.exists() }
+        try { target.outputStream().use { out -> input().use { it.copyTo(out) } } } catch(e:Exception) { target.delete(); throw e }
+        return id(target) to target.name
+    }
     override fun hasFolder(path:String)=path.isNotEmpty() && at(path).isDirectory
     override fun trashFolder(path:String) {
         val trash=File(root,TRASH_FOLDER).apply { mkdirs() }; val name=path.substringAfterLast('/')
@@ -198,6 +229,9 @@ private const val MAX_DEPTH=12
 private val IMAGE_EXT=setOf("jpg","jpeg","png","webp")
 fun isImageName(name:String)=name.substringAfterLast('.',"").lowercase() in IMAGE_EXT
 /** Eşitlenen kaynak türleri: PDF ve JPEG/PNG/WebP resimler. */
+private fun mimeOfSource(name:String)=when(name.substringAfterLast('.',"").lowercase()) {
+    "pdf" -> "application/pdf"; "png" -> "image/png"; "webp" -> "image/webp"; else -> "image/jpeg"
+}
 private fun isSource(name:String,mime:String?)=mime=="application/pdf" || name.endsWith(".pdf",ignoreCase=true) ||
     mime in setOf("image/jpeg","image/png","image/webp") || isImageName(name)
 /** Dosya adından not başlığı (uzantısız). */
@@ -209,6 +243,13 @@ enum class SourceState { AVAILABLE, MISSING, REPLACED, TRASHED }
 /** Kaynak dosya ↔ not eşlemesi. Not kimliği UUID kalır; hash yalnız içerik kimliğidir. */
 data class SyncEntry(val documentId:String?,val key:String,val sha256:String,val size:Long,val modified:Long,
     val path:String,val name:String,val state:SourceState,val inTrash:Boolean=false)
+
+fun rebaseId(id:String?,oldRoot:String,newRoot:String):String? = when {
+    id==null -> null
+    id==oldRoot -> newRoot
+    id.startsWith("$oldRoot/") -> newRoot+id.substring(oldRoot.length)
+    else -> id
+}
 
 /** Eşitleme dizini: notebooks kökünün yanında, atomik yazılır. */
 class SyncIndex(private val file:File) {
@@ -223,6 +264,17 @@ class SyncIndex(private val file:File) {
     fun addFolder(path:String) { load(); save(entries,(folders+path).distinct().sorted(),lastSync) }
     /** [path] ve alt klasörlerini listeden çıkarır. */
     fun removeFolderTree(path:String) { load(); save(entries,folders.filterNot { it==path || it.startsWith("$path/") },lastSync) }
+    /** Not için yeni kaynak kaydı ekler ("Nota Ekle" ile klasöre yazılan dosya). */
+    fun add(entry:SyncEntry) { load(); save(entries.filterNot { it.key==entry.key }+entry,folders,lastSync) }
+    /**
+     * Kaynak klasörün yeri değişti (ör. Documents/GVNnotes → GVNnotes): çöptekiler dahil bütün kayıtların belge
+     * kimliklerinde eski kök yeni kökle değiştirilir. Böylece taşınan dosyalar aynı notlarla eşleşmeyi sürdürür.
+     */
+    fun rebase(oldRoot:String,newRoot:String) {
+        load()
+        if(oldRoot==newRoot || oldRoot.isEmpty() || newRoot.isEmpty()) return
+        save(entries.map { e -> e.copy(documentId=rebaseId(e.documentId,oldRoot,newRoot)) },folders,lastSync)
+    }
     var entries:List<SyncEntry> = emptyList(); private set
     var folders:List<String> = emptyList(); private set
     var lastSync:Long=0; private set
@@ -316,8 +368,10 @@ class FolderSync(private val library:NoteLibrary,private val index:SyncIndex,pri
                         }
                         else -> {
                             val candidates=vanished.filter { it.sha256==hash }
-                            if(candidates.size==1) {
-                                val from=candidates.single(); vanished.remove(from)
+                            // Aynı içerikte birden çok kayıp varsa yalnız yolu ve adı aynı olan eşleşir.
+                            val from=candidates.singleOrNull() ?: candidates.singleOrNull { it.path==item.path && it.name==item.name }
+                            if(from!=null) {
+                                vanished.remove(from)
                                 result+=relocate(from,item).copy(documentId=item.documentId,size=item.size,modified=item.modified)
                                 moved++
                             } else {

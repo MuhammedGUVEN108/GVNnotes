@@ -12,7 +12,9 @@ Galaxy Tab S9+ ve S Pen için PDF, resim ve boş sayfalar üzerine el yazısıyl
 
 Yapay zekâ ajanları önce [AGENTS.md](AGENTS.md) dosyasını okumalı.
 
-## Mevcut durum — 0.19.0 (16 Kasım 2026)
+## Mevcut durum — 0.20.0 (16 Kasım 2026)
+
+0.20.0: başka uygulamadan açılan dosya artık hemen kaydedilmez; altta **Nota Ekle** hapı çıkar. Basılınca not kütüphaneye girer ve dosyanın ham hali `GVNnotes` klasörüne yazılır; basılmazsa kapanınca silinir. Kaynak klasör `Documents/GVNnotes` yerine dahili depolamanın kökündeki `GVNnotes` oldu.
 
 0.19.0: "Birlikte aç". Başka uygulamalarda (WhatsApp, Telegram, Drive, Dosyalarım…) PDF ya da resim açarken GVNnotes seçenek olarak çıkar; "Paylaş" menüsünde de vardır. Dosya kök klasörde not olur ve hemen açılır; aynı dosya yeniden açılırsa var olan not açılır.
 
@@ -35,7 +37,7 @@ Yapay zekâ ajanları önce [AGENTS.md](AGENTS.md) dosyasını okumalı.
 - **Yazma:** GVNpen ile aynı. Yüzen, sürüklenebilir araç şeridi: kalem, fosforlu, silgi (tüm çizgi / alan), 2B ve 3B şekiller, akıllı şekil, kalınlık, geri al / yinele, sayfayı temizle, hızlı renkler, renk paleti, gezinme ve okuma modu. S Pen yan düğmesi, kalem yaklaşınca açılan menüler, kalem imleci. GVNpen ayar ekranı.
 - **Arayüz: "Petrol Ada".** Kütüphanede solda kalıcı, yüzen klasör ağacı; önizlemeli not kartları; klasör kısayolları. Düzenleyicide başlıkta konum çipi → Klasör adası (aynı klasördeki notlar, klasöre git, bu klasörde yeni not); sağda kapatılabilir sayfa sıralayıcı; üst satırda sayfa/yakınlaştırma ve araçlar; PDF dışa aktarma üst menüde. GVNpen şeridi de aynı renklerde.
 - **Notlar:** PDF, resim (çoklu resim tek not) ve boş sayfa (Düz, Çizgili, Kareli, Noktalı); çok sayfa; kement seçimi; otomatik ve doğrulanmış kayıt; çöp kutusu; PDF olarak dışa aktarma.
-- **Klasör eşitleme:** `Documents/GVNnotes` alt klasörleriyle otomatik not olur; taşıma, yeni klasör ve çöp iki yönlü.
+- **Klasör eşitleme:** dahili depolamadaki `GVNnotes` klasörü alt klasörleriyle otomatik not olur; taşıma, yeni klasör ve çöp iki yönlü.
 
 **0.14.0:** varsayılan sık liste ve kalıcı kart/liste seçimi; geniş ekranda tekrar eden klasör kartları kaldırıldı, dar ekranda kompakt klasör satırları. Sayfa sıralayıcı belgeyi örtmeyen ayrı yan panel; sayfa/yakınlaştırma bilgisi ve araçlar mevcut üst satırda; alt çubuk ve sürekli kayıt yazıları kaldırıldı. PDF çıktısı özgün PDF sayfalarını korur ve yazıları/şablonları vektör olarak ekler; tam sayfa rasterleştirme kaldırıldı.
 

@@ -19,6 +19,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -92,8 +93,11 @@ class MainActivity:ComponentActivity() {
                     val path=libraryState.notes.firstOrNull { it.key==selected }?.folderPath
                     val siblings=libraryState.notes.filter { it.folderPath==(path ?: "") }
                     val incoming=libraryState.incomingKey?.takeIf { it!=selected }
-                    EditorDestination(editor(selected),FolderContext(selected,path,siblings),incoming,{ libraryState.incomingKey=null }) { after ->
+                    EditorDestination(editor(selected),FolderContext(selected,path,siblings),incoming,{ libraryState.incomingKey=null },
+                        pending=selected in libraryState.pendingShared,onAdd={ libraryState.addShared(selected) }) { after ->
                         libraryState.close(); stores.clear(selected)
+                        // Başka uygulamadan açılıp "Nota Ekle" denmeden kapatılan geçici not silinir.
+                        libraryState.discardShared(selected)
                         when(after) {
                             is AfterClose.Open -> libraryState.open(after.key)
                             is AfterClose.Folder -> libraryState.requestedFolder=after.path
@@ -104,6 +108,7 @@ class MainActivity:ComponentActivity() {
                 }
                     // Not açıkken gelen dosyanın durumu ve hatası (kütüphane ekranı kendi bildirimini gösterir).
                     SharedImportStatus(libraryState)
+                    AddToNotesPill(libraryState,selected)
                 }
             }
         } }
@@ -147,6 +152,45 @@ class MainActivity:ComponentActivity() {
     }
 }
 
+/**
+ * Başka uygulamadan açılan dosya henüz notlara eklenmemişken altta yüzen "Nota Ekle" hapı (kullanıcı isteği, 16 Kasım 2026).
+ * Kalıcı çubuk değildir: yalnız kendi genişliği kadar yer tutar, alttan kayarak gelir, eklenince kısa bir onay gösterip kaybolur.
+ */
+@Composable private fun BoxScope.AddToNotesPill(state:LibraryState,key:String) {
+    val pending=key in state.pendingShared
+    val notice=state.sharedNotice?.takeIf { it.first==key }?.second
+    var shown by remember(key) { mutableStateOf(false) }
+    // Not açılırken hemen değil, sayfa göründükten sonra gelir; onay yazısı kısa süre kalır.
+    LaunchedEffect(key,pending,notice,state.sharedAdding) {
+        when {
+            pending -> { kotlinx.coroutines.delay(450); shown=true }
+            notice!=null -> { shown=true; if(!state.sharedAdding) { kotlinx.coroutines.delay(2400); shown=false; kotlinx.coroutines.delay(300); state.clearSharedNotice() } }
+            else -> shown=false
+        }
+    }
+    // Çıkış animasyonu sırasında son metin görünür kalır.
+    var label by remember(key) { mutableStateOf("Nota Ekle") }
+    label=notice ?: if(pending) "Nota Ekle" else label
+    val done=notice!=null && !state.sharedAdding
+    androidx.compose.animation.AnimatedVisibility(shown && !state.importing,Modifier.align(Alignment.BottomCenter).safeDrawingPadding().padding(bottom=28.dp),
+        enter=androidx.compose.animation.slideInVertically(androidx.compose.animation.core.tween(280)) { it*2 }+
+            androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220))+
+            androidx.compose.animation.scaleIn(androidx.compose.animation.core.tween(280),initialScale=.88f),
+        exit=androidx.compose.animation.slideOutVertically(androidx.compose.animation.core.tween(220)) { it*2 }+
+            androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(180))) {
+        val color by androidx.compose.animation.animateColorAsState(if(pending) Ada.Petrol else Ada.Ink,androidx.compose.animation.core.tween(220),label="add-pill")
+        Surface(onClick={ state.addShared(key) },enabled=pending,shape=RoundedCornerShape(28.dp),color=color,shadowElevation=8.dp,
+            modifier=Modifier.heightIn(min=52.dp).testTag("add-to-notes").semantics { contentDescription=label }) {
+            Row(Modifier.padding(start=20.dp,end=24.dp).animateContentSize(androidx.compose.animation.core.tween(220)),
+                verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+                if(state.sharedAdding && !pending) CircularProgressIndicator(Modifier.size(20.dp),strokeWidth=2.dp,color=Color.White)
+                else Icon(if(done) Icons.Outlined.Check else Icons.Outlined.NoteAdd,null,tint=Color.White,modifier=Modifier.size(22.dp))
+                Text(label,color=Color.White,fontWeight=FontWeight.SemiBold,fontSize=16.sp,maxLines=1)
+            }
+        }
+    }
+}
+
 /** Açık notların editör durumlarını taşır; yapılandırma değişiminde (ekran dönmesi) korunur. */
 class EditorStores:ViewModel() {
     private val stores=HashMap<String,androidx.lifecycle.ViewModelStore>()
@@ -168,19 +212,35 @@ sealed interface AfterClose {
 }
 
 @Composable private fun EditorDestination(editor:EditorState,folder:FolderContext,incoming:String?,onIncomingTaken:()->Unit,
-    onClose:(AfterClose?)->Unit) {
+    pending:Boolean=false,onAdd:()->Unit={},onClose:(AfterClose?)->Unit) {
     var closing by rememberSaveable { mutableStateOf(false) }
     var after by remember { mutableStateOf<AfterClose?>(null) }
+    // Eklenmemiş (geçici) nota yazı yazılmışsa kapanmadan önce sorulur; yazılmamışsa sessizce kapanır ve silinir.
+    var asking by remember { mutableStateOf(false) }
+    var askedNext by remember { mutableStateOf<AfterClose?>(null) }
+    val latestPending by rememberUpdatedState(pending)
+    fun leave(next:AfterClose?) {
+        if(latestPending && editor.ready && editor.editVersion>1) { askedNext=next; asking=true }
+        else { after=next; closing=true }
+    }
     // Başka uygulamadan dosya açıldı: bu not olağan yoldan (kayıt bitince) kapanır, sonra gelen not açılır.
-    LaunchedEffect(incoming) { if(incoming!=null) { after=AfterClose.Open(incoming); closing=true; onIncomingTaken() } }
-    BackHandler { closing=true }
+    LaunchedEffect(incoming) { if(incoming!=null) { leave(AfterClose.Open(incoming)); onIncomingTaken() } }
+    BackHandler { leave(null) }
+    if(asking) AlertDialog(onDismissRequest={asking=false},title={Text("Bu dosya notlarına eklenmedi")},
+        text={Text("Üzerine yazdıkların yalnız nota eklersen saklanır. Eklemeden kapatırsan dosya ve yazdıkların silinir.")},
+        confirmButton={TextButton(onClick={ asking=false; onAdd(); after=askedNext; closing=true },
+            modifier=Modifier.testTag("add-before-close")){Text("Nota ekle")}},
+        dismissButton={Row {
+            TextButton(onClick={asking=false}){Text("Vazgeç")}
+            TextButton(onClick={ asking=false; after=askedNext; closing=true },modifier=Modifier.testTag("discard-shared")){Text("Eklemeden kapat",color=Ada.Danger)}
+        }})
     LaunchedEffect(closing) { editor.navigationPending=closing }
     DisposableEffect(editor) { onDispose { editor.navigationPending=false } }
     LaunchedEffect(closing,editor.busy,editor.ready,editor.savedVersion,editor.editVersion,editor.problem) {
         if(closing && !editor.busy &&
             ((editor.ready && editor.savedVersion==editor.editVersion) || (!editor.ready && editor.problem!=null))) onClose(after)
     }
-    EditorScreen(editor,onBack={after=null; closing=true},closing=closing,folder=folder,onNavigate={ after=it; closing=true })
+    EditorScreen(editor,onBack={ leave(null) },closing=closing,folder=folder,onNavigate={ leave(it) })
     if(closing && editor.ready && editor.problem!=null) {
         AlertDialog(onDismissRequest={closing=false},title={Text("Not henüz kaydedilemedi")},
             text={Text("Değişiklikleri korumak için kaydı yeniden deneyin veya notta kalın.")},

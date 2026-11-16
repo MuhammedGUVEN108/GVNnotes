@@ -1,10 +1,10 @@
 # AGENTS.md — GVNnotes
 
-Bu dosya, bu projede çalışan yapay zekâ ajanları (Codex, Claude, Cursor, Gemini vb.) içindir. Güncel durum burada yazılıdır; başka bir belgeyle çelişirse **bu dosya ve kod** geçerlidir. Son güncelleme: 16 Kasım 2026, sürüm 0.19.0.
+Bu dosya, bu projede çalışan yapay zekâ ajanları (Codex, Claude, Cursor, Gemini vb.) içindir. Güncel durum burada yazılıdır; başka bir belgeyle çelişirse **bu dosya ve kod** geçerlidir. Son güncelleme: 16 Kasım 2026, sürüm 0.20.0.
 
 ## Proje ne?
 
-GVNnotes, Samsung Galaxy Tab S9+ (SM-X810, Android 16 / API 36) ve S Pen için Android not uygulaması. Kullanıcı ders PDF'leri ve resimleri üzerine el yazısıyla not alır. `Documents/GVNnotes` klasörüne konan PDF/resimler alt klasör düzeniyle otomatik not olur. Tek kullanıcı (proje sahibi), yerel kurulum; Play Store yok, internet yok.
+GVNnotes, Samsung Galaxy Tab S9+ (SM-X810, Android 16 / API 36) ve S Pen için Android not uygulaması. Kullanıcı ders PDF'leri ve resimleri üzerine el yazısıyla not alır. Dahili depolamanın kökündeki `GVNnotes` klasörüne (16 Kasım 2026'ya kadar `Documents/GVNnotes`) konan PDF/resimler alt klasör düzeniyle otomatik not olur. Tek kullanıcı (proje sahibi), yerel kurulum; Play Store yok, internet yok.
 
 Kullanıcı Türkçe konuşur. Arayüz metinleri, belgeler, kod yorumları ve commit mesajları **Türkçe** yazılır.
 
@@ -20,11 +20,19 @@ Kullanıcı Türkçe konuşur. Arayüz metinleri, belgeler, kod yorumları ve co
 8. **Klasör silme** alt klasörleriyle birliktedir: içindeki tüm notlar çöpe, kaynak dosyaları ve kalan klasör ağacı `.GVNnotes-çöp`'e taşınır.
 10. Yazarken düğmeler görünüşte pasifleşmez (14 Kasım 2026): işlem gerekirse içeride yok sayılır, kullanıcıya soluk düğme gösterilmez.
 9. Samsung Notes yalnız davranış referansıdır; Samsung kodu, simgesi, görseli kopyalanmaz.
+11. **Kaynak klasör dahili depolamanın kökündeki `GVNnotes`** (16 Kasım 2026; önce `Documents/GVNnotes` idi). Önerilen klasör `primary:GVNnotes`. Klasörün yeri değişince `LibraryState.link` eşitleme kaydındaki belge kimliklerini yeni köke çevirir (`SyncIndex.rebase`); notlar ve yazılar aynı kalır.
+12. **Başka uygulamadan açılan dosya hemen kaydedilmez** (16 Kasım 2026): "kişi yalnızca görüntülemek için açmış olabilir". Dosya geçici not olarak açılır (yazılabilir); altta animasyonlu, ekranı engellemeyen **Nota Ekle** hapı çıkar. Basılınca not kütüphaneye girer ve dosyanın **ham hali** `GVNnotes` klasörünün köküne yazılır. Basılmazsa not kapanınca silinir. Hap kalıcı alt çubuk değildir (o karar sürer).
 10. **Bırakınca görünüm yalnız ortalanır; ölçek asla zorla değişmez, kullanıcı istediği kadar uzaklaşabilir** (14 Kasım 2026): mevcut 0.1–8 ölçek sınırı korunur. Parmakla veya kalemin gezinme aracıyla hareket serbesttir; bırakınca/savrulma bitince yalnız konum 230 ms yavaşlayan animasyonla düzelir. Ekrandan dar/kısa belge iki eksende ortalanır; büyük belgede kenar payı en çok 20 dp olur. Yeni temas animasyonu keser; yazarken/silerken görünüm oynamaz. Ekrana sığdır düğmesi ve yeniden boyutlandırma sığdırması sürer.
 
 Eskiyen kararlar (artık geçersiz): "GVNpen yalnız arayüz referansı, kodu taşınmaz" (10 Kasım); "çizim motoru Jetpack Ink" (0.1–0.9); "kütüphane Samsung Notes düzeninde" (0.2–0.10). Bu ifadeleri eski belgelerde görürsen uygulama.
 
+## 0.20.0 "Nota Ekle" ve klasörün taşınması (16 Kasım 2026)
+
+`NoteLibrary.importShared` artık **geçici** not üretir: not klasöründe `pending-open.json` işareti vardır (klasöre ilk yazılan dosya), `list()` bu notları göstermez, `LibraryState.pendingShared` anahtarlarını tutar. `addShared` işareti kaldırır; kaynak klasör bağlı ve yazılabilirse ham dosyayı `SourceTree.createFile` ile klasörün köküne yazar ve `SyncIndex.add` ile aynı nota bağlar (sonraki eşitleme ikinci not üretmez). **Klasöre yazılan ad taranabilir olmalı**: uzantı içerikten belirlenir (`folderFileName`), başta nokta olmaz; aksi halde tam tarama kaydı "kayıp" sayıp notu çöpe atar. Kayıttaki `sha256` yazılan baytların parmak izidir (tek resimde ham resim `shared-original.bin` olarak bekler). Çoklu resim yalnız not olur, klasöre yazılmaz. Eklenmeden kapanan not `discardShared` ile silinir; üzerine yazılmışsa (`editVersion>1`) kapanmadan önce sorulur (karar ajanındır, kullanıcıya bildirildi). Uygulama not açıkken ölürse kalan geçici notları `cleanPending` yalnız açılışta, dosya açma isteğinden önce temizler: dokunulmamış silinir, üzerine yazılmış çöp kutusuna gider. Aynı içerik kütüphanede varsa (bu yolla eklenmiş ya da klasörden gelmiş) geçici not açılmaz, o not açılır. `SafSourceTree.scan` kök klasör yoksa eksik tarama döner (taşınan/silinen kökte notlar çöpe gitmez).
+
 ## 0.19.0 "Birlikte aç" (16 Kasım 2026)
+
+(0.20.0 ile değişti: dosya artık doğrudan kütüphaneye girmez; yukarıya bak.)
 
 Kullanıcı isteği: başka uygulamalardan (WhatsApp, Telegram, Drive…) gelen PDF/resim doğrudan GVNnotes ile açılabilsin. Manifest: `MainActivity` `singleTask`; VIEW ve SEND (PDF, JPEG, PNG, WebP), SEND_MULTIPLE (resimler). **`singleTask`'ı kaldırma**: başka uygulamanın görevinde ikinci bir MainActivity açılırsa aynı not klasörlerine iki EditorState yazar. Akış: `MainActivity.sharedFiles` → `LibraryState.openShared` → `NoteLibrary.importShared` (kök klasörde not; tür içeriğe bakılarak belirlenir). Not açıkken gelen dosya `selectedKey`'i doğrudan değiştirmez: `incomingKey` → `EditorDestination` olağan kapanış (kayıt bitince) → `AfterClose.Open`. Intent yalnız bir kez işlenir (`savedInstanceState==null` ve `LAUNCHED_FROM_HISTORY` yok; `onNewIntent`). Yalnız `content://` kabul edilir; `file://` yalnız debug derlemede (test). Aynı içerik bu yolla yeniden açılırsa `files/opened-index.json` (hash → not anahtarı) sayesinde var olan not açılır; not çöpte/silinmişse yenisi oluşur. Bu kayıt yalnız bu yolla açılanları kapsar; karar 5 (klasör eşitlemesinde aynı içerik = ayrı notlar) değişmedi. Test: `OpenWithDeviceTest` (`open-with` birimi).
 
@@ -68,7 +76,7 @@ app/src/main/kotlin/com/gvn/notes/
   SampleHandle.kt             Lazy noktalar, 750k örnek LRU ve aktif/komşu pin
   PageHistory.kt              Sayfa listeleriyle 80 adımlı undo/redo
   NoteLibrary.kt              Not dizinleri, liste/kart önbelleği, oluşturma, taşıma, çöp; LibraryState (ViewModel)
-  FolderSync.kt               Documents/GVNnotes SAF eşitlemesi, SyncIndex
+  FolderSync.kt               Dahili depolama/GVNnotes SAF eşitlemesi, SyncIndex
   PdfPages.kt, ImageImport.kt PDF sayfa çizimi, resimden not
   PagePattern.kt              Sayfa şablonları (Düz, Çizgili, Kareli, Noktalı; kod değerleri kayıtta, değiştirme)
   Export.kt                   PDF dışa aktarma (özgün sayfa + vektör yazı)
@@ -82,7 +90,7 @@ Ayrıntılı anlatım: [docs/KOD-REHBERI.md](docs/KOD-REHBERI.md). Kayıt yapıs
 ## Veri ve uyumluluk (dikkat)
 
 - Paket kimliği `com.gvn.notes.prototype` — **değiştirme**; değişirse kullanıcının notları yeni uygulamada görünmez.
-- Kullanıcı verisi: `files/notebooks/<uuid>/` (document-a.gvn / document-b.gvn, preview.png, card.json, kaynak PDF/resim kopyası), `files/trash/`, `files/sync-index.json`, `files/opened-index.json`, `files/sync-source.txt`, `files/settings.json`, `files/crash-log.txt`, GVNpen ayarları `shared_prefs/gvnpen.xml`.
+- Kullanıcı verisi: `files/notebooks/<uuid>/` (document-a.gvn / document-b.gvn, preview.png, card.json, kaynak PDF/resim kopyası; geçici notta `pending-open.json`), `files/trash/`, `files/sync-index.json`, `files/opened-index.json`, `files/sync-source.txt`, `files/settings.json`, `files/crash-log.txt`, GVNpen ayarları `shared_prefs/gvnpen.xml`.
 - Kayıt şeması 6 (`PageStore.SCHEMA`): SQLite. Şema 1–4 legacy okuyucuyla dönüştürülür. Daha eski APK yeni şemayı açamaz. Eski SaveEnvelope 64 MiB sınırı yeni DB sınırı değildir.
 - `PagePattern` kodları ve `Prefs.json()` anahtarları kayıtlı veridir; yalnız ekleme yap.
 - Yeni GVNpen varsayılanı gerekiyorsa `Prefs.load` içindeki `DefaultsVersion` göçünü kullan; kullanıcının kendi seçtiği değeri ezme.

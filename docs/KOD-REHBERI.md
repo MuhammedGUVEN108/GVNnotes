@@ -18,7 +18,7 @@ Güncel genel kurallar: [AGENTS.md](../AGENTS.md). Bu belge, kodu ilk kez okuyan
    - `StrokeBuild`: kayıtlı `PageStroke` ↔ GVNpen çizgisi dönüşümü.
    - `PageStore`: not kaydı (bkz. [KAYIT-MIMARISI.md](KAYIT-MIMARISI.md)).
    - `NoteLibrary`: not dizinleri, kart önbelleği (`card.json`), önizleme PNG'si, oluşturma (klasör seçerek), PDF/resim içe aktarma, taşıma, çöp. `LibraryState` (ViewModel) kütüphane ekranının durumu ve eşitleme tetikleyicisidir; düzenleyiciden gelen "klasöre git / bu klasörde yeni" isteklerini (`requestedFolder`, `requestedNewIn`) taşır.
-   - `FolderSync`: `Documents/GVNnotes` SAF taraması. `SyncIndex` kaynak dosya ↔ not eşlemesini tutar. Eksik tamamlanan tarama hiçbir notu "kayıp" saymaz. Kaynak kazanır; hedefte aynı ad varsa `NameTakenException`.
+   - `FolderSync`: dahili depolama/`GVNnotes` SAF taraması. `SyncIndex` kaynak dosya ↔ not eşlemesini tutar. Eksik tamamlanan tarama hiçbir notu "kayıp" saymaz. Kaynak kazanır; hedefte aynı ad varsa `NameTakenException`.
    - `MainActivity`: tema (`AdaColors`), kütüphane ↔ düzenleyici geçişi ve düzenleyici ekranı. Her açık notun düzenleyicisi kendi `ViewModelStore`'unda yaşar; not kapanınca temizlenir, böylece kapalı notun eski durumu diske geri yazılamaz. `EditorDestination`, geri basıldığında ya da Klasör adasından başka nota geçilirken etkin çizgi ve kayıt bitene kadar bekler (`AfterClose`).
    - `LibraryScreen`: klasör ağacı adası, not kartları, çöp, ayarlar ve yeni not penceresi.
    - `Theme.kt`: Petrol Ada renkleri ve `Island` bileşeni.

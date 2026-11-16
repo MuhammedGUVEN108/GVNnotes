@@ -6,18 +6,18 @@ GVNnotes, Galaxy Tab S9+ ve S Pen için PDF, resim ve boş sayfalar üzerine el 
 
 - **Sol panel (klasör ağacı):** Tüm notlar, Klasörler ve iç içe klasörler (sayılarıyla; ok ile daralt/genişlet), Çöp kutusu. En altta eşitleme kartı (dokun: klasörü bağla ya da şimdi eşitle) ve Ayarlar. Sağ üstteki klasör+ düğmesi yeni klasör açar. Tablet dik tutulup ekran daralırsa panel ☰ düğmesiyle açılan çekmeceye döner.
 - **Yeni not:** sağ üstteki **Yeni not**. Ad ver, konumu (klasör) seç, sayfa türünü seç (Boş, Çizgili, Kareli, Noktalı) → **Notu oluştur**.
-- **Başka uygulamadan açma ("Birlikte aç"):** WhatsApp, Telegram, Drive, Dosyalarım gibi bir uygulamada PDF ya da resme (JPEG, PNG, WebP) dokununca çıkan uygulama listesinde GVNnotes da yer alır; "Paylaş" menüsünde de bulunur. Seçince dosyanın kopyası kök klasörde ("Klasör dışı") dosya adıyla not olur ve hemen açılır. O sırada başka bir not açıksa önce o kaydedilip kapanır. Aynı dosyayı bu yolla yeniden açarsan yeni kopya oluşmaz, üzerine yazdığın not açılır (notu çöpe attıysan yeni not oluşur). Paylaş ile birden çok resim gönderirsen tek not olur.
+- **Başka uygulamadan açma ("Birlikte aç"):** WhatsApp, Telegram, Drive, Dosyalarım gibi bir uygulamada PDF ya da resme (JPEG, PNG, WebP) dokununca çıkan uygulama listesinde GVNnotes da yer alır; "Paylaş" menüsünde de bulunur. Dosya hemen kaydedilmez: açılır, üzerine yazabilirsin, altta **Nota Ekle** düğmesi belirir. Basarsan not kütüphaneye ("Klasör dışı") eklenir ve dosyanın kendisi dahili depolamadaki `GVNnotes` klasörüne kopyalanır. Basmadan kapatırsan hiçbir şey kaydedilmez; üzerine yazı yazdıysan kapatmadan önce sorulur. Aynı dosya zaten notlarındaysa doğrudan o not açılır. Paylaş ile birden çok resim gönderirsen tek not olur (bunlar klasöre kopyalanmaz).
 - **PDF içe aktar / Resimden not:** başlığın altındaki düğmeler. Birden çok resim seçersen tek not olur, her resim bir sayfa. Asıl dosyaya dokunulmaz, kopyası alınır.
 - **Klasör kartları:** bulunduğun klasörün alt klasörleri; dokununca içine girersin. Sol üstteki ← üst klasöre çıkar.
-- **Klasörü sil:** klasör kartının **⋯** menüsü ya da klasörün içindeyken üstteki **⋯ → Bu klasörü sil**. Klasör **alt klasörleriyle birlikte** silinir; içindeki notlar çöp kutusuna, `Documents/GVNnotes`'taki dosyaları `.GVNnotes-çöp` klasörüne gider.
+- **Klasörü sil:** klasör kartının **⋯** menüsü ya da klasörün içindeyken üstteki **⋯ → Bu klasörü sil**. Klasör **alt klasörleriyle birlikte** silinir; içindeki notlar çöp kutusuna, `GVNnotes`'taki dosyaları `.GVNnotes-çöp` klasörüne gider.
 - **Not kartı:** önizleme, ad, tarih, sayfa sayısı, PDF ise "PDF"; Tüm notlar'da klasör adı. **⋯** → Yeniden adlandır, Klasöre taşı, Çöp kutusuna taşı.
 - **Toplu seçim:** bir nota uzun bas → seçim modu. Başka notlara dokunarak ekle/çıkar; üstte **Tümünü seç**, **Taşı**, **Çöpe at**. Geri tuşu ya da ✕ seçimi kapatır.
 - **Ara / sırala:** büyüteç notun adında ve klasöründe arar. **⋯** → Ada / Tarihe göre sırala, Yeni klasör, Ayarlar, Notları yenile, Kaynak klasörü değiştir.
 - **Çöp kutusu:** Geri yükle ya da Kalıcı sil. Notlar **30 gün** kalır, sonra kendiliğinden kalıcı silinir; her notta kalan gün yazar.
 
-## Documents/GVNnotes klasörü (otomatik not)
+## GVNnotes klasörü (otomatik not)
 
-1. Eşitleme kartına ya da Ayarlar → Kaynak klasör → **Klasörü bağla**'ya dokun. Seçici `Documents/GVNnotes` klasöründe açılır: **Bu klasörü kullan → İzin ver**.
+1. Eşitleme kartına ya da Ayarlar → Kaynak klasör → **Klasörü bağla**'ya dokun. Seçici `GVNnotes` klasöründe açılır: **Bu klasörü kullan → İzin ver**.
 2. PDF ve resimlerini bu klasöre, istediğin alt klasör düzeniyle koy (ör. `1. KURUL/Histoloji/...`).
 3. Uygulamayı açınca ya da uygulamaya dönünce klasör taranır; yeni dosyalar not olur, klasör düzeni korunur.
 
