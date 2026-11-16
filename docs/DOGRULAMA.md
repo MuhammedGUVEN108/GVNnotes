@@ -1,5 +1,13 @@
 # İlk prototip doğrulaması — 10 Kasım 2026
 
+## 0.18.3 — kurumsal gece mavisi logo, 15 Kasım 2026
+
+Kullanıcının seçtiği 06 numaralı tasarım, mevcut Android VectorDrawable geometrisi korunarak uygulandı. Zemin `#18222E`, kıvrım/kalem başlığı `#4FC4DD`, çizgiler/kalem `#11758B`. Adaptive ve yuvarlak ikon aynı kaynakları kullanır. Eski dört XML kaynağı bayt eşitliği kontrol edilerek `assets/brand/eski-surum-0.18.2/` altına yedeklendi; eski APK da korundu.
+
+`build.ps1 -Offline`: JVM testleri, APK derleme ve lint başarılı. Tablet üzerine veri silmeden `adb install -r` ile kuruldu; paket sürümü 0.18.3 doğrulandı. Uygulama listesinde GVNpen yanında yeni simge görüntüyle incelendi: `logs/logo-0.18.3-app-info.png` (dosya adı app-info olsa da görüntü uygulama listesidir). Davranış değişikliği yok; cihaz davranış testleri yeniden çalıştırılmadı.
+
+APK: `dist/GVNnotes-0.18.3.apk`, SHA256 `4030d2c260c1ea049e0ddcf93c351687532ba77aa2472d30619bf58e1f21163e`.
+
 ## 0.18.2 — yakınlaştırma ve sayfa geçişinde GPU yükleme takılmaları, 15 Kasım 2026
 
 Kullanıcının dört senaryolu gerçek ölçümünde (PERFORMANS.md) en yavaş %1 kareler yakınlaştırma/sayfa geçişinde 38–40 ms idi; gfxinfo bunları "slow bitmap upload" olarak gösterdi.

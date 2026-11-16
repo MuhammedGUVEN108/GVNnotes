@@ -12,7 +12,9 @@ Galaxy Tab S9+ ve S Pen için PDF, resim ve boş sayfalar üzerine el yazısıyl
 
 Yapay zekâ ajanları önce [AGENTS.md](AGENTS.md) dosyasını okumalı.
 
-## Mevcut durum — 0.18.2 (15 Kasım 2026)
+## Mevcut durum — 0.18.3 (15 Kasım 2026)
+
+0.18.3: seçilen 06 numaralı logo uygulandı. Özgün sayfa/kalem geometrisi korunarak gece mavisi `#18222E`, camgöbeği `#4FC4DD` ve koyu camgöbeği `#11758B` kullanıldı. Eski logo kaynakları ve 0.18.2 APK'sı `assets/brand/eski-surum-0.18.2/` altında korunur. Derleme, JVM testleri ve lint başarılı; tablette yeni simge görüntüyle doğrulandı.
 
 0.18.2: PDF sayfa görüntüleri ve mürekkep karoları GPU'ya arka planda yüklenir; yakınlaştırmada en yavaş kareler belirgin kısaldı.
 

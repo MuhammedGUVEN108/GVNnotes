@@ -8,3 +8,4 @@ dist/
 yedek/
 
 .kotlin/
+assets/**/*.apk
